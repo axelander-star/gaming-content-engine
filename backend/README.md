@@ -7,7 +7,7 @@ FastAPI-API, RQ-Worker und Datenmodell der Gaming Content Engine. Python 3.12+, 
 | Ordner | Inhalt |
 |---|---|
 | `app/` | Einstiegspunkte: `main.py` (API), `worker.py` (Queue-Worker), `seed.py` (Basisdaten) |
-| `api/` | HTTP-Router (aktuell: Health) |
+| `api/` | HTTP-Router: Health, Auth, Benutzer, Einstellungen, Kanäle, Übersicht |
 | `core/` | Konfiguration, Logging, Enums, Statusabläufe (`states.py`) |
 | `database/` | Engine/Session, Basisklassen, Alembic-Migrationen |
 | `models/` | SQLAlchemy-Modelle aller 27 Tabellen, nach Bereich gruppiert |
@@ -30,6 +30,7 @@ export REDIS_PASSWORD=<passwort>
 
 alembic upgrade head        # Schema anlegen
 python -m app.seed          # 4 Plattformen + 8 Kanäle (idempotent)
+python -m app.create_admin --email du@example.com   # erster Admin (Passwort-Abfrage)
 uvicorn app.main:app --reload
 python -m app.worker        # in zweitem Terminal
 ```
@@ -42,6 +43,19 @@ API-Dokumentation (nur außerhalb von Production): http://127.0.0.1:8000/api/doc
 |---|---|---|
 | GET | `/api/health` | Prozess läuft (Liveness) |
 | GET | `/api/health/ready` | PostgreSQL und Redis erreichbar; sonst HTTP 503 |
+| POST | `/api/auth/login` | Anmeldung; setzt HttpOnly-Session- und CSRF-Cookie; Sperre nach 5 Fehlversuchen |
+| POST | `/api/auth/logout`, `/api/auth/logout-all` | Abmelden (dieses Gerät / alle Geräte) |
+| GET | `/api/auth/me` | Angemeldeter Benutzer |
+| GET/POST/PATCH | `/api/users` | Benutzerverwaltung (Admin) |
+| GET | `/api/settings` | Wirksame Steuerung + Betriebseinstellungen (alle Rollen) |
+| PATCH | `/api/settings/controls` | Not-Aus auslösen (Operator) bzw. lösen und Auto-Publish (Admin) |
+| PATCH | `/api/settings/operations` | Budget, Job-Limits, Mindestqualität usw. (Admin) |
+| GET | `/api/channels` | Kanäle |
+| POST | `/api/channels/{id}/pause`, `/resume` | Pausieren (Operator) / Fortsetzen (Admin) |
+| PUT | `/api/channels/{id}/limits` | Sicherheitsgrenzen pro Kanal (Admin) |
+| GET | `/api/overview` | Kennzahlen für die Übersichtsseite |
+
+Alle Endpunkte außer Health und Login brauchen eine Sitzung. Schreibende Anfragen brauchen zusätzlich den Header `X-CSRF-Token` mit dem Wert des Cookies `gce_csrf`.
 
 ## Tests
 

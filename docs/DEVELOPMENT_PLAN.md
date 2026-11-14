@@ -27,12 +27,12 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** `docker compose up` startet alles healthy; Migration läuft; Tests für Modelle, Statusübergänge und Health grün.
 
-### Phase 3 – Anmeldung, Benutzerverwaltung, Dashboard-Grundgerüst
+### Phase 3 – Anmeldung, Benutzerverwaltung, Dashboard-Grundgerüst ✅
 
-- Benutzer, Rollen (`admin`, `operator`, `viewer`), Passwort-Hashing (Argon2), JWT bzw. sichere Sessions
-- Audit-Log für Logins und Einstellungsänderungen
+- Benutzer, Rollen (`admin`, `operator`, `viewer`), Passwort-Hashing (Argon2id), signiertes Session-Token im HttpOnly-Cookie, CSRF-Schutz, Login-Sperre
+- Audit-Log für Logins, Benutzer-, Kanal- und Einstellungsänderungen
 - Next.js-App (App Router, TypeScript strict) mit Login und Navigation: Übersicht, Agenten, Videoproduktion, Publishing, Analytics, Einstellungen, Kosten
-- Einstellungen-Seite mit Not-Aus und Auto-Publish-Schalter (Standard aus)
+- Einstellungen-Seite mit Not-Aus und Auto-Publish-Schalter (Standard aus), Budget/Limits, Kanal-Pausen und -Grenzen, Benutzerverwaltung
 
 **Abnahme:** Login/Logout, Rollenprüfung serverseitig getestet; Frontend baut ohne Typfehler; E2E-Smoke-Test (Playwright).
 

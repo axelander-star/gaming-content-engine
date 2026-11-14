@@ -1,8 +1,8 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 2 abgeschlossen · **Nächste Phase:** 3 (Anmeldung, Benutzerverwaltung, Dashboard-Grundgerüst)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 3 abgeschlossen · **Nächste Phase:** 4 (Master Agent und Agentenverwaltung)
 
-**Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt (Anweisung des Betreibers vom 14.11.2026).
+**Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
 ## Phasenübersicht
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | 1 | Repository, Dokumentation, Architektur, Projektgrundlage | ✅ abgeschlossen |
 | 2 | Docker, PostgreSQL, Redis, Backend | ✅ abgeschlossen |
-| 3 | Anmeldung, Benutzerverwaltung, Dashboard-Grundgerüst | ⏳ offen |
+| 3 | Anmeldung, Benutzerverwaltung, Dashboard-Grundgerüst | ✅ abgeschlossen |
 | 4 | Master Agent und Agentenverwaltung | ⏳ offen |
 | 5 | Trend Research und Game Intelligence | ⏳ offen |
 | 6 | Material Scout und Rights Agent | ⏳ offen |
@@ -23,6 +23,50 @@
 | 13 | TikTok, Instagram, Facebook | ⏳ offen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
+
+## Phase 3 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Anmeldung:** Argon2id-Passwörter mit Richtlinie, signiertes Session-Token im HttpOnly-Cookie, CSRF-Schutz (Double-Submit), Login-Sperre nach 5 Fehlversuchen, Abmelden auf einem bzw. allen Geräten, sofortiger Widerruf bei Rollen- oder Passwortänderung
+- **Rollen** `admin`, `operator`, `viewer`, serverseitig in jedem Endpunkt geprüft; der letzte Admin kann nicht entfernt werden; erster Admin per CLI `python -m app.create_admin` (kein Standardpasswort)
+- **Steuerung:** Not-Aus (Operator darf auslösen, nur Admin lösen) und Auto-Publish-Schalter (nur Admin, nur wenn die Serverkonfiguration es erlaubt); der Worker startet auch bei Not-Aus aus dem Dashboard nicht
+- **Betriebseinstellungen** aus Spezifikation Abschnitt 8: Monatsbudget, max. Produktions- und Renderjobs, Mindestqualität, Mindestabstand, Sprachen, Plattformen, KI-/TTS-Anbieter
+- **Kanäle:** pausieren/fortsetzen und Sicherheitsgrenzen pro Kanal
+- **Audit-Log** für Logins, Fehlversuche, Benutzer-, Kanal- und Einstellungsänderungen
+- **Dashboard** (Next.js 16, TypeScript strict): Login, Navigation mit allen sieben Seiten aus der Spezifikation, Übersicht mit echten Kennzahlen und Systemstatus, vollständige Einstellungsseite, Not-Aus-Banner; die übrigen Seiten zeigen, welche Phase sie füllt
+- **Docker:** Dashboard-Image (standalone, Non-Root), Compose-Dienst `frontend`, Caddy leitet alles außer `/api` ans Dashboard
+- **CI** erweitert um Frontend-Typprüfung, Build, Dashboard-Image und einen E2E-Test gegen echtes Backend
+
+### 2. Geänderte Dateien
+
+Neu: `backend/api/{auth,users,settings,channels,overview,deps,schemas}.py`, `backend/core/security.py`, `backend/services/{controls,audit,rate_limit}.py`, `backend/app/create_admin.py`, Migration `user_session_version`, Tests `test_auth.py`, `test_settings_and_channels.py`, `test_security.py`; komplettes `frontend/` (App, Komponenten, Dashboard-Module, API-Client, E2E-Test, Dockerfile, README).
+Geändert: `backend/app/{main,worker}.py`, `backend/core/config.py`, `backend/models/access.py`, `backend/pyproject.toml`, `docker-compose.yml`, `Caddyfile`, `.env.example`, `.github/workflows/ci.yml` (vorher `backend.yml`), README, CLAUDE.md, ARCHITECTURE, DEVELOPMENT_PLAN, SECURITY, PROJECT_STATUS.
+
+### 3. Durchgeführte Tests
+
+- Backend: `pytest` mit 89 Tests gegen echtes PostgreSQL 16 und Redis 7 (u. a. Cookie-Attribute, gleiche Antwort für unbekannte Konten, Login-Sperre, manipuliertes Token, `alg=none`, CSRF, Abmelden überall, Rollenrechte, letzter Admin, Not-Aus-Regeln, Auto-Publish-Doppelsperre, Validierung der Einstellungen und Kanalgrenzen, Audit-Einträge)
+- Ruff, mypy (strict), Alembic `upgrade` und `check`
+- Frontend: `tsc --noEmit`, `next build`
+- E2E (Playwright, echter Browser gegen echtes Backend, auch mit dem Standalone-Build wie in der CI): Weiterleitung zum Login, falsches Passwort, Anmeldung, alle Seiten, Auto-Publish gesperrt, Not-Aus an und aus mit Banner, Abmelden
+- `docker compose config`, `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 89 von 89 Backend-Tests, Abdeckung 96 %
+- Ruff, mypy, Typprüfung und Build ohne Befund
+- 8 von 8 E2E-Schritten
+- Beim ersten E2E-Lauf fiel auf, dass das Not-Aus-Banner nach dem Lösen sichtbar blieb; behoben und als E2E-Schritt abgesichert
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Dashboard-Image und `docker compose up` des Gesamtsystems konnten lokal nicht gebaut werden (kein Docker-Daemon); die CI baut beide Images.
+- Zwei-Faktor-Anmeldung ist noch nicht umgesetzt (geplant für Phase 15).
+- Die Seiten Agenten, Videoproduktion, Publishing, Analytics und Kosten sind Grundgerüste; ihre Daten entstehen in den jeweiligen Phasen.
+
+### 6. Nächster Schritt
+
+Phase 4: Agenten-Basisklasse und Registry der 18 Agenten, Master Orchestrator mit Gate-Prüfungen (Not-Aus, Agent pausiert, Budget, Rechte, Qualität), Retry und Protokollierung in `agent_runs`/`agent_decisions`, Agenten-Seite im Dashboard mit Aktivieren/Pausieren.
 
 ## Phase 2 – Bericht
 
@@ -64,7 +108,7 @@ Gegen echtes PostgreSQL 16 und Redis 7 (lokal gestartet):
 
 ### 5. Bestehende Fehler / Einschränkungen
 
-- Docker-Image und `docker compose up` konnten nicht gebaut bzw. gestartet werden, weil in der Entwicklungsumgebung kein Docker-Daemon läuft. Code, Migration und Prozesse wurden ohne Container gegen echte Dienste getestet. Der CI-Workflow prüft beim ersten Lauf auf GitHub erneut.
+- Docker-Image und `docker compose up` konnten nicht gebaut bzw. gestartet werden, weil in der Entwicklungsumgebung kein Docker-Daemon läuft. Code, Migration und Prozesse wurden ohne Container gegen echte Dienste getestet. Der CI-Job `docker-build` hat das Image auf GitHub erfolgreich gebaut und gestartet (PR #1).
 - Caddyfile weiterhin nicht mit `caddy validate` geprüft (gleicher Grund).
 - Hinweis aus Abhängigkeiten: Starlette meldet eine Deprecation für den Testclient mit httpx (nur Tests betroffen).
 - Noch keine Anmeldung: Die API hat bisher nur Health-Endpunkte; alles Weitere kommt mit Phase 3 hinter einer Anmeldung.
@@ -124,12 +168,16 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Enums als VARCHAR + CHECK statt PostgreSQL-ENUM | einfachere Migrationen, trotzdem Validierung in der DB |
 | 14.11.2026 | Neue Kanäle: pausiert, `max_posts_per_day = 0` | nichts kann versehentlich veröffentlicht werden, bevor der Betreiber den Kanal einrichtet |
 | 14.11.2026 | Spalte `metrics.measure_window` statt `window` | `window` ist ein reserviertes SQL-Wort |
+| 14.11.2026 | Session im HttpOnly-Cookie + CSRF-Double-Submit statt Token im Browser-Speicher | Token für Skripte unerreichbar (XSS), Dashboard und API auf gleicher Origin |
+| 14.11.2026 | Steuerung in zwei Ebenen (Serverkonfiguration als Obergrenze, Dashboard darunter) | Auto-Publish kann nicht allein per Dashboard-Klick scharf geschaltet werden |
+| 14.11.2026 | Not-Aus: Operator darf auslösen, nur Admin lösen | Im Zweifel schnell stoppen, Wiederanlauf bewusst |
+| 14.11.2026 | Zwei-Faktor-Anmeldung auf Phase 15 verschoben | Bis dahin ein Betreiber; Härtung gebündelt in Phase 15 |
 
 ## Offene Punkte
 
-- Docker-Image-Build und `docker compose up` auf echtem Docker-Host bzw. im ersten CI-Lauf bestätigen
+- `docker compose up` des Gesamtsystems auf einem echten Docker-Host bestätigen (Image-Build ist in der CI grün)
 - Entwickler-Apps bei Google, TikTok und Meta anlegen (Betreiber); Audits können Wochen dauern
 - LLM- und TTS-Anbieter nach aktueller Preisprüfung auswählen – vor Phase 8/9
-- Zwei-Faktor-Anmeldung für Admins – Entscheidung in Phase 3
+- Zwei-Faktor-Anmeldung für Admins – Phase 15
 - Alle ⚠️-Angaben in API_INTEGRATIONS.md gegen aktuelle Anbieterdokumentation prüfen
 - Image-Versionen (n8n `stable`, Uptime Kuma `1`) vor Produktivbetrieb fest pinnen – Phase 15

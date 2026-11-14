@@ -60,6 +60,8 @@ SECRET_PATTERNS = [
     re.compile(r"ghp_[A-Za-z0-9]{36}"),                  # GitHub token
 ]
 
+SKIP_DIRS = {".git", "node_modules", ".next", ".venv", "venv", "__pycache__", ".mypy_cache"}
+
 TEXT_SUFFIXES = {".md", ".yml", ".yaml", ".py", ".sh", ".txt", ".json", ".toml", ""}
 
 failures: list[str] = []
@@ -124,7 +126,7 @@ def check_gitignore() -> None:
 def check_secrets() -> None:
     hits = []
     for path in ROOT.rglob("*"):
-        if not path.is_file() or ".git" in path.parts or path.suffix not in TEXT_SUFFIXES:
+        if not path.is_file() or SKIP_DIRS & set(path.parts) or path.suffix not in TEXT_SUFFIXES:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for pat in SECRET_PATTERNS:
@@ -137,7 +139,7 @@ def check_links() -> None:
     link_re = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
     broken = []
     for md in ROOT.rglob("*.md"):
-        if ".git" in md.parts or "node_modules" in md.parts:
+        if SKIP_DIRS & set(md.parts):
             continue
         for target in link_re.findall(md.read_text(encoding="utf-8")):
             if target.startswith(("http://", "https://", "mailto:")):

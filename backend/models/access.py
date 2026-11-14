@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.enums import NotificationLevel, UserRole
@@ -21,6 +21,8 @@ class User(IdMixin, TimestampMixin, Base):
     role: Mapped[UserRole] = mapped_column(str_enum(UserRole, "user_role"), default=UserRole.VIEWER)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Incremented on logout-all, password change or deactivation -> invalidates sessions.
+    session_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
 
 
 class AuditLog(IdMixin, Base):

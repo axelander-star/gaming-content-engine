@@ -1,14 +1,15 @@
-# Gaming Content Engine – Docker Compose (Stand: Phase 2)
+# Gaming Content Engine – Docker Compose (Stand: Phase 3)
 #
 # Enthält die Infrastrukturdienste, die ohne eigenen Code lauffähig sind.
-# Backend (FastAPI) + Worker seit Phase 2; Frontend (Next.js) folgt in Phase 3.
+# Backend (FastAPI) + Worker seit Phase 2, Dashboard (Next.js) seit Phase 3.
 #
 # Start (Kern):         docker compose up -d --build
 # Mit Reverse Proxy:    docker compose --profile proxy up -d
 # Mit n8n:              docker compose --profile workflow up -d
 # Mit Monitoring:       docker compose --profile monitoring up -d
 #
-# Datenbank, Redis, Backend, n8n und Uptime Kuma sind nur auf 127.0.0.1 erreichbar.
+# Datenbank, Redis, Backend, Dashboard, n8n und Uptime Kuma sind nur auf 127.0.0.1
+# erreichbar; öffentlich nur über Caddy (Profil proxy).
 
 name: gaming-content-engine
 
@@ -111,10 +112,18 @@ services:
         condition: service_healthy
     networks: [internal]
 
-  # --- Phase 3: frontend (Next.js) --------------------------------------
-  # frontend:
-  #   build: ./frontend
-  #   networks: [web]
+  # --- Phase 3: frontend (Next.js dashboard) ---------------------------
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
+    <<: [*restart, *logging]
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - backend
+    networks: [web]
 
   caddy:
     image: caddy:2-alpine

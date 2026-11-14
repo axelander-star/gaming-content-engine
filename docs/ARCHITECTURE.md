@@ -33,7 +33,9 @@ Dieses Dokument beschreibt die Zielarchitektur der Gaming Content Engine. Verbin
                                 └────────────────┘   └───────────────────────┘
 ```
 
-**Dienste (Docker Compose):** `postgres`, `redis`, `backend` (API, Phase 2), `worker` (Agenten, Phase 4), `frontend` (Phase 3), `caddy`, optional `n8n` und `uptime-kuma`.
+**Dienste (Docker Compose):** `postgres`, `redis`, `migrate` (Migration + Seed), `backend` (API), `worker` (Queue, Agenten ab Phase 4), `frontend` (Dashboard), `caddy` (`/api` → backend, Rest → frontend), optional `n8n` und `uptime-kuma`.
+
+**Steuerung in zwei Ebenen:** Die Serverkonfiguration (`.env`) ist die Obergrenze; das Dashboard schaltet innerhalb dieser Grenze (Tabelle `system_settings`, Service `services/controls.py`). Not-Aus gilt, wenn eine der beiden Ebenen ihn setzt; Auto-Publish nur, wenn beide es erlauben und der Modus `live` ist. Details zur Anmeldung: [SECURITY.md](SECURITY.md).
 
 ## 2. Architekturentscheidungen
 
