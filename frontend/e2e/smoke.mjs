@@ -1,4 +1,4 @@
-// End-to-end smoke test for the dashboard (Phase 3, agents page since Phase 4).
+// End-to-end smoke test for the dashboard (Phase 3, agents since Phase 4, trends since Phase 5).
 // Needs a running dashboard (BASE_URL, default http://127.0.0.1:3000) wired to a
 // backend with an admin account (E2E_EMAIL / E2E_PASSWORD) and a running queue
 // worker (`python -m app.worker`) so that a manually started agent really runs.
@@ -85,6 +85,39 @@ try {
     }
     await runs.getByText("Erfolgreich").first().waitFor({ timeout: 5000 });
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/agents.png`, fullPage: true });
+    await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
+    await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
+  });
+
+  await step("Trend Research und Game Intelligence starten, Trends auf der Übersicht", async () => {
+    await page.getByRole("link", { name: "Agenten", exact: true }).click();
+    for (const agent of ["Trend Research", "Game Intelligence"]) {
+      await page.getByRole("button", { name: `${agent} jetzt ausführen` }).click();
+      await page.getByText(`${agent} wurde gestartet.`).waitFor();
+      const runs = page.locator("section").filter({ hasText: `Letzte Läufe: ${agent}` });
+      let done = false;
+      for (let i = 0; i < 15 && !done; i++) {
+        await page.getByRole("button", { name: agent, exact: true }).click();
+        done = await runs
+          .getByText("Erfolgreich")
+          .first()
+          .waitFor({ timeout: 2000 })
+          .then(() => true)
+          .catch(() => false);
+        if (!done) await page.reload();
+      }
+      assert.ok(done, `${agent} did not finish successfully`);
+    }
+    await page.getByRole("link", { name: "Übersicht" }).click();
+    const trends = page.locator("section").filter({ hasText: "Aktuelle Trends" });
+    await trends.getByText("Testdaten", { exact: true }).waitFor();
+    await trends.locator("tbody tr").nth(9).waitFor();
+    await trends.getByText(/^Testdaten\. Top-Trend \(DE\)/).waitFor();
+    await trends.getByRole("button", { name: "Englisch" }).click();
+    await trends.getByText(/Top-Trend \(EN\)/).waitFor();
+    await trends.locator("tbody tr").first().getByRole("button").first().click();
+    await trends.getByText("Zielgruppe:").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/trends.png`, fullPage: true });
     await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
   });

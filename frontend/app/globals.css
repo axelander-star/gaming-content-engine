@@ -449,3 +449,40 @@ td .error.small {
 td .badge {
   white-space: nowrap;
 }
+
+/* --- Trends (Phase 5) --- */
+.trend-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.segmented button {
+  background: transparent;
+  border: 0;
+  padding: 6px 12px;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+}
+.segmented button.active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.trend-summary {
+  margin: 4px 0 12px;
+}
+.game-details ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.game-details p {
+  margin: 4px 0;
+}

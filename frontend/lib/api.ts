@@ -9,10 +9,14 @@ import type {
   Budget,
   Channel,
   EffectiveControls,
+  Game,
+  Language,
   OperationsSettings,
   Overview,
   Readiness,
   SettingsResponse,
+  TrendItem,
+  TrendReport,
   User,
   UserRole,
 } from "./types";
@@ -110,6 +114,13 @@ export const api = {
     request<{ agent: string; job_id: string }>(`/agents/${encodeURIComponent(name)}/run`, {
       method: "POST",
     }),
+
+  trends: (language: Language, limit = 10) =>
+    request<TrendItem[]>(`/trends?language=${language}&limit=${limit}`),
+  trendReport: (language: Language) =>
+    request<TrendReport | null>(`/trends/report?language=${language}`),
+  games: () => request<Game[]>("/games"),
+  game: (id: number) => request<Game>(`/games/${id}`),
 
   users: () => request<User[]>("/users"),
   createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>

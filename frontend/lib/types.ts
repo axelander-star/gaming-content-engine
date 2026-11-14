@@ -128,3 +128,62 @@ export interface Budget {
   level: BudgetLevel;
   paid_api_calls_enabled: boolean;
 }
+
+// --- Trends and games (Phase 5) ----------------------------------------------
+
+export interface TrendItem {
+  game_id: number;
+  game: string;
+  language: Language | null;
+  score: number;
+  growth_pct: number | null;
+  components: Record<string, number>;
+  unknown: string[];
+  audience: string | null;
+  audience_label: string;
+  sources: string[];
+  is_new: boolean;
+  is_mock: boolean;
+  detected_at: string;
+  top_idea: string | null;
+}
+
+export interface TrendReport {
+  id: number;
+  language: Language;
+  created_at: string;
+  sources: string[];
+  is_mock: boolean;
+  summary: string;
+  items: Record<string, unknown>[];
+  by_audience: Record<string, { label: string; games: { game: string; score: number }[] }>;
+}
+
+export interface VideoIdea {
+  format: string;
+  format_label: string;
+  title_de: string;
+  title_en: string;
+  mode: string | null;
+  priority: "high" | "normal";
+}
+
+export interface Game {
+  id: number;
+  name: string;
+  slug: string;
+  categories: string[];
+  publisher: string | null;
+  steam_app_id: number | null;
+  twitch_game_id: string | null;
+  is_test_data: boolean;
+  profiled_at: string | null;
+  profile: {
+    audience?: { key: string; de: string; en: string; secondary: string[] };
+    modes?: string[];
+    video_ideas?: VideoIdea[];
+    rating?: number | null;
+    rising?: boolean;
+    rights_note?: string;
+  };
+}

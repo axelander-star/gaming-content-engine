@@ -22,6 +22,23 @@
 | Offizielle Spiele-/Entwicklerkanäle | Ankündigungen, Releases | je nach Quelle (RSS, API) | kostenlos | nur zulässige Quellen |
 | Eigene Performance-Daten | Rückkopplung | intern | – | aus `metrics` |
 
+### Umsetzung in Phase 5
+
+Standard ist `TREND_SOURCES_MODE=mock`: erfundene Testspiele mit festen, datumsabhängigen Werten, kein Netzwerkzugriff. Der Live-Modus nutzt ausschließlich diese Endpunkte (Code: `backend/services/sources/live.py`, Tests mit simuliertem HTTP):
+
+| Quelle | Endpunkt | Zugang | Grenze im Code |
+|---|---|---|---|
+| Twitch | `POST https://id.twitch.tv/oauth2/token` (Client Credentials), `GET https://api.twitch.tv/helix/games/top`, `GET https://api.twitch.tv/helix/streams?game_id=…&first=100` | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | `TWITCH_MAX_REQUESTS_PER_RUN` (20) |
+| Steam | `GET https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=…` | kein Schlüssel nötig | `STEAM_MAX_REQUESTS_PER_RUN` (30), nur Spiele mit bekannter App-ID |
+| YouTube | `GET https://www.googleapis.com/youtube/v3/videos?chart=mostPopular&videoCategoryId=20&regionCode=DE/US` (1 Quoteneinheit) | `YOUTUBE_API_KEY` | `YOUTUBE_DAILY_QUOTA_UNITS` (2000/Tag) |
+
+- Alle Aufrufe werden vorab in Redis gezählt (`quota:<quelle>:<tag>`); bei Erschöpfung bricht die Quelle ab, statt zu wiederholen.
+- Fehlende Schlüssel: die Quelle wird mit Begründung übersprungen, keine Fehlermeldung, kein Aufruf.
+- Der YouTube-Schlüssel steht in der URL; er wird deshalb nie in Fehlermeldungen oder Logs übernommen.
+- Twitch-Zuschauer stammen aus einer Stichprobe der 100 größten Streams je Spiel; YouTube-Aufrufe werden über Spielnamen in Titel und Tags beliebter Gaming-Videos zugeordnet.
+- ⚠️ Vor dem Einschalten prüfen: aktuelle Twitch-Rate-Limits, ob Kategorie 20 (Gaming) für `mostPopular` in DE und US geliefert wird, Steam-Nutzungsbedingungen.
+- Spieldetails aus dem Steam-Store (inoffizielle Endpunkte) werden bewusst **nicht** genutzt.
+
 ## Publishing-Plattformen (Phase 12/13)
 
 ### YouTube (Shorts)

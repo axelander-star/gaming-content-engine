@@ -32,8 +32,14 @@ class Schedule:
 
     @classmethod
     def from_settings(cls, settings: Settings) -> Schedule:
-        return cls({"master": settings.master_tick_seconds,
-                    "budget_cost": settings.budget_check_seconds})  # fmt: skip
+        return cls(
+            {
+                "master": settings.master_tick_seconds,
+                "budget_cost": settings.budget_check_seconds,
+                "trend_research": settings.trend_research_seconds,
+                "game_intelligence": settings.game_intelligence_seconds,
+            }
+        )
 
     def due(self, now: float) -> list[str]:
         return [

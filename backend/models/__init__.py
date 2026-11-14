@@ -16,7 +16,7 @@ from models.production import (
 )
 from models.publishing import Post, PublishingJob
 from models.rights import Asset, Creator, License, Source
-from models.trends import Game, Trend
+from models.trends import Game, Trend, TrendReport
 
 __all__ = [
     "AgentDecision",
@@ -44,6 +44,7 @@ __all__ = [
     "Subtitle",
     "SystemSetting",
     "Trend",
+    "TrendReport",
     "User",
     "Variant",
     "Voiceover",

@@ -45,6 +45,18 @@ def _budget() -> Agent:
     return BudgetCostAgent()
 
 
+def _trend_research() -> Agent:
+    from agents.trend_research import TrendResearchAgent
+
+    return TrendResearchAgent()
+
+
+def _game_intelligence() -> Agent:
+    from agents.game_intelligence import GameIntelligenceAgent
+
+    return GameIntelligenceAgent()
+
+
 GF, V = "gameplay_files", "variants"
 
 _SPECS: tuple[AgentSpec, ...] = (
@@ -52,9 +64,11 @@ _SPECS: tuple[AgentSpec, ...] = (
               "Steuert alle Agenten, verteilt Aufträge, prüft Freigaben und protokolliert.",
               4, CostKind.LOCAL, factory=_master),
     AgentSpec("trend_research", 2, "Trend Research",
-              "Erkennt Gaming-Trends und bewertet ihr Potenzial.", 5, CostKind.FREE_API),
+              "Erkennt Gaming-Trends und bewertet ihr Potenzial.", 5, CostKind.FREE_API,
+              factory=_trend_research),
     AgentSpec("game_intelligence", 3, "Game Intelligence",
-              "Sammelt Spieleinformationen, Zielgruppen und Videoideen.", 5, CostKind.PAID),
+              "Sammelt Spieleinformationen, Zielgruppen und Videoideen.", 5, CostKind.PAID,
+              factory=_game_intelligence),
     AgentSpec("material_scout", 4, "Material Scout",
               "Findet freigegebenes Gameplay und dokumentiert Quellen.", 6, CostKind.LOCAL),
     AgentSpec("rights_license", 5, "Rights & License",

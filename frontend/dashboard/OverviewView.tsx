@@ -4,15 +4,19 @@ import { useEffect, useState } from "react";
 
 import { Badge, ErrorText, PageHeader, PhasePlaceholder, Section, StatCard } from "@/components/ui";
 import { api } from "@/lib/api";
-import type { Overview, Readiness } from "@/lib/types";
+import { TrendsPanel } from "@/dashboard/TrendsPanel";
+import { formatEur } from "@/lib/labels";
+import type { Budget, Overview, Readiness } from "@/lib/types";
 
 export function OverviewView() {
   const [data, setData] = useState<Overview | null>(null);
   const [ready, setReady] = useState<Readiness | null>(null);
+  const [budget, setBudget] = useState<Budget | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.overview().then(setData).catch((e: Error) => setError(e.message));
+    api.budget().then(setBudget).catch(() => setBudget(null));
     api
       .readiness()
       .then(setReady)
@@ -36,6 +40,11 @@ export function OverviewView() {
           hint="Kanäle sind bis zur Einrichtung pausiert"
         />
         <StatCard label="Fehlerhafte Videos" value={data?.videos_failed ?? "–"} />
+        <StatCard
+          label="Kosten diesen Monat"
+          value={budget ? formatEur(budget.spent_eur) : "–"}
+          hint={budget ? `von ${formatEur(budget.budget_eur)} (${budget.used_pct} %)` : undefined}
+        />
       </div>
 
       <div className="grid two">
@@ -63,18 +72,17 @@ export function OverviewView() {
             <dd>{c ? <Badge tone={c.publishing_mode === "live" ? "warn" : "neutral"}>{c.publishing_mode === "live" ? "Live" : "Mock (Test)"}</Badge> : "–"}</dd>
           </dl>
         </Section>
-        <Section title="Reichweite, Trends und Kosten">
+        <Section title="Reichweite und Bestenlisten">
           <PhasePlaceholder
-            phase="Phase 5 und Phase 14"
+            phase="Phase 14"
             items={[
               "Gesamtaufrufe, heute, 7 und 30 Tage",
               "Beste Videos, Spiele und Formate",
-              "Aktuelle Trends",
-              "Monatliche Kosten",
             ]}
           />
         </Section>
       </div>
+      <TrendsPanel />
     </>
   );
 }

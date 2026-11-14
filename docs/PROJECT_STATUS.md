@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 4 abgeschlossen · **Nächste Phase:** 5 (Trend Research und Game Intelligence)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 5 abgeschlossen · **Nächste Phase:** 6 (Material Scout und Rights Agent)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -12,7 +12,7 @@
 | 2 | Docker, PostgreSQL, Redis, Backend | ✅ abgeschlossen |
 | 3 | Anmeldung, Benutzerverwaltung, Dashboard-Grundgerüst | ✅ abgeschlossen |
 | 4 | Master Agent und Agentenverwaltung | ✅ abgeschlossen |
-| 5 | Trend Research und Game Intelligence | ⏳ offen |
+| 5 | Trend Research und Game Intelligence | ✅ abgeschlossen |
 | 6 | Material Scout und Rights Agent | ⏳ offen |
 | 7 | Gameplay-Analyse und Videoproduktion | ⏳ offen |
 | 8 | Creative Director, Hooks, Skripte | ⏳ offen |
@@ -23,6 +23,46 @@
 | 13 | TikTok, Instagram, Facebook | ⏳ offen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
+
+## Phase 5 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Trendquellen** für Twitch, Steam und YouTube mit gemeinsamer Schnittstelle. Standard sind Testdaten (zehn erfundene Spiele, reproduzierbar je Datum, kein Netzwerkzugriff). Live-Adapter nutzen nur offizielle Endpunkte, laufen nur mit `TREND_SOURCES_MODE=live` und eigenen Schlüsseln und zählen jeden Aufruf vorab gegen eine Tagesquote in Redis
+- **Trend Research Agent:** erkennt neue Spiele, bewertet jedes Spiel je Sprache (Reichweite, Wachstum, Sprachpassung, eigene Performance, Neuheit), sortiert nach Zielgruppe und schreibt pro Sprache einen Trendbericht; Testdaten sind gekennzeichnet
+- **Game Intelligence Agent:** Spielprofile mit Zielgruppe, Spielmodi, vier Videoideen auf Deutsch und Englisch (aus den Formaten der Spezifikation), Kanalperformance je Sprache und Gesamtbewertung; regelbasiert, ohne Kosten
+- **Eigene Performance** fließt automatisch ein, sobald echte Videos Kennzahlen haben (Mock-Posts zählen nie)
+- **Zeitsteuerung:** Trend Research alle 6 Stunden, Game Intelligence täglich; beide auch manuell auf der Agentenseite startbar
+- **API** `/api/trends`, `/api/trends/report`, `/api/games` und **„Aktuelle Trends“ auf der Übersicht** mit Sprachumschaltung, Wachstum, Zielgruppe und aufklappbarem Spielprofil; dazu die Kosten des Monats als Kennzahl (Screenshot: `screenshots/phase5-trends.png`)
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/sources/{__init__,base,mock,live}.py`, `backend/services/{trends,game_intel,quota}.py`, `backend/core/catalog.py`, `backend/agents/{trend_research,game_intelligence}.py`, `backend/api/trends.py`, Migration `20261114_8480860b980d_trend_research.py`, `tests/integration/test_trends.py`, `frontend/dashboard/TrendsPanel.tsx`
+- Geändert: `backend/models/trends.py`, `models/__init__.py`, `core/config.py`, `agents/registry.py`, `api/agents.py`, `app/main.py`, `app/scheduler.py`, `pyproject.toml` (httpx), `.env.example`, `frontend/dashboard/OverviewView.tsx`, `frontend/lib/{api,types}.ts`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, Dokumentation
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest mit Abdeckung), Alembic-Migration und `alembic check`
+- Live-Adapter gegen simulierte HTTP-Antworten (Twitch, Steam, YouTube), Quotengrenze in Redis
+- Frontend `typecheck` und `build`, E2E mit echtem Worker: Trend Research und Game Intelligence starten, Trends und Spielprofil auf der Übersicht prüfen
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 141 Backend-Tests bestanden, Abdeckung 96 %; ruff und mypy ohne Befund
+- **Abnahme Phase 5:** Trenderkennung aus Testdaten reproduzierbar (zwei Läufe am selben Tag ergeben dieselben Scores, keine doppelten Spiele); Live-Adapter laufen nur mit Schlüssel und brechen an der Quotengrenze ab; der YouTube-Schlüssel erscheint nie in Fehlermeldungen
+- 12 E2E-Schritte bestanden; 68 Projektprüfungen bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Live-Trendquellen sind gebaut, aber nicht eingeschaltet: Dafür braucht es eigene Schlüssel (YouTube API-Key, Twitch Client-ID/Secret) und die Prüfung der ⚠️-Punkte in `API_INTEGRATIONS.md`. Die Dienste sind kostenlos
+- YouTube-Aufrufe werden über Spielnamen in Titeln zugeordnet; das ist eine Näherung
+- Game Intelligence arbeitet regelbasiert; eine KI-Verfeinerung wäre kostenpflichtig und bleibt bis zur Freigabe aus
+- Steam-Spielerzahlen gibt es nur für Spiele mit bekannter App-ID (Pflege ab Phase 6)
+
+### 6. Nächster Schritt
+
+Phase 6: Material Scout und Rights Agent mit Verwaltung von Creatorn, Quellen und Lizenzen, Rechteprüfung nach allen Kriterien aus Abschnitt 5, Ablaufüberwachung und Publisher-Richtlinien.
 
 ## Phase 4 – Bericht
 
@@ -222,11 +262,16 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Wiederholungen steuert der Master, nicht die Queue | Wartezeit und Höchstzahl sind im Dashboard sichtbar und protokolliert |
 | 14.11.2026 | Budget-Gate für kostenpflichtige Agenten nur, wenn kostenpflichtige Aufrufe erlaubt sind | Mit `PAID_API_CALLS_ENABLED=false` laufen diese Agenten gegen Mocks; jeder echte Aufruf wird trotzdem einzeln geprüft |
 | 14.11.2026 | Eigener Dienst `scheduler` statt n8n für den Master-Takt | Kern-Ablauf ohne Zusatzdienst testbar; n8n bleibt optional |
+| 14.11.2026 | Testdaten mit erfundenen Spielen | Testdaten können nie mit echten Marktdaten verwechselt werden; im Live-Modus werden sie ausgeblendet |
+| 14.11.2026 | Trend-Score mit festen, dokumentierten Gewichten; unbekannte Werte neutral | Nachvollziehbar; Anpassung später durch den Learning Agent (Phase 14) |
+| 14.11.2026 | Game Intelligence regelbasiert statt per KI | Keine Kosten ohne Freigabe; KI-Verfeinerung später optional hinter dem Budget-Gate |
+| 14.11.2026 | Keine inoffiziellen Steam-Store-Endpunkte | Nur dokumentierte, offizielle APIs (Projektregel) |
 
 ## Offene Punkte
 
 - `docker compose up` des Gesamtsystems auf einem echten Docker-Host bestätigen (Image-Build ist in der CI grün)
 - Entwickler-Apps bei Google, TikTok und Meta anlegen (Betreiber); Audits können Wochen dauern
+- Für Live-Trends: YouTube-API-Schlüssel und Twitch-App (Client-ID/Secret) anlegen (Betreiber, kostenlos)
 - LLM- und TTS-Anbieter nach aktueller Preisprüfung auswählen – vor Phase 8/9
 - Zwei-Faktor-Anmeldung für Admins – Phase 15
 - Alle ⚠️-Angaben in API_INTEGRATIONS.md gegen aktuelle Anbieterdokumentation prüfen

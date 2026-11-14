@@ -48,6 +48,22 @@ Code: `backend/agents/base.py`, Registry `backend/agents/registry.py`.
 | 17 | Learning | 14 | Snapshots, Experimente | Erkenntnisse, Strategievorschläge | – | lokal |
 | 18 | Budget & Cost | 4 (Ausbau 14) | `costs`, Settings | Budgetstufe, Freigabe/Ablehnung | – | lokal |
 
+## Trend Research und Game Intelligence (umgesetzt in Phase 5)
+
+**Trend Research** (`agents/trend_research.py`, alle 6 Stunden): holt Beobachtungen von Twitch, Steam und YouTube (Standard: Testdaten), legt neue Spiele an und bewertet jedes Spiel je Sprache mit einem Score von 0 bis 100 (`services/trends.py`):
+
+| Anteil | Gewicht | Bedeutung |
+|---|---|---|
+| Reichweite | 40 % | Größe im Verhältnis zum größten Spiel der Quelle (logarithmisch über drei Größenordnungen) |
+| Wachstum | 30 % | Veränderung gegenüber der Messung 7 Tage vorher bzw. dem letzten Lauf |
+| Sprachpassung | 15 % | Interesse in dieser Sprache im Verhältnis zur anderen |
+| Eigene Performance | 10 % | Aufrufe unserer echten Videos des Spiels im Verhältnis zum Durchschnitt |
+| Neuheit | 5 % | Neuerscheinung oder nach dem ersten Lauf neu aufgetaucht |
+
+Fehlende Werte (z. B. noch keine eigenen Videos) zählen neutral mit 0,5 und werden als „unbekannt“ markiert. Pro Sprache entsteht ein Trendbericht (`trend_reports`) mit Top 10, Gruppierung nach Zielgruppe und Zusammenfassung; Testdaten sind als solche gekennzeichnet.
+
+**Game Intelligence** (`agents/game_intelligence.py`, täglich): erstellt für jedes Spiel mit aktuellem Trend ein Profil in `games.profile`: Zielgruppe, typische Spielmodi, vier Videoideen aus den Formaten der Spezifikation (deutsch und englisch, steigende Spiele mit Priorität), Kanalperformance je Sprache und eine Gesamtbewertung (Trend-Score; sobald eigene Videos existieren 70 % Trend und 30 % eigene Performance). Regelbasiert ohne kostenpflichtige Aufrufe. Profile werden nach 7 Tagen erneuert.
+
 ## Grenzen und Pflichten einzelner Agenten
 
 - **Rights & License:** Prüft alle Kriterien aus Spezifikation Abschnitt 5 (kommerziell, Bearbeitung, Kurzvideo, Plattformen, Sprachen, Gültigkeit, Monetarisierung, Musik/Bestandteile). Ein fehlendes Kriterium bedeutet Ablehnung, nicht Annahme. Publisher-Policies (z. B. GTA 6) werden als Regeln gepflegt; keine pauschale Freigabe.
