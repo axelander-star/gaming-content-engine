@@ -43,6 +43,15 @@ function JobRow({ job, timeZone }: { job: PlannedJob; timeZone: string }) {
       <span className="muted">{localTime(job.scheduled_for, timeZone)}</span> ·{" "}
       {job.language.toUpperCase()} {job.label} · {job.title ?? `Variante #${job.variant_id}`}{" "}
       <Badge tone={tone}>{label}</Badge> {job.mode === "mock" && <Badge>Test</Badge>}
+      {job.url && (
+        <>
+          {" "}
+          <a href={job.url} target="_blank" rel="noreferrer">
+            ansehen
+          </a>
+        </>
+      )}
+      {job.external_id && !job.url && <span className="muted"> · {job.external_id}</span>}
       {job.note && <span className="muted"> · {job.note}</span>}
     </li>
   );

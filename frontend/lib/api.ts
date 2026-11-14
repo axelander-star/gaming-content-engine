@@ -135,6 +135,10 @@ export const api = {
   channels: () => request<Channel[]>("/channels"),
   pauseChannel: (id: number) => request<Channel>(`/channels/${id}/pause`, { method: "POST" }),
   resumeChannel: (id: number) => request<Channel>(`/channels/${id}/resume`, { method: "POST" }),
+  connectChannel: (id: number) =>
+    request<{ url: string }>(`/channels/${id}/connect`, { method: "POST" }),
+  disconnectChannel: (id: number) =>
+    request<Channel>(`/channels/${id}/disconnect`, { method: "POST" }),
   setChannelLimits: (
     id: number,
     limits: Pick<Channel, "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes">,

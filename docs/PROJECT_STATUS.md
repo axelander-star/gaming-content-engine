@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 11 abgeschlossen · **Nächste Phase:** 12 (YouTube-Integration)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 12 abgeschlossen · **Nächste Phase:** 13 (TikTok, Instagram, Facebook)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -19,7 +19,7 @@
 | 9 | Lokalisierung, Voiceover, Untertitel | ✅ abgeschlossen |
 | 10 | Quality Control und Duplikaterkennung | ✅ abgeschlossen |
 | 11 | Publishing Strategy Agent | ✅ abgeschlossen |
-| 12 | YouTube-Integration | ⏳ offen |
+| 12 | YouTube-Integration | ✅ abgeschlossen |
 | 13 | TikTok, Instagram, Facebook | ⏳ offen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
@@ -27,6 +27,51 @@
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
 Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 12 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **YouTube-Anmeldung (OAuth 2.0):** Admins verbinden einen YouTube-Kanal im Dashboard (Einstellungen → Kanäle → „Mit YouTube verbinden“). Der Anmeldevorgang ist signiert und 10 Minuten gültig; nur ein aktiver Admin kann ihn abschließen. Wird die Upload-Berechtigung nicht erteilt, gilt der Kanal als „eingeschränkt“ und es wird nichts hochgeladen. „Trennen“ widerruft den Zugang bei Google und löscht ihn
+- **Verschlüsselte Zugangsschlüssel:** Access- und Refresh-Token liegen verschlüsselt (Fernet) in der neuen Tabelle `channel_credentials`, nie im Dashboard, in Logs oder in Git. Abgelaufene Tokens werden automatisch erneuert; ist der Zugang widerrufen, wird der Kanal auf „abgelaufen“ gesetzt und der Betreiber benachrichtigt
+- **Publishing Agent** (Agent 15): veröffentlicht fällige Planungen. Ein als Test geplanter Auftrag bleibt ein Test (nichts wird hochgeladen). Live nur bei `PUBLISHING_MODE=live`, `AUTO_PUBLISH_ENABLED=true`, Dashboard-Freigabe, kein Not-Aus und autorisiertem Kanal
+- **Upload:** fortsetzbar nach dem offiziellen Protokoll (Abbruch → Stand abfragen → ab dem letzten Byte weiter), Prüfsumme der Datei vor dem Upload, Sichtbarkeit standardmäßig **privat**, Kategorie Gaming, Kennzeichnung synthetischer Inhalte (KI-Stimme)
+- **Keine Doppelposts:** Der Auftrag wird vor dem Upload dauerhaft als „läuft“ gespeichert. Bricht der Server mitten im Upload ab, wird nicht blind erneut hochgeladen, sondern der Auftrag zur Prüfung markiert
+- **Quoten und Fehler:** eigene Tagesgrenze für Uploads (Google: 100 pro Tag); Quote erschöpft, Serverfehler oder Netzprobleme → späterer neuer Versuch; dauerhafte Fehler → Auftrag fehlgeschlagen plus Benachrichtigung
+- **Dashboard:** Spalte „Verbindung“ mit verbundenem Konto, Verbinden/Trennen (Admin), Rückmeldung nach der Anmeldung; auf „Publishing“ Link zum veröffentlichten Video (Screenshot: `screenshots/phase12-einstellungen.png`)
+- TikTok, Instagram und Facebook warten bis Phase 13 (Auftrag bleibt geplant)
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/core/crypto.py`, `backend/services/youtube.py`, `backend/services/publishers.py`, `backend/agents/publishing.py`, Migration `20261114_f2c67aa65750_channel_credentials.py`, `tests/integration/test_publishing.py`
+- Geändert: `backend/models/{channels,__init__}.py`, `agents/registry.py`, `services/gates.py`, `api/{channels,publishing,schemas}.py`, `app/main.py`, `core/config.py`, `pyproject.toml` (cryptography), Tests (`test_agents.py`, `test_agents_api.py`), `frontend/dashboard/{ChannelsTable,PublishingView}.tsx`, `frontend/lib/{api,types}.ts`, `frontend/e2e/smoke.mjs`, `.env.example`, Dokumentation (`API_INTEGRATIONS.md`, `AGENTS.md`, `DEVELOPMENT_PLAN.md`)
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest), Migration und `alembic check`
+- **Gegen einen nachgebauten Google-Server (keine echten Aufrufe):** Verschlüsselung, Anmelde-URL, Token-Erneuerung und widerrufener Zugang, Upload mit Abbruch und Fortsetzung, abgelaufene Upload-Sitzung, Quote erschöpft, dauerhafte Fehler
+- Publishing Agent: Mock-Post genau einmal, pausierter Kanal, nur fällige Aufträge, bereits vorhandener Post, geänderte Datei, Live-Upload, nicht autorisierter Kanal, abgelaufene Verbindung, Quote, TikTok wartet, Test-Auftrag im Live-Modus bleibt Test
+- API: Verbinden, Rückkehr von Google, Trennen, fehlender OAuth-Client, Rechteprüfung
+- Frontend `typecheck` und `build`; E2E mit neuem Schritt „YouTube-Verbindung“
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 300 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund
+- 17 E2E-Schritte bestanden
+- `verify_phase1.sh`: 67 bestanden, 0 fehlgeschlagen
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- **Noch kein echter Upload getestet:** Dafür braucht es einen Google-OAuth-Client und einen privaten Testkanal des Betreibers (Einrichtung: `API_INTEGRATIONS.md`, „Umsetzung in Phase 12 und Einrichtung“). Ein echter Upload erfolgt nur nach ausdrücklicher Freigabe
+- Laut aktueller Google-Doku werden Uploads aus nicht geprüften API-Projekten nicht mehr auf „privat“ beschränkt; das wird vor dem ersten echten Upload noch einmal bestätigt. Unabhängig davon laden wir standardmäßig privat hoch
+- Ein Auftrag, der während des Uploads abbricht, muss von Hand auf YouTube geprüft werden, bevor er neu geplant wird
+- Der YouTube-API-Schlüssel für Trends ist weiterhin ungültig und muss neu erstellt werden; die Schlüssel aus der früher eingecheckten `.env` müssen rotiert werden
+- Vorschaubilder (Thumbnails) und Playlists werden noch nicht gesetzt
+
+### 6. Nächster Schritt
+
+Phase 13: TikTok, Instagram und Facebook (Content Posting API, Instagram Graph API, Facebook Graph API), zunächst im Mock-Modus und ohne echte Posts.
 
 ## Phase 11 – Bericht
 

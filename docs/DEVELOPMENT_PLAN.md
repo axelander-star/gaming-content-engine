@@ -95,7 +95,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** Simulationstests mit synthetischen Kanalverläufen (inkl. Einzel-Viral, Qualitätsabfall, Datenmangel).
 
-### Phase 12 – YouTube-Integration
+### Phase 12 – YouTube-Integration ✅
 
 - OAuth 2.0, verschlüsselte Tokens, Upload über YouTube Data API, Quota-Verwaltung
 - Autorisierungsprüfung je Kanal; Tests nur mit Mock bzw. privatem Testkanal nach Freigabe

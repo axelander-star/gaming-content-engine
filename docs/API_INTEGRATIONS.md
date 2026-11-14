@@ -70,10 +70,28 @@ Standard ist `TREND_SOURCES_MODE=mock`: erfundene Testspiele mit festen, datumsa
 
 ### YouTube (Shorts)
 
-- **API:** YouTube Data API v3, Upload über die `videos.insert`-Methode (resumable upload), OAuth 2.0 mit Upload-Scope.
-- **Metriken:** YouTube Analytics API (Aufrufe, Wiedergabezeit, durchschnittliche Wiedergabedauer, Zuschauerbindung).
-- **Einschränkungen:** Uploads verbrauchen einen großen Teil der Tagesquote ⚠️. Uploads aus nicht geprüften API-Projekten können auf „privat" beschränkt sein, bis ein Audit erfolgt ist ⚠️.
-- **Shorts-Erkennung:** Hochformat und Länge gemäß aktuellen YouTube-Vorgaben ⚠️.
+Geprüft am 14.11.2026 gegen die offizielle Dokumentation (Seiten „videos.insert“, „Quota Calculator“, „Resumable Uploads“, Stand 12.11.2026; „OAuth 2.0 for Web Server Applications“):
+
+- **Upload:** `POST https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status`. Header `X-Upload-Content-Length`, `X-Upload-Content-Type` (`video/*`), Body = Video-Ressource als JSON. Antwort 200 mit `Location` (Upload-URL). Danach `PUT` der Datei; 201 = fertig. 500/502/503/504 oder Verbindungsabbruch: Stand mit `Content-Range: bytes */GRÖSSE` abfragen (308 + `Range`) und ab dem nächsten Byte fortsetzen, mit exponentiellem Backoff; 404 = Sitzung abgelaufen, neu beginnen; andere 4xx = dauerhafter Fehler. Höchstens 256 GB, MIME `video/*` oder `application/octet-stream`.
+- **Felder:** `snippet.title`, `snippet.description`, `snippet.tags`, `snippet.categoryId` (20 = Gaming), `snippet.defaultLanguage`; `status.privacyStatus` (ohne Angabe **öffentlich** – wir setzen es deshalb immer ausdrücklich), `status.selfDeclaredMadeForKids`, `status.containsSyntheticMedia` (KI-Stimme). `notifySubscribers` ist standardmäßig `true`.
+- **OAuth:** `https://accounts.google.com/o/oauth2/v2/auth` mit `access_type=offline`, `prompt=consent`, Scope `https://www.googleapis.com/auth/youtube.upload` (zum Lesen des Kanals zusätzlich `youtube.readonly`); Token: `https://oauth2.googleapis.com/token` (`authorization_code`, `refresh_token`); Widerruf: `https://oauth2.googleapis.com/revoke` (laut Codebeispielen). Refresh-Tokens gelten bis zum Widerruf; `invalid_grant` = neu verbinden. Je Kanal eine eigene Verbindung.
+- **Quote:** `videos.insert` hat ein eigenes Kontingent von **100 Aufrufen pro Tag** (je 1 Einheit), alle anderen Endpunkte zusammen 10.000 Einheiten/Tag; `channels.list` und `videos.list` je 1. Rücksetzung um Mitternacht Pacific Time. Auch fehlerhafte Aufrufe kosten mindestens 1 Einheit.
+- **Nicht geprüfte Projekte:** Die aktuelle videos.insert-Seite sagt: „Videos uploaded from unverified API projects are not restricted to private viewing mode.“ Die frühere Einschränkung auf „privat“ ist damit laut Doku aufgehoben ⚠️ (vor dem ersten echten Upload im Revisionsverlauf bestätigen).
+- **Metriken:** YouTube Analytics API (Phase 14).
+- **Shorts:** Hochformat bis 3 Minuten (YouTube-Hilfe); es gibt keinen eigenen Shorts-Parameter.
+
+#### Umsetzung in Phase 12 und Einrichtung
+
+- **Code:** `services/youtube.py` (OAuth, Token-Erneuerung, fortsetzbarer Upload), `services/publishers.py` (Mock- und YouTube-Publisher), `agents/publishing.py`, `api/channels.py` (`POST /api/channels/{id}/connect`, `POST /api/channels/{id}/disconnect`, `GET /api/oauth/youtube/callback`).
+- **Tokens:** verschlüsselt (Fernet, Schlüssel aus `CREDENTIALS_ENCRYPTION_KEY`) in `channel_credentials`, nie im Dashboard, nie in Logs. Trennen widerruft das Token bei Google und löscht es.
+- **Sichtbarkeit:** Uploads standardmäßig **privat** (`YOUTUBE_UPLOAD_PRIVACY=private`), immer ausdrücklich gesetzt.
+- **Quote:** eigene Obergrenze `YOUTUBE_DAILY_UPLOAD_LIMIT` (Standard 100); bei `quotaExceeded` wartet der Auftrag und wird später erneut versucht.
+- **Einrichtung durch den Betreiber** (erst wenn ein echter Test-Upload freigegeben ist):
+  1. In der Google Cloud Console ein Projekt mit aktivierter „YouTube Data API v3“ anlegen, OAuth-Zustimmungsbildschirm einrichten (Testmodus, eigenes Google-Konto als Testnutzer).
+  2. OAuth-Client vom Typ „Webanwendung“ anlegen, Weiterleitungs-URI exakt wie `YOUTUBE_OAUTH_REDIRECT_URI` (lokal `http://localhost:3000/api/oauth/youtube/callback`, auf dem Server die Dashboard-Domain).
+  3. `YOUTUBE_OAUTH_CLIENT_ID` und `YOUTUBE_OAUTH_CLIENT_SECRET` als Umgebungsvariablen auf dem Server setzen (nicht in Git, nicht im Chat).
+  4. Im Dashboard unter Einstellungen → Kanäle „Mit YouTube verbinden“ (nur Admin) und mit einem **privaten Testkanal** anmelden.
+  5. Echte Uploads erst, wenn zusätzlich `PUBLISHING_MODE=live`, `AUTO_PUBLISH_ENABLED=true`, der Schalter im Dashboard und die ausdrückliche Freigabe des Betreibers vorliegen.
 
 ### TikTok
 

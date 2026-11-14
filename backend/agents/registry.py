@@ -125,6 +125,12 @@ def _publishing_strategy() -> Agent:
     return PublishingStrategyAgent()
 
 
+def _publishing() -> Agent:
+    from agents.publishing import PublishingAgent
+
+    return PublishingAgent()
+
+
 GF, V = "gameplay_files", "variants"
 
 _SPECS: tuple[AgentSpec, ...] = (
@@ -175,7 +181,7 @@ _SPECS: tuple[AgentSpec, ...] = (
               factory=_publishing_strategy),
     AgentSpec("publishing", 15, "Publishing",
               "Veröffentlicht über offizielle APIs autorisierter Kanäle.", 12, CostKind.FREE_API,
-              stage=Stage(V, "SCHEDULED")),
+              stage=Stage(V, "SCHEDULED", step="due"), factory=_publishing),
     AgentSpec("analytics", 16, "Analytics",
               "Ruft Statistiken ab und erkennt starke und schwache Videos.", 14,
               CostKind.FREE_API, stage=Stage(V, "ANALYTICS_PENDING")),

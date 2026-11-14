@@ -32,3 +32,5 @@ class ChannelOut(BaseModel):
     min_posts_per_day: int
     max_posts_per_day: int
     min_interval_minutes: int
+    #: Name of the connected platform account (Phase 12); tokens are never returned.
+    connected_account: str | None = None

@@ -8,6 +8,13 @@ import { AUTH_STATUS_LABELS, PLATFORM_LABELS } from "@/lib/labels";
 import { hasRole } from "@/lib/roles";
 import type { Channel, UserRole } from "@/lib/types";
 
+const CONNECT_RESULTS: Record<string, string> = {
+  connected: "YouTube-Kanal verbunden.",
+  denied: "Die Anmeldung bei Google wurde abgebrochen.",
+  failed: "Die Verbindung mit YouTube ist fehlgeschlagen. Details stehen im Protokoll.",
+  invalid: "Der Anmeldevorgang war ungültig oder abgelaufen. Bitte erneut verbinden.",
+};
+
 type Limits = Pick<Channel, "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes">;
 
 function LimitsEditor({ channel, onSaved }: { channel: Channel; onSaved: (c: Channel) => void }) {
@@ -58,11 +65,16 @@ function LimitsEditor({ channel, onSaved }: { channel: Channel; onSaved: (c: Cha
 export function ChannelsTable({ role }: { role: UserRole }) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
   const isAdmin = hasRole(role, "admin");
   const isOperator = hasRole(role, "operator");
 
   useEffect(() => {
-    api.channels().then(setChannels).catch((e: Error) => setError(e.message));
+    api
+      .channels()
+      .then(setChannels)
+      .catch((e: Error) => setError(e.message));
+    setResult(new URLSearchParams(window.location.search).get("youtube"));
   }, []);
 
   const replace = (c: Channel) => setChannels((all) => all.map((x) => (x.id === c.id ? c : x)));
@@ -75,11 +87,35 @@ export function ChannelsTable({ role }: { role: UserRole }) {
     }
   }
 
+  async function connect(c: Channel) {
+    try {
+      const { url } = await api.connectChannel(c.id);
+      window.location.assign(url);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  async function disconnect(c: Channel) {
+    try {
+      replace(await api.disconnectChannel(c.id));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   return (
     <Section title="Kanäle und Sicherheitsgrenzen">
+      {result && (
+        <p role="status" className={result === "connected" ? "muted" : "error"}>
+          {CONNECT_RESULTS[result] ?? result}
+        </p>
+      )}
       <p className="muted small">
         Die Grenzen sind technische Obergrenzen, keine Tagesziele. Wie viel tatsächlich
-        veröffentlicht wird, entscheidet später der Publishing Strategy Agent pro Kanal.
+        veröffentlicht wird, entscheidet der Publishing Strategy Agent pro Kanal. Verbinden führt
+        zur Anmeldung bei der Plattform; Zugangsschlüssel werden verschlüsselt gespeichert und nie
+        angezeigt.
       </p>
       <div className="table-wrap">
         <table>
@@ -103,6 +139,31 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                   <Badge tone={c.auth_status === "authorized" ? "ok" : "neutral"}>
                     {AUTH_STATUS_LABELS[c.auth_status]}
                   </Badge>
+                  {c.connected_account && (
+                    <span className="muted small"> {c.connected_account}</span>
+                  )}
+                  {isAdmin && c.platform === "youtube" && (
+                    <>
+                      {" "}
+                      {c.auth_status === "not_connected" || c.auth_status === "expired" ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost small"
+                          onClick={() => void connect(c)}
+                        >
+                          Mit YouTube verbinden
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-ghost small"
+                          onClick={() => void disconnect(c)}
+                        >
+                          Trennen
+                        </button>
+                      )}
+                    </>
+                  )}
                 </td>
                 <td>
                   <button

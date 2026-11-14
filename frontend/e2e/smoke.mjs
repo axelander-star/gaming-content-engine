@@ -72,7 +72,7 @@ try {
     const rows = page.locator("table").first().locator("tbody tr");
     await rows.nth(17).waitFor();
     assert.equal(await rows.count(), 18);
-    await page.getByText("Folgt in Phase 12").first().waitFor();
+    await page.getByText("Folgt in Phase 14").first().waitFor();
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -352,7 +352,7 @@ try {
     await page.getByText("Es gibt keine feste Menge.", { exact: false }).waitFor();
     await page.getByLabel("Begründung").first().waitFor();
     // seeded channels are paused, so nothing is planned and nothing is published
-    await page.getByText("Kanal ist pausiert").first().waitFor();
+    await page.getByText("Kanal ist pausiert", { exact: true }).first().waitFor();
     await page.getByText("Test (keine echten Posts)").waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/publishing.png`, fullPage: true });
   });
@@ -367,6 +367,15 @@ try {
     await sources.getByText("Testdaten, keine Verbindung").first().waitFor(); // never "connected"
     assert.equal(await sources.getByText("Verbunden", { exact: true }).count(), 0);
     if (SHOTS) await sources.screenshot({ path: `${SHOTS}/trend-sources.png` });
+  });
+
+  await step("YouTube-Verbindung: ohne OAuth-Client keine Anmeldung, nichts verbunden", async () => {
+    const channels = page.locator("section").filter({ hasText: "Kanäle und Sicherheitsgrenzen" });
+    await channels.getByRole("columnheader", { name: "Verbindung" }).waitFor();
+    const connect = channels.getByRole("button", { name: "Mit YouTube verbinden" }).first();
+    await connect.click();
+    await channels.getByText("YouTube-OAuth-Client ist nicht eingerichtet").waitFor();
+    assert.ok(page.url().includes("/einstellungen"), "must not leave the dashboard");
   });
 
   await step("Automatische Veröffentlichung ist gesperrt", async () => {
