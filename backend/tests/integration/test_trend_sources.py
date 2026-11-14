@@ -77,6 +77,18 @@ def test_describe_error_never_leaks_url_or_key() -> None:
         httpx.HTTPStatusError("x", request=req, response=twitch)
     )
     assert describe_error(httpx.ConnectTimeout("t", request=req)) == "Zeitüberschreitung"
+    google = httpx.Response(
+        400,
+        request=req,
+        json={
+            "error": {
+                "errors": [{"reason": "badRequest"}],
+                "details": [{"reason": "API_KEY_INVALID"}],
+            }
+        },
+    )
+    text = describe_error(httpx.HTTPStatusError("x", request=req, response=google))
+    assert text == "HTTP 400 API-Schlüssel ungültig (API_KEY_INVALID)"
 
 
 def test_twitch_token_is_reused(redis_client: Redis) -> None:

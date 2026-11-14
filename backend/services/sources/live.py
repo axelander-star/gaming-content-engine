@@ -63,14 +63,22 @@ def describe_error(exc: BaseException) -> str:
             body = None
         if isinstance(body, dict):
             err = body.get("error")
-            if isinstance(err, dict):  # Google: {"error": {"errors": [{"reason": ...}]}}
+            if isinstance(err, dict):  # Google: {"error": {"errors": [...], "details": [...]}}
+                details = [d for d in err.get("details") or [] if isinstance(d, dict)]
                 items = err.get("errors") or [{}]
-                reason = str(items[0].get("reason") or err.get("status") or "")
+                reason = str(
+                    next((d["reason"] for d in details if d.get("reason")), None)
+                    or items[0].get("reason")
+                    or err.get("status")
+                    or ""
+                )
             elif isinstance(body.get("message"), str):  # Twitch: {"message": "..."}
                 reason = body["message"]
         hint = {401: "Zugangsdaten ungültig", 403: "Zugriff verweigert", 429: "Rate Limit"}.get(
             status, ""
         )
+        if reason == "API_KEY_INVALID":
+            hint = "API-Schlüssel ungültig"
         text = f"HTTP {status}"
         if hint:
             text += f" {hint}"
