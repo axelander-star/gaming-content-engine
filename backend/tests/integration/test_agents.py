@@ -95,6 +95,7 @@ def test_registry_lists_all_18_agents() -> None:
         "subtitle",
         "quality_control",
         "publishing_strategy",
+        "publishing",
     }
     stages = [s.stage.status for s in registry.stage_specs() if s.stage]
     assert stages[0] == "DISCOVERED" and "SCHEDULED" in stages

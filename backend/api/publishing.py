@@ -14,7 +14,7 @@ from api.deps import Admin, DbSession, Viewer, csrf_protect
 from core.enums import PublishingJobStatus, VideoStatus
 from models.channels import Channel
 from models.production import Variant
-from models.publishing import PublishingJob, StrategyVersion
+from models.publishing import Post, PublishingJob, StrategyVersion
 from services import audit, strategy
 
 router = APIRouter(prefix="/publishing", tags=["publishing"], dependencies=[Depends(csrf_protect)])
@@ -42,6 +42,8 @@ class JobOut(BaseModel):
     mode: str
     scheduled_for: datetime | None
     note: str | None
+    external_id: str | None = None
+    url: str | None = None
 
 
 class ChannelPlan(BaseModel):
@@ -90,9 +92,10 @@ def plan(_: Viewer, db: DbSession) -> list[ChannelPlan]:
     )
     since = datetime.now(UTC) - timedelta(days=1)
     jobs: dict[int, list[JobOut]] = {}
-    for job, variant in db.execute(
-        select(PublishingJob, Variant)
+    for job, variant, post in db.execute(
+        select(PublishingJob, Variant, Post)
         .join(Variant, Variant.id == PublishingJob.variant_id)
+        .outerjoin(Post, Post.publishing_job_id == PublishingJob.id)
         .where(PublishingJob.scheduled_for >= since)
         .order_by(PublishingJob.scheduled_for)
         .limit(500)
@@ -108,6 +111,8 @@ def plan(_: Viewer, db: DbSession) -> list[ChannelPlan]:
                 mode=job.mode.value,
                 scheduled_for=job.scheduled_for,
                 note=job.last_error,
+                external_id=post.external_post_id if post else None,
+                url=post.url if post else None,
             )
         )
     out = []

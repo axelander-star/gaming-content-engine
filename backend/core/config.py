@@ -47,6 +47,17 @@ class Settings(BaseSettings):
     emergency_stop: bool = False
     paid_api_calls_enabled: bool = False
 
+    # --- Publishing (Phase 12) ---
+    #: Google OAuth client (web application) for connecting YouTube channels.
+    youtube_oauth_client_id: str = ""
+    youtube_oauth_client_secret: SecretStr = SecretStr("")
+    youtube_oauth_redirect_uri: str = "http://localhost:3000/api/oauth/youtube/callback"
+    #: Visibility of uploads; stays private until the operator decides otherwise.
+    youtube_upload_privacy: Literal["private", "unlisted", "public"] = "private"
+    #: videos.insert has its own bucket of 100 calls per day (official quota calculator).
+    youtube_daily_upload_limit: int = Field(default=100, ge=0, le=100_000)
+    publish_upload_attempts: int = Field(default=5, ge=1, le=20)
+
     # --- Budget (PROJECT_SPEC section 13) ---
     monthly_budget_eur: float = Field(default=50.0, ge=0)
     budget_warn_pct: int = Field(default=50, ge=0, le=100)

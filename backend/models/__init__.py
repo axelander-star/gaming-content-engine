@@ -2,7 +2,7 @@
 
 from models.access import AuditLog, Notification, SystemSetting, User
 from models.analytics import AnalyticsSnapshot, Metric
-from models.channels import Channel, Platform
+from models.channels import Channel, ChannelCredential, Platform
 from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.production import (
     Clip,
@@ -34,6 +34,7 @@ __all__ = [
     "Asset",
     "AuditLog",
     "Channel",
+    "ChannelCredential",
     "Clip",
     "Cost",
     "Creator",

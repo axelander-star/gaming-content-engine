@@ -30,8 +30,8 @@ def test_list_agents_shows_all_18(api: TestClient, make_user: Callable[..., User
     agents = agents_by_name(api)
     assert len(agents) == 18
     assert agents["master"]["status"] == "ready" and agents["master"]["can_run_manually"]
-    assert agents["publishing"]["status"] == "not_available"
-    assert agents["publishing"]["phase"] == 12
+    assert agents["analytics"]["status"] == "not_available"
+    assert agents["analytics"]["phase"] == 14
 
 
 def test_status_reflects_runs_and_emergency_stop(

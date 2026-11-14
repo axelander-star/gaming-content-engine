@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.enums import ChannelAuthStatus, Language, PlatformCode
@@ -56,3 +66,25 @@ class Channel(IdMixin, TimestampMixin, Base):
     strategy: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
 
     platform: Mapped[Platform] = relationship(back_populates="channels")
+
+
+class ChannelCredential(IdMixin, TimestampMixin, Base):
+    """OAuth tokens of one channel, encrypted (``core.crypto``); never sent to clients."""
+
+    __tablename__ = "channel_credentials"
+
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"), unique=True
+    )
+    provider: Mapped[str] = mapped_column(String(32))
+    access_token_enc: Mapped[str | None] = mapped_column(Text)
+    refresh_token_enc: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scopes: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    external_account_id: Mapped[str | None] = mapped_column(String(200))
+    external_account_name: Mapped[str | None] = mapped_column(String(300))
+    connected_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)

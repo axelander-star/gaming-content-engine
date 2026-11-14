@@ -35,11 +35,13 @@ from core.enums import (
     AgentRunStatus,
     ChannelAuthStatus,
     MaterialStatus,
+    PublishingJobStatus,
     VideoStatus,
 )
 from models.channels import Channel
 from models.control import AgentRun
 from models.production import Clip, GameplayFile, QualityCheck, Scene, Variant
+from models.publishing import PublishingJob
 from services import agent_control
 from services.budget import BudgetLevel, budget_status
 from services.controls import effective_controls, get_operations
@@ -49,6 +51,16 @@ from services.controls import effective_controls, get_operations
 STEPS: dict[str, tuple[Any, Any]] = {
     "concept": (Variant.video_format.is_(None), lambda v: v.video_format is None),
     "script": (Variant.video_format.is_not(None), lambda v: v.video_format is not None),
+    # SCHEDULED: only variants whose planned time has come (the agent checks again)
+    "due": (
+        Variant.id.in_(
+            select(PublishingJob.variant_id).where(
+                PublishingJob.status == PublishingJobStatus.SCHEDULED,
+                PublishingJob.scheduled_for <= func.now(),
+            )
+        ),
+        lambda v: True,
+    ),
 }
 
 

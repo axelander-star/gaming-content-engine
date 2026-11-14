@@ -53,6 +53,7 @@ export interface Channel {
   min_posts_per_day: number;
   max_posts_per_day: number;
   min_interval_minutes: number;
+  connected_account: string | null;
 }
 
 export interface Overview {
@@ -515,6 +516,8 @@ export interface PlannedJob {
   mode: "mock" | "live";
   scheduled_for: string | null;
   note: string | null;
+  external_id: string | null;
+  url: string | null;
 }
 
 export interface ChannelPlan {
