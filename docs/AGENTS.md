@@ -36,8 +36,8 @@ Code: `backend/agents/base.py`, Registry `backend/agents/registry.py`.
 | 5 | Rights & License | 6 | `licenses`, Nachweise, Publisher-Richtlinien | `rights_checks` (12 Kriterien mit Begründung), Ablaufwarnungen | `RIGHTS_PENDING` → `RIGHTS_APPROVED` / `RIGHTS_REJECTED` | lokal |
 | 6 | Gameplay Analysis | 7 | freigegebenes Material (`RIGHTS_APPROVED`) | `scenes` mit Bewertung, Clips und Varianten je Sprache | Material → `ANALYZED`, Varianten neu in `SCENE_SELECTED` | lokal (CPU) |
 | 7 | Clip Production | 7 | Varianten in `SCENE_SELECTED` | gerenderte `clips` (9:16, H.264/AAC) | `SCENE_SELECTED` → `EDITING` | lokal (CPU) |
-| 8 | Creative Director | 8 | Clips, Learning-Erkenntnisse | Konzepte, Formatwahl, Varianten A–D | – | LLM optional |
-| 9 | Script & Hook | 8 | Konzepte | `scripts` (Hook, Voiceover, CTA, Titel) | – | LLM optional |
+| 8 | Creative Director | 8 | Varianten in `EDITING` ohne Konzept | Format, Hook-Struktur, Varianten A–D (`variants.concept`) | bleibt `EDITING` (Teilschritt Konzept) | LLM optional |
+| 9 | Script & Hook | 8 | Varianten in `EDITING` mit Konzept | `scripts` (Hook, Sprechertext mit Zeitmarken, CTA, Titel, Beschreibung) | `EDITING` → `LOCALIZATION` | LLM optional |
 | 10 | Localization | 9 | Skripte | DE- und EN-Fassungen (keine Wort-für-Wort-Übersetzung) | → `LOCALIZATION` | LLM optional |
 | 11 | Voice | 9 | lokalisierte Skripte | `voiceovers` | → `VOICEOVER` | TTS (lizenziert) |
 | 12 | Subtitle | 9 | Voiceover, Skript | `subtitles` (SRT/VTT, eingebrannt) | → `SUBTITLES` | lokal |
@@ -104,6 +104,22 @@ Material kommt nur über registrierte, lizenzierte Quellen ins System (Dashboard
 Gewählt werden die besten Szenen ohne Überschneidung mit mindestens `MIN_SCENE_SCORE` (0,35), höchstens `MAX_CLIPS_PER_MATERIAL` (3). Start und Ende rücken an einen Schnitt innerhalb von 3 s. Schlagworte: Action, Überraschung, Spannung, Ruhig. Humor und Spielinhalte sind aus diesen Signalen nicht erkennbar. Gibt es keine geeignete Szene, erhält der Betreiber eine Benachrichtigung.
 
 **Clip Production** (`agents/clip_production.py`, Logik in `services/render.py`): rendert den Clip einer Variante einmalig (Sperre auf den Clip, die zweite Sprache übernimmt die Datei). Bildaufbau `crop` (9:16-Ausschnitt um den Bewegungsschwerpunkt) oder `blur_fit` (ganzes Bild über unscharfem Hintergrund), wenn die Action weit verteilt oder nicht messbar ist. Ausgabe H.264 High, yuv420p, AAC 48 kHz Stereo (ohne Quellton eine stille Spur), 1080×1920 bzw. 720×1280 bei 720p-Quellen. Der fertige Clip wird mit ffprobe geprüft (Auflösung, Codecs, Länge ±0,5 s, Größe). Höchstens `max_parallel_render_jobs` Renderjobs laufen gleichzeitig.
+
+## Creative Director und Script & Hook (umgesetzt in Phase 8)
+
+Beide Agenten arbeiten auf `EDITING`; der Teilschritt entscheidet (`Stage.step`, `services/gates.STEPS`): ohne `video_format` ist der Creative Director dran, mit `video_format` Script & Hook.
+
+**Creative Director** (`agents/creative_director.py`, Logik in `services/creative.py`)
+
+| Anteil | Gewicht | Bedeutung |
+|---|---|---|
+| Szenensignal | 60 % | wie gut Bewegung, Lautstärke, Überraschung und Spannungsaufbau das Format tragen |
+| Spielprofil | 20 % | Format steht in den Videoideen von Game Intelligence |
+| Eigene Performance | 20 % | Ergebnis des Formats auf unseren Kanälen (bis Phase 14 neutral 0,5) |
+
+Automatisch wählbar: Epische Szene, Überraschung, Unerwartete Wendung, Storytelling (Mindesteignung 0,3). Formate mit inhaltlichem Versprechen (lustig, knapp gescheitert, Tipps, Challenge, Vergleich, Analyse) werden nicht automatisch gewählt. Passt kein Format, endet der Lauf als dauerhafter Fehler. Hook-Strukturen: Frage, starke Behauptung, Countdown, POV, Herausforderung, „was auf dem Spiel steht“. Varianten: Anzahl laut `creative_variants`; jede hat eine eigene Hook-Struktur, bevorzugt auch ein anderes Format; B–D sind als Test markiert.
+
+**Script & Hook** (`agents/script_hook.py`): Hook, Sprechertext in Abschnitten mit Zeitmarken, Aufruf, Titel (≤ 100 Zeichen) und Beschreibung mit Quellenangabe, je Sprache eigene Formulierung. Wortbudget: 2,2 Wörter/s (DE), 2,5 Wörter/s (EN); zuerst entfällt der Einstieg, die Auflösung bleibt. Ein Sprachmodell (`ai_provider`) wird nur nach Budgetfreigabe aufgerufen und gebucht, sonst Vorlage.
 
 ## Grenzen und Pflichten einzelner Agenten
 

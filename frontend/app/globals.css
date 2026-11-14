@@ -590,3 +590,13 @@ td .badge {
   background: #000;
   border-radius: 8px;
 }
+
+.script-card {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.script-card ol {
+  margin: 6px 0;
+}

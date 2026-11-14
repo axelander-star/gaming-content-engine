@@ -33,6 +33,7 @@ export interface OperationsSettings {
   languages: Language[];
   platforms: PlatformCode[];
   ai_provider: string;
+  creative_variants: number;
   tts_provider: string;
   notifications_enabled: boolean;
 }
@@ -366,6 +367,34 @@ export interface Scene {
   selected: boolean;
 }
 
+export interface ScriptBeat {
+  kind: "hook" | "setup" | "buildup" | "payoff" | "cta";
+  start_s: number;
+  end_s: number;
+  text: string;
+}
+
+export interface VariantScript {
+  id: number;
+  version: number;
+  source: string;
+  hook: string | null;
+  voiceover_text: string | null;
+  call_to_action: string | null;
+  title: string | null;
+  description: string | null;
+  beats: ScriptBeat[];
+}
+
+export interface VariantConcept {
+  video_format?: string;
+  hook_type?: string;
+  score?: number;
+  components?: Record<string, number>;
+  experiment?: boolean;
+  reasons?: string[];
+}
+
 export interface VariantBrief {
   id: number;
   language: Language;
@@ -373,6 +402,10 @@ export interface VariantBrief {
   status: VideoStatus;
   channel_id: number;
   error_message: string | null;
+  video_format: string | null;
+  hook_type: string | null;
+  concept: VariantConcept;
+  script: VariantScript | null;
 }
 
 export interface Clip {

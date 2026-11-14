@@ -222,7 +222,7 @@ try {
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
   });
 
-  await step("Videoproduktion: Gameplay hochladen, Szene wird gewählt und als Clip gerendert", async () => {
+  await step("Videoproduktion: Gameplay hochladen, Clip rendern, Konzept und Skript schreiben", async () => {
     // Licence-free synthetic video: calm part, hard cut, loud action part, calm tail.
     const dir = mkdtempSync(join(tmpdir(), "gce-e2e-"));
     const video = join(dir, `gameplay-${rightsTag}.mp4`);
@@ -242,6 +242,14 @@ try {
       "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", video,
     ]);
     assert.equal(ff.status, 0, `ffmpeg failed: ${ff.stderr}`);
+
+    // The whole pipeline of one upload needs about ten production jobs; leave headroom.
+    await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
+    const ops = page.locator("form").filter({ has: page.getByLabel("Max. tägliche Produktionsjobs") });
+    await ops.getByLabel("Max. tägliche Produktionsjobs").fill("500");
+    await ops.getByLabel("Kreative Varianten je Clip (1–4)").fill("2");
+    await ops.getByRole("button", { name: "Speichern" }).click();
+    await ops.getByText("Gespeichert.").waitFor();
 
     await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
     await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
@@ -266,29 +274,33 @@ try {
     const materialId = (await status.textContent())?.match(/Material #(\d+)/)?.[1];
     assert.ok(materialId, "upload did not report a material id");
 
-    // Master dispatches scout, rights check, scene analysis and clip production in turn.
+    // Master dispatches scout, rights check, analysis, rendering, concept and script in turn.
     const row = page.locator("tr").filter({ hasText: `#${materialId} ·` }).first();
-    let rendered = false;
-    for (let i = 0; i < 20 && !rendered; i++) {
+    let scripted = false;
+    for (let i = 0; i < 24 && !scripted; i++) {
       await page.getByRole("link", { name: "Agenten", exact: true }).click();
       await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
       await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
       await page.waitForTimeout(4000);
       await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
       await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
-      rendered = await row
-        .getByText("Gerendert, Schnitt folgt")
+      scripted = await row
+        .getByText("Skript fertig, Lokalisierung folgt")
         .first()
         .waitFor({ timeout: 2000 })
         .then(() => true)
         .catch(() => false);
     }
-    assert.ok(rendered, "no clip was rendered from the uploaded gameplay");
+    assert.ok(scripted, "no clip was rendered and scripted from the uploaded gameplay");
     await row.getByText(/×\d+, \d+(\.\d+)? fps/).waitFor();
     await row.getByRole("button", { name: /^Clip \d+$/ }).click();
     const preview = page.getByLabel(/^Vorschau Clip \d+$/);
     await preview.waitFor();
     await page.getByText("Szenenbewertung").waitFor();
+    const script = page.getByLabel(/^Skript (DE|EN) A$/).first();
+    await script.getByText("Hauptvariante").waitFor();
+    await script.getByText(/Hook:/).waitFor();
+    await script.getByText("Vorlage (kostenlos)").waitFor();
     const playable = await preview.evaluate(
       (el) =>
         new Promise((resolve) => {

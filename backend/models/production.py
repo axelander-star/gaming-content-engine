@@ -111,6 +111,8 @@ class Variant(IdMixin, TimestampMixin, FailureMixin, Base):
     variant_label: Mapped[str] = mapped_column(String(8))  # A, B, C, D ...
     video_format: Mapped[str | None] = mapped_column(String(64))
     hook_type: Mapped[str | None] = mapped_column(String(64))
+    #: Creative concept (Phase 8): format fit, dramaturgy, experiment flag, rationale.
+    concept: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
     status: Mapped[VideoStatus] = mapped_column(
         str_enum(VideoStatus, "video_status"), default=VideoStatus.SCENE_SELECTED, index=True
     )
@@ -137,6 +139,10 @@ class Script(IdMixin, TimestampMixin, Base):
     title: Mapped[str | None] = mapped_column(String(300))
     description: Mapped[str | None] = mapped_column(Text)
     version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    hook_type: Mapped[str | None] = mapped_column(String(64))
+    #: Timed beats (hook, setup, build-up, payoff, call to action) in clip seconds.
+    beats: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    source: Mapped[str] = mapped_column(String(64), default="template", server_default="template")
 
 
 class Voiceover(IdMixin, TimestampMixin, Base):

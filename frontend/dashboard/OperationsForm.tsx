@@ -15,6 +15,13 @@ const FIELDS: { key: NumericKey; label: string; step: number; min: number; max?:
   { key: "monthly_budget_eur", label: "Monatsbudget (€)", step: 1, min: 0 },
   { key: "max_daily_production_jobs", label: "Max. tägliche Produktionsjobs", step: 1, min: 0 },
   { key: "max_parallel_render_jobs", label: "Max. parallele Renderjobs", step: 1, min: 1, max: 64 },
+  {
+    key: "creative_variants",
+    label: "Kreative Varianten je Clip (1–4)",
+    step: 1,
+    min: 1,
+    max: 4,
+  },
   { key: "min_quality_score", label: "Mindestqualität (0–1)", step: 0.05, min: 0, max: 1 },
   {
     key: "min_publish_interval_minutes",

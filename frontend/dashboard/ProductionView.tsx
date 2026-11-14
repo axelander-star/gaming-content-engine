@@ -7,14 +7,24 @@ import { useAuth } from "@/components/AuthProvider";
 import { Badge, ErrorText, PageHeader, Section, StatCard } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/labels";
+import { FORMAT_LABELS, HOOK_LABELS } from "@/lib/creative";
 import { hasRole } from "@/lib/roles";
-import type { Clip, Game, License, LicenseStatus, RenderCapacity, VideoStatus } from "@/lib/types";
+import type {
+  Clip,
+  Game,
+  License,
+  LicenseStatus,
+  RenderCapacity,
+  VariantBrief,
+  VideoStatus,
+} from "@/lib/types";
 
 type Tone = "neutral" | "ok" | "warn" | "danger";
 
 const VARIANT_STATUS: Partial<Record<VideoStatus, [string, Tone]>> = {
   SCENE_SELECTED: ["Wartet auf Rendering", "warn"],
-  EDITING: ["Gerendert, Schnitt folgt", "ok"],
+  EDITING: ["Gerendert, Konzept folgt", "ok"],
+  LOCALIZATION: ["Skript fertig, Lokalisierung folgt", "ok"],
   FAILED: ["Fehler", "danger"],
 };
 const LICENSE_LABELS: Record<LicenseStatus, string> = {
@@ -305,6 +315,12 @@ function ClipSection({ clips }: { clips: Clip[] }) {
                       return (
                         <div key={v.id}>
                           {v.language.toUpperCase()} {v.label}: <Badge tone={tone}>{label}</Badge>
+                          {v.video_format && (
+                            <div className="muted">
+                              {FORMAT_LABELS[v.video_format] ?? v.video_format} ·{" "}
+                              {HOOK_LABELS[v.hook_type ?? ""] ?? v.hook_type}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -352,6 +368,14 @@ function ClipDetails({ clip }: { clip: Clip }) {
           ))}
       </div>
       <div>
+        {clip.variants.some((v) => v.script || v.video_format) && (
+          <>
+            <h3>Konzepte und Skripte</h3>
+            {clip.variants.map((v) => (
+              <VariantScriptCard key={v.id} variant={v} />
+            ))}
+          </>
+        )}
         {clip.rendered ? (
           <video
             className="clip-preview"
@@ -364,6 +388,58 @@ function ClipDetails({ clip }: { clip: Clip }) {
           <p className="muted">Vorschau erscheint nach dem Rendering.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+const BEAT_LABELS: Record<string, string> = {
+  hook: "Hook",
+  setup: "Einstieg",
+  buildup: "Spannung",
+  payoff: "Auflösung",
+  cta: "Aufruf",
+};
+
+function VariantScriptCard({ variant: v }: { variant: VariantBrief }) {
+  if (!v.video_format) return null;
+  const script = v.script;
+  return (
+    <div className="script-card" aria-label={`Skript ${v.language.toUpperCase()} ${v.label}`}>
+      <div>
+        <strong>
+          {v.language.toUpperCase()} {v.label}
+        </strong>{" "}
+        {FORMAT_LABELS[v.video_format] ?? v.video_format} ·{" "}
+        {HOOK_LABELS[v.hook_type ?? ""] ?? v.hook_type}{" "}
+        {v.concept.experiment ? (
+          <Badge tone="warn">Test</Badge>
+        ) : (
+          <Badge tone="ok">Hauptvariante</Badge>
+        )}
+      </div>
+      {script ? (
+        <>
+          <p>
+            <strong>{script.title}</strong>
+          </p>
+          <ol className="plain-list">
+            {script.beats.map((b) => (
+              <li key={`${b.kind}-${b.start_s}`}>
+                <span className="muted">
+                  {b.start_s.toFixed(1)}–{b.end_s.toFixed(1)} s · {BEAT_LABELS[b.kind] ?? b.kind}:
+                </span>{" "}
+                {b.text}
+              </li>
+            ))}
+          </ol>
+          <p className="muted">
+            Version {script.version} ·{" "}
+            {script.source === "template" ? "Vorlage (kostenlos)" : script.source}
+          </p>
+        </>
+      ) : (
+        <p className="muted">Skript folgt.</p>
+      )}
     </div>
   );
 }

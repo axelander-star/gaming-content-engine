@@ -70,7 +70,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** Testvideo (selbst erzeugt, lizenzfrei) wird zu Clip mit korrekten technischen Parametern verarbeitet.
 
-### Phase 8 – Creative Director, Hooks und Skripte
+### Phase 8 – Creative Director, Hooks und Skripte ✅
 
 - Formatkatalog, Hook-Strukturen, Skripterzeugung
 - LLM-Adapter (Mock + Live, budgetgeprüft); Variantenlogik A–D mit echtem Unterschied

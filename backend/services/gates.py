@@ -44,6 +44,21 @@ from services import agent_control
 from services.budget import BudgetLevel, budget_status
 from services.controls import effective_controls, get_operations
 
+#: Sub-steps inside one status: (SQL filter, check on a loaded entity). ``EDITING`` is
+#: shared by the Creative Director (no concept yet) and Script & Hook (concept chosen).
+STEPS: dict[str, tuple[Any, Any]] = {
+    "concept": (Variant.video_format.is_(None), lambda v: v.video_format is None),
+    "script": (Variant.video_format.is_not(None), lambda v: v.video_format is not None),
+}
+
+
+def step_filter(spec: AgentSpec) -> list[Any]:
+    """Extra WHERE clauses that select the entities of an agent's sub-step."""
+    if spec.stage is None or spec.stage.step is None:
+        return []
+    return [STEPS[spec.stage.step][0]]
+
+
 ENTITY_MODELS: dict[str, type[GameplayFile] | type[Variant]] = {
     "gameplay_files": GameplayFile,
     "variants": Variant,
@@ -167,6 +182,10 @@ def check_entity(
             "wrong_status",
             f"{spec.stage.entity_type}#{entity_id} is {entity.status.value}, "
             f"agent works on {spec.stage.status}",
+        )
+    if spec.stage.step is not None and not STEPS[spec.stage.step][1](entity):
+        return GateResult.deny(
+            "wrong_step", f"{spec.stage.entity_type}#{entity_id} is not at step {spec.stage.step}"
         )
     if isinstance(entity, GameplayFile):
         # Scout and rights agent decide about rights themselves; later stages re-check.
