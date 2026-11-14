@@ -187,3 +187,113 @@ export interface Game {
     rights_note?: string;
   };
 }
+
+// --- Rights management (Phase 6) ---------------------------------------------
+
+export type SourceType = "own_upload" | "licensed_creator" | "partner" | "contract" | "other_licensed";
+export type LicenseStatus = "pending" | "approved" | "rejected" | "expired" | "revoked";
+export type PolicyStatus = "permitted" | "license_required" | "forbidden";
+export type MaterialStatus =
+  | "DISCOVERED"
+  | "RIGHTS_PENDING"
+  | "RIGHTS_APPROVED"
+  | "RIGHTS_REJECTED"
+  | "ANALYZED"
+  | "FAILED";
+export type CheckOutcome = "ok" | "denied" | "missing";
+
+export interface Creator {
+  id: number;
+  name: string;
+  contact: string | null;
+  notes: string | null;
+  is_blocked: boolean;
+}
+
+export interface Source {
+  id: number;
+  creator_id: number | null;
+  type: SourceType;
+  name: string;
+  url: string | null;
+  provenance_notes: string | null;
+  is_blocked: boolean;
+}
+
+export interface LicenseTerms {
+  valid_from: string | null;
+  valid_until: string | null;
+  allows_commercial_use: boolean;
+  allows_editing: boolean;
+  allows_short_form: boolean;
+  allows_monetization: boolean;
+  music_cleared: boolean;
+  allowed_platforms: string[];
+  allowed_languages: string[];
+  restrictions: string | null;
+  publisher_permission: boolean;
+}
+
+export interface License extends LicenseTerms {
+  id: number;
+  source_id: number;
+  status: LicenseStatus;
+  document_uri: string | null;
+  verified_by_user_id: number | null;
+  verified_at: string | null;
+  documents: number;
+}
+
+export interface LicenseDocument {
+  id: number;
+  license_id: number;
+  version: number;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  sha256: string;
+  uploaded_by_user_id: number | null;
+  uploaded_at: string;
+}
+
+export interface PublisherPolicy {
+  id: number;
+  game_id: number;
+  game: string;
+  status: PolicyStatus;
+  publisher: string | null;
+  notes: string;
+  policy_url: string | null;
+  checked_at: string | null;
+  checked_by_user_id: number | null;
+}
+
+export interface RightsCheckItem {
+  key: string;
+  label: string;
+  outcome: CheckOutcome;
+  reason: string;
+}
+
+export interface Material {
+  id: number;
+  title: string | null;
+  status: MaterialStatus;
+  game_id: number | null;
+  game: string | null;
+  source_id: number;
+  source: string;
+  license_id: number;
+  storage_uri: string;
+  duration_s: number | null;
+  created_at: string;
+  error_message: string | null;
+  last_check: {
+    id: number;
+    checked_at: string;
+    approved: boolean;
+    checks: RightsCheckItem[];
+    missing: string[];
+    denied: string[];
+  } | null;
+}

@@ -57,6 +57,18 @@ def _game_intelligence() -> Agent:
     return GameIntelligenceAgent()
 
 
+def _material_scout() -> Agent:
+    from agents.material_scout import MaterialScoutAgent
+
+    return MaterialScoutAgent()
+
+
+def _rights_license() -> Agent:
+    from agents.rights_license import RightsLicenseAgent
+
+    return RightsLicenseAgent()
+
+
 GF, V = "gameplay_files", "variants"
 
 _SPECS: tuple[AgentSpec, ...] = (
@@ -70,10 +82,11 @@ _SPECS: tuple[AgentSpec, ...] = (
               "Sammelt Spieleinformationen, Zielgruppen und Videoideen.", 5, CostKind.PAID,
               factory=_game_intelligence),
     AgentSpec("material_scout", 4, "Material Scout",
-              "Findet freigegebenes Gameplay und dokumentiert Quellen.", 6, CostKind.LOCAL),
+              "Findet freigegebenes Gameplay und dokumentiert Quellen.", 6, CostKind.LOCAL,
+              stage=Stage(GF, "DISCOVERED"), factory=_material_scout),
     AgentSpec("rights_license", 5, "Rights & License",
               "Prüft Lizenzen und verhindert Verarbeitung ohne Freigabe.", 6, CostKind.LOCAL,
-              stage=Stage(GF, "DISCOVERED")),
+              stage=Stage(GF, "RIGHTS_PENDING"), factory=_rights_license),
     AgentSpec("gameplay_analysis", 6, "Gameplay Analysis",
               "Erkennt interessante Szenen und erzeugt Zeitmarken.", 7, CostKind.LOCAL,
               stage=Stage(GF, "RIGHTS_APPROVED"), production=True),

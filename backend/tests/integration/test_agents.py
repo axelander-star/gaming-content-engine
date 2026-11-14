@@ -84,6 +84,8 @@ def test_registry_lists_all_18_agents() -> None:
         "budget_cost",
         "trend_research",
         "game_intelligence",
+        "material_scout",
+        "rights_license",
     }
     stages = [s.stage.status for s in registry.stage_specs() if s.stage]
     assert stages[0] == "DISCOVERED" and "SCHEDULED" in stages
@@ -179,7 +181,7 @@ def test_gates_check_entity_status_and_rights(db: Session) -> None:
         chain.license.valid_until = date.today() - timedelta(days=1)
         db.flush()
         result = gates.check(db, settings, patched, payload_for(chain))
-        assert result.code == "rights" and "expired" in result.reason
+        assert result.code == "rights" and "Abgelaufen" in result.reason
         chain.license.valid_until = None
         chain.license.status = LicenseStatus.REVOKED
         db.flush()

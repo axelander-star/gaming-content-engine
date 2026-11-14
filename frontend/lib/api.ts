@@ -8,13 +8,23 @@ import type {
   AgentRun,
   Budget,
   Channel,
+  Creator,
   EffectiveControls,
   Game,
   Language,
+  License,
+  LicenseDocument,
+  LicenseTerms,
+  Material,
+  MaterialStatus,
   OperationsSettings,
   Overview,
+  PolicyStatus,
+  PublisherPolicy,
   Readiness,
   SettingsResponse,
+  Source,
+  SourceType,
   TrendItem,
   TrendReport,
   User,
@@ -75,6 +85,25 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
 const json = (data: unknown): string => JSON.stringify(data);
 
+/** Multipart upload; the browser sets the Content-Type with the boundary itself. */
+async function upload<T>(path: string, file: File): Promise<T> {
+  const form = new FormData();
+  form.append("file", file);
+  const headers = new Headers();
+  const csrf = readCookie("gce_csrf");
+  if (csrf) headers.set("X-CSRF-Token", csrf);
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    body: form,
+    headers,
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  const body: unknown = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, errorMessage(body, res.status));
+  return body as T;
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<User>("/auth/login", { method: "POST", body: json({ email, password }) }),
@@ -121,6 +150,64 @@ export const api = {
     request<TrendReport | null>(`/trends/report?language=${language}`),
   games: () => request<Game[]>("/games"),
   game: (id: number) => request<Game>(`/games/${id}`),
+
+  // rights management (Phase 6)
+  creators: () => request<Creator[]>("/creators"),
+  createCreator: (data: { name: string; contact?: string; notes?: string }) =>
+    request<Creator>("/creators", { method: "POST", body: json(data) }),
+  setCreatorBlocked: (id: number, blocked: boolean) =>
+    request<{ rechecked: number[] }>(`/creators/${id}/${blocked ? "block" : "unblock"}`, {
+      method: "POST",
+    }),
+  sources: () => request<Source[]>("/sources"),
+  createSource: (data: {
+    creator_id: number | null;
+    type: SourceType;
+    name: string;
+    url?: string;
+    provenance_notes?: string;
+  }) => request<Source>("/sources", { method: "POST", body: json(data) }),
+  setSourceBlocked: (id: number, blocked: boolean) =>
+    request<{ rechecked: number[] }>(`/sources/${id}/${blocked ? "block" : "unblock"}`, {
+      method: "POST",
+    }),
+  licenses: () => request<License[]>("/licenses"),
+  createLicense: (data: Partial<LicenseTerms> & { source_id: number }) =>
+    request<License>("/licenses", { method: "POST", body: json(data) }),
+  updateLicense: (id: number, terms: LicenseTerms) =>
+    request<License>(`/licenses/${id}`, { method: "PATCH", body: json(terms) }),
+  setLicenseStatus: (id: number, action: "approve" | "reject" | "revoke", note?: string) =>
+    request<License>(`/licenses/${id}/${action}`, {
+      method: "POST",
+      body: action === "approve" ? undefined : json({ note: note ?? null }),
+    }),
+  licenseDocuments: (id: number) => request<LicenseDocument[]>(`/licenses/${id}/documents`),
+  uploadLicenseDocument: (id: number, file: File) =>
+    upload<LicenseDocument>(`/licenses/${id}/documents`, file),
+  documentUrl: (licenseId: number, docId: number) =>
+    `/api/licenses/${licenseId}/documents/${docId}/file`,
+  createGame: (data: { name: string; publisher?: string }) =>
+    request<{ id: number; name: string; slug: string }>("/games", {
+      method: "POST",
+      body: json(data),
+    }),
+  policies: () => request<PublisherPolicy[]>("/policies"),
+  setPolicy: (
+    gameId: number,
+    data: { status: PolicyStatus; notes: string; publisher?: string; policy_url?: string },
+  ) => request<PublisherPolicy>(`/games/${gameId}/policy`, { method: "PUT", body: json(data) }),
+  materials: (status?: MaterialStatus) =>
+    request<Material[]>(`/materials${status ? `?status=${status}` : ""}`),
+  material: (id: number) => request<Material>(`/materials/${id}`),
+  registerMaterial: (data: {
+    source_id: number;
+    license_id: number;
+    game_id: number | null;
+    title?: string;
+    storage_uri: string;
+    sha256: string;
+  }) => request<Material>("/materials", { method: "POST", body: json(data) }),
+  rightsCriteria: () => request<{ key: string; label: string }[]>("/rights/criteria"),
 
   users: () => request<User[]>("/users"),
   createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>

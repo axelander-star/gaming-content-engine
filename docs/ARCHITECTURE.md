@@ -113,7 +113,7 @@ Mindestumfang laut Spezifikation Abschnitt 10, gruppiert nach Bereich:
 | Zugang | `users`, `audit_logs`, `notifications`, `system_settings` |
 | Kanäle | `platforms`, `channels` (Plattform × Sprache, eigene Strategie und Grenzen) |
 | Trends | `games`, `trends` |
-| Rechte | `creators`, `sources`, `licenses`, `assets` |
+| Rechte | `creators`, `sources`, `licenses`, `license_documents`, `publisher_policies`, `rights_checks`, `assets` |
 | Produktion | `gameplay_files`, `scenes`, `clips`, `variants`, `scripts`, `voiceovers`, `subtitles`, `quality_checks` |
 | Publishing | `publishing_jobs`, `posts` |
 | Analytics | `metrics`, `analytics_snapshots` |
@@ -125,6 +125,8 @@ Umgesetzt in Phase 2 (`backend/models/`, Migration `backend/database/migrations/
 - `channels.max_posts_per_day` ist eine Sicherheitsgrenze mit Standard **0**: Ein neuer Kanal kann nichts veröffentlichen, bis der Betreiber ihn konfiguriert. Die Datenbank erzwingt `max >= min >= 0`.
 - Lizenzrechte (`allows_*`, `music_cleared`) stehen standardmäßig auf `false`.
 - `posts` hat einen eindeutigen Index auf (`variant_id`, `channel_id`), `publishing_jobs.idempotency_key` ist eindeutig.
+
+Ergänzt in Phase 6: `license_documents` (versionierte Nachweise mit SHA-256), `publisher_policies` (eine geprüfte Richtlinie je Spiel: `permitted`, `license_required`, `forbidden`), `rights_checks` (Ergebnis jeder Rechteprüfung mit allen Kriterien), `licenses.publisher_permission` und `licenses.expiry_notified_at`. Die Rechteprüfung selbst steht in `services/rights.py` und wird vom Rights-Agenten und von den Gates gemeinsam genutzt.
 
 Ergänzend in Phase 11/14 geplant: `strategy_versions` (gespeicherte Publishing-Strategien je Kanal für Rollback) und `experiments` (kontrollierte Tests).
 

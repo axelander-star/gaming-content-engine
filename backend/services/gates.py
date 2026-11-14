@@ -34,14 +34,12 @@ from core.config import Settings
 from core.enums import (
     AgentRunStatus,
     ChannelAuthStatus,
-    LicenseStatus,
     MaterialStatus,
     VideoStatus,
 )
 from models.channels import Channel
 from models.control import AgentRun
 from models.production import Clip, GameplayFile, QualityCheck, Scene, Variant
-from models.rights import Asset, Creator, License, Source
 from services import agent_control
 from services.budget import BudgetLevel, budget_status
 from services.controls import effective_controls, get_operations
@@ -99,27 +97,18 @@ def production_runs_today(session: Session, now: datetime | None = None) -> int:
 def rights_check(
     session: Session, gameplay_file: GameplayFile, today: date | None = None
 ) -> str | None:
-    """Return ``None`` if the material may be used, else the reason it may not."""
-    today = today or datetime.now(UTC).date()
-    row = session.execute(
-        select(License, Source, Creator)
-        .join(Asset, Asset.license_id == License.id)
-        .join(Source, Source.id == Asset.source_id)
-        .outerjoin(Creator, Creator.id == Source.creator_id)
-        .where(Asset.id == gameplay_file.asset_id)
-    ).first()
-    if row is None:
-        return "no license linked to the material"
-    lic, source, creator = row
-    if lic.status != LicenseStatus.APPROVED:
-        return f"license status is {lic.status.value}"
-    if lic.valid_from and lic.valid_from > today:
-        return "license not yet valid"
-    if lic.valid_until and lic.valid_until < today:
-        return "license expired"
-    if source.is_blocked or (creator is not None and creator.is_blocked):
-        return "source or creator is blocked"
-    return None
+    """Return ``None`` if the material may be used, else the first failed criterion.
+
+    Uses the full rights evaluation of :mod:`services.rights`, so a license
+    that expired or a source that was blocked since approval stops all work.
+    """
+    from services.rights import evaluate
+
+    result = evaluate(session, gameplay_file, today)
+    if result.approved:
+        return None
+    failed = next(c for c in result.checks if c.outcome != "ok")
+    return f"{failed.label}: {failed.reason}"
 
 
 def _source_file(session: Session, variant: Variant) -> GameplayFile | None:
@@ -165,8 +154,8 @@ def check_entity(
     session: Session, settings: Settings, spec: AgentSpec, payload: dict[str, Any]
 ) -> GateResult:
     """Entity-related gates for an agent that owns a pipeline stage."""
-    if spec.stage is None:
-        return GateResult.ok()
+    if spec.stage is None or payload.get("sweep") is True:
+        return GateResult.ok()  # sweeps (e.g. expiry monitoring) work without one entity
     entity_id = payload.get("entity_id")
     if payload.get("entity_type") != spec.stage.entity_type or not isinstance(entity_id, int):
         return GateResult.deny("bad_payload", "payload must name the stage entity")
@@ -180,7 +169,8 @@ def check_entity(
             f"agent works on {spec.stage.status}",
         )
     if isinstance(entity, GameplayFile):
-        if entity.status != MaterialStatus.DISCOVERED:
+        # Scout and rights agent decide about rights themselves; later stages re-check.
+        if entity.status not in (MaterialStatus.DISCOVERED, MaterialStatus.RIGHTS_PENDING):
             problem = rights_check(session, entity)
             if problem:
                 return GateResult.deny("rights", problem)

@@ -32,8 +32,8 @@ Code: `backend/agents/base.py`, Registry `backend/agents/registry.py`.
 | 1 | Master Orchestrator | 4 | Ergebnisse aller Agenten, Einstellungen | Jobs, Prioritäten, Entscheidungsprotokoll | steuert alle Übergänge | lokal |
 | 2 | Trend Research | 5 | YouTube, Twitch, Steam, eigene Metriken | `trends`, Trendberichte | – | API-Quoten (kostenlos) |
 | 3 | Game Intelligence | 5 | `games`, `trends`, Kanalperformance | Spielprofile, Videoideen | – | lokal / LLM optional |
-| 4 | Material Scout | 6 | Trends, Creator-Uploads, Quellen | `sources`, `assets`, `gameplay_files` | → `DISCOVERED` | lokal |
-| 5 | Rights & License | 6 | `licenses`, Publisher-Policies | Freigabe/Sperre mit Begründung | → `RIGHTS_PENDING` / `RIGHTS_APPROVED` / `RIGHTS_REJECTED` | lokal |
+| 4 | Material Scout | 6 | registriertes Material (`DISCOVERED`), Trends | Herkunftsnachweis, Zuordnung zum Spiel, Materialbedarf | `DISCOVERED` → `RIGHTS_PENDING` | lokal |
+| 5 | Rights & License | 6 | `licenses`, Nachweise, Publisher-Richtlinien | `rights_checks` (12 Kriterien mit Begründung), Ablaufwarnungen | `RIGHTS_PENDING` → `RIGHTS_APPROVED` / `RIGHTS_REJECTED` | lokal |
 | 6 | Gameplay Analysis | 7 | freigegebenes Material | `scenes` mit Bewertung und Zeitmarken | → `ANALYZED` | lokal (CPU) |
 | 7 | Clip Production | 7 | Szenen | `clips` (9:16, H.264/AAC) | → `SCENE_SELECTED` → `EDITING` | lokal (CPU) |
 | 8 | Creative Director | 8 | Clips, Learning-Erkenntnisse | Konzepte, Formatwahl, Varianten A–D | – | LLM optional |
@@ -63,6 +63,31 @@ Code: `backend/agents/base.py`, Registry `backend/agents/registry.py`.
 Fehlende Werte (z. B. noch keine eigenen Videos) zählen neutral mit 0,5 und werden als „unbekannt“ markiert. Pro Sprache entsteht ein Trendbericht (`trend_reports`) mit Top 10, Gruppierung nach Zielgruppe und Zusammenfassung; Testdaten sind als solche gekennzeichnet.
 
 **Game Intelligence** (`agents/game_intelligence.py`, täglich): erstellt für jedes Spiel mit aktuellem Trend ein Profil in `games.profile`: Zielgruppe, typische Spielmodi, vier Videoideen aus den Formaten der Spezifikation (deutsch und englisch, steigende Spiele mit Priorität), Kanalperformance je Sprache und eine Gesamtbewertung (Trend-Score; sobald eigene Videos existieren 70 % Trend und 30 % eigene Performance). Regelbasiert ohne kostenpflichtige Aufrufe. Profile werden nach 7 Tagen erneuert.
+
+## Material Scout und Rights & License (umgesetzt in Phase 6)
+
+Material kommt nur über registrierte, lizenzierte Quellen ins System (Dashboard-Seite „Rechte“ oder `POST /api/materials`). Kein Agent lädt, zeichnet auf oder scrapt Videos.
+
+**Material Scout** (`agents/material_scout.py`)
+- Je Material (`DISCOVERED`): dokumentiert Quelle, Lizenz und Spiel, übernimmt die Spielzuordnung aus dem Asset, meldet fehlende Nachweise (Benachrichtigung) und übergibt an die Rechteprüfung (`RIGHTS_PENDING`). Gibt selbst nie frei.
+- Täglich (`{"sweep": true}`): vergleicht die Top-5-Trends je Sprache mit freigegebenem Material und meldet, für welche Trend-Spiele lizenziertes Material fehlt.
+
+**Rights & License** (`agents/rights_license.py`, Logik in `services/rights.py`)
+- Je Material (`RIGHTS_PENDING`): prüft 12 Kriterien einzeln und speichert das Ergebnis in `rights_checks`. Jedes Kriterium ist `ok`, `denied` (Nachweis sagt nein) oder `missing` (Nachweis fehlt). Freigabe nur, wenn alle 12 `ok` sind (deny by default).
+
+| Kriterium | `missing` wenn | `denied` wenn |
+|---|---|---|
+| Lizenz | Status `pending` | `rejected`, `expired`, `revoked` |
+| Nachweis | kein Dokument oder nicht von einem Admin geprüft | – |
+| Herkunft | weder URL noch Herkunftsnotiz | Quelle oder Creator gesperrt |
+| Kommerziell, Bearbeitung, Kurzvideo, Monetarisierung, Musik | – | nicht ausdrücklich erlaubt |
+| Plattformen | keine angegeben | eine gewünschte Plattform fehlt |
+| Sprachen | keine angegeben | Deutsch oder Englisch fehlt |
+| Gültigkeit | – | vor Beginn oder nach Ablauf |
+| Publisher-Richtlinie | Spiel unbekannt oder Richtlinie ungeprüft | `forbidden`, oder `license_required` ohne Erlaubnis des Rechteinhabers |
+
+- Täglich (`{"sweep": true}`): setzt abgelaufene Lizenzen auf `expired`, warnt 14 Tage vor Ablauf (einmal je Lizenz) und schickt betroffenes Material zurück in die Prüfung.
+- Jede Änderung an Nachweisen (Lizenz bearbeitet, freigegeben, widerrufen; Quelle oder Creator gesperrt; Richtlinie geändert) schickt Material in `RIGHTS_APPROVED`, `ANALYZED` oder `RIGHTS_REJECTED` zurück nach `RIGHTS_PENDING`. Die Gates prüfen dieselben Kriterien vor jedem späteren Produktionsschritt erneut.
 
 ## Grenzen und Pflichten einzelner Agenten
 

@@ -53,7 +53,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** Trenderkennung aus Mock-Daten reproduzierbar getestet; Live-Adapter nur mit freigegebenem Schlüssel und Quota-Begrenzung.
 
-### Phase 6 – Material Scout und Rights Agent
+### Phase 6 – Material Scout und Rights Agent ✅
 
 - Verwaltung von Creatorn, Quellen, Lizenzen inkl. Dokument-Upload als Nachweis
 - Rechteprüfung gegen alle Kriterien aus Abschnitt 5; Ablaufüberwachung; Sperrliste

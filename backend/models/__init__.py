@@ -15,7 +15,15 @@ from models.production import (
     Voiceover,
 )
 from models.publishing import Post, PublishingJob
-from models.rights import Asset, Creator, License, Source
+from models.rights import (
+    Asset,
+    Creator,
+    License,
+    LicenseDocument,
+    PublisherPolicy,
+    RightsCheck,
+    Source,
+)
 from models.trends import Game, Trend, TrendReport
 
 __all__ = [
@@ -32,12 +40,15 @@ __all__ = [
     "Game",
     "GameplayFile",
     "License",
+    "LicenseDocument",
     "Metric",
     "Notification",
     "Platform",
     "Post",
+    "PublisherPolicy",
     "PublishingJob",
     "QualityCheck",
+    "RightsCheck",
     "Scene",
     "Script",
     "Source",

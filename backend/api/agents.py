@@ -26,7 +26,14 @@ router = APIRouter(prefix="/agents", tags=["agents"], dependencies=[Depends(csrf
 AgentStatus = Literal["not_available", "stopped", "paused", "running", "error", "ready"]
 
 #: Agents the operator may start by hand (they do not work on a single entity).
-MANUAL_RUN = {"master", "budget_cost", "trend_research", "game_intelligence"}
+MANUAL_RUN = {
+    "master",
+    "budget_cost",
+    "trend_research",
+    "game_intelligence",
+    "material_scout",  # material needs sweep
+    "rights_license",  # license expiry sweep
+}
 
 
 class AgentOut(BaseModel):
@@ -259,7 +266,8 @@ def run_now(
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Emergency stop is active")
     if not agent_control.is_enabled(db, name):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Agent is paused")
-    job = submit(name, {}, priority=True, connection=redis)
+    payload = {"sweep": True} if spec.stage else {}
+    job = submit(name, payload, priority=True, connection=redis)
     audit.record(db, "agent.run_manual", user_id=admin.id, entity_type="agents",
                  after={"agent": name, "job_id": job.id})  # fmt: skip
     db.commit()

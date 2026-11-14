@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     agent_retry_base_delay_s: int = Field(default=300, ge=0)
     trend_research_seconds: int = Field(default=6 * 3600, ge=300)
     game_intelligence_seconds: int = Field(default=24 * 3600, ge=300)
+    rights_sweep_seconds: int = Field(default=24 * 3600, ge=300)  # license expiry monitoring
+    material_needs_seconds: int = Field(default=24 * 3600, ge=300)
+
+    # --- Local file storage (Phase 6: license documents; R2 follows later) ---
+    media_root: str = "./data/media"
+    max_document_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
 
     # --- Trend sources (Phase 5). "mock" needs no keys and makes no network calls. ---
     trend_sources_mode: Literal["mock", "live"] = "mock"
