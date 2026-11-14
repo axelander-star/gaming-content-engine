@@ -611,3 +611,17 @@ td .badge {
   margin: 0.25rem 0;
   padding-left: 1.25rem;
 }
+
+.strategy-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 0 0 12px;
+}
+
+.strategy-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+}

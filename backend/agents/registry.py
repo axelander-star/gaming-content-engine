@@ -27,6 +27,8 @@ class AgentSpec:
     factory: Callable[[], Agent] | None = None
     #: Production agents count against ``max_daily_production_jobs``.
     production: bool = False
+    #: Works on a whole channel (one job per channel) instead of one entity.
+    per_channel: bool = False
 
     @property
     def implemented(self) -> bool:
@@ -117,6 +119,12 @@ def _quality_control() -> Agent:
     return QualityControlAgent()
 
 
+def _publishing_strategy() -> Agent:
+    from agents.publishing_strategy import PublishingStrategyAgent
+
+    return PublishingStrategyAgent()
+
+
 GF, V = "gameplay_files", "variants"
 
 _SPECS: tuple[AgentSpec, ...] = (
@@ -163,7 +171,8 @@ _SPECS: tuple[AgentSpec, ...] = (
               factory=_quality_control),
     AgentSpec("publishing_strategy", 14, "Publishing Strategy",
               "Bestimmt pro Kanal Menge, Auswahl und Zeitpunkt der Veröffentlichungen.",
-              11, CostKind.LOCAL, stage=Stage(V, "READY_TO_PUBLISH")),
+              11, CostKind.LOCAL, stage=Stage(V, "READY_TO_PUBLISH"), per_channel=True,
+              factory=_publishing_strategy),
     AgentSpec("publishing", 15, "Publishing",
               "Veröffentlicht über offizielle APIs autorisierter Kanäle.", 12, CostKind.FREE_API,
               stage=Stage(V, "SCHEDULED")),

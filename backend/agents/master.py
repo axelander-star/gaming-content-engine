@@ -24,6 +24,8 @@ from sqlalchemy import func, select
 
 from agents.base import Agent, AgentContext, AgentResult
 from agents.registry import AgentSpec, stage_specs
+from core.enums import AgentRunStatus, VideoStatus
+from models.control import AgentRun
 from models.production import GameplayFile, Variant
 from services import agent_control, gates, workflow
 from services.controls import effective_controls, get_operations
@@ -124,6 +126,9 @@ class MasterOrchestratorAgent(Agent):
             if reason:
                 waiting[spec.name] = {"count": count, "reason": reason}
                 continue
+            if spec.per_channel:
+                self._dispatch_channels(ctx, spec, dispatched, blocked)
+                continue
             ids = session.scalars(
                 select(model.id)
                 .where(*where)
@@ -149,6 +154,43 @@ class MasterOrchestratorAgent(Agent):
                 if spec.production:
                     capacity -= 1
         return dispatched, blocked, waiting
+
+    def _dispatch_channels(
+        self,
+        ctx: AgentContext,
+        spec: AgentSpec,
+        dispatched: list[dict[str, Any]],
+        blocked: list[dict[str, Any]],
+    ) -> None:
+        """One job per channel with waiting or planned videos, at most every interval."""
+        session, settings = ctx.session, ctx.settings
+        channel_ids = session.scalars(
+            select(Variant.channel_id)
+            .where(Variant.status.in_([VideoStatus.READY_TO_PUBLISH, VideoStatus.SCHEDULED]))
+            .distinct()
+        ).all()
+        since = datetime.now(UTC) - timedelta(minutes=settings.strategy_interval_minutes)
+        recent = {
+            run.input.get("channel_id")
+            for run in session.scalars(
+                select(AgentRun).where(
+                    AgentRun.agent_name == spec.name,
+                    AgentRun.started_at >= since,
+                    AgentRun.status != AgentRunStatus.SKIPPED,
+                )
+            )
+        }
+        for channel_id in sorted(channel_ids):
+            if channel_id in recent:
+                continue
+            payload = {"sweep": True, "channel_id": channel_id}
+            gate = gates.check(session, settings, spec, payload, count_daily_limit=False)
+            if not gate.allowed:
+                blocked.append({**payload, "agent": spec.name, "gate": gate.code,
+                                "reason": gate.reason})  # fmt: skip
+                continue
+            self._submit(spec.name, payload)
+            dispatched.append({**payload, "agent": spec.name})
 
     @staticmethod
     def _stage_unavailable(ctx: AgentContext, spec: AgentSpec) -> str | None:

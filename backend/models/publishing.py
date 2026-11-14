@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.enums import PublishingJobStatus, PublishingMode
@@ -67,3 +78,32 @@ class Post(IdMixin, TimestampMixin, Base):
     is_mock: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
     publishing_job: Mapped[PublishingJob] = relationship()
+
+
+class StrategyVersion(IdMixin, Base):
+    """Publishing strategy of one channel; every change is a new version (rollback).
+
+    ``posts_per_day`` is the amount the Publishing Strategy Agent decided for the
+    channel; it always lies within the channel's safety bounds.
+    """
+
+    __tablename__ = "strategy_versions"
+    __table_args__ = (
+        UniqueConstraint("channel_id", "version", name="uq_strategy_versions_channel_version"),
+    )
+
+    channel_id: Mapped[int] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"), index=True
+    )
+    version: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    #: Local calendar day (channel time zone) the decision was made for.
+    planned_for: Mapped[date] = mapped_column(Date)
+    posts_per_day: Mapped[int] = mapped_column(Integer)
+    #: Posting window, preferred hours, format weights and other plan parameters.
+    params: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
+    reasons: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    #: Measured inputs (baselines, recent performance, quality, supply).
+    inputs: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
+    created_by: Mapped[str] = mapped_column(String(64))  # agent name or user:<id>
+    rolled_back_to: Mapped[int | None] = mapped_column(Integer)

@@ -8,6 +8,7 @@ import type {
   AgentRun,
   Budget,
   Channel,
+  ChannelPlan,
   Clip,
   Creator,
   EffectiveControls,
@@ -28,6 +29,7 @@ import type {
   SettingsResponse,
   Source,
   SourceType,
+  StrategyVersion,
   TrendHistoryPoint,
   TrendItem,
   TrendReport,
@@ -245,6 +247,14 @@ export const api = {
   variantSubtitlesUrl: (id: number, format: "srt" | "vtt") =>
     `/api/variants/${id}/subtitles.${format}`,
   renderCapacity: () => request<RenderCapacity>("/production/capacity"),
+
+  // publishing strategy (Phase 11)
+  publishingPlan: () => request<ChannelPlan[]>("/publishing/plan"),
+  rollbackStrategy: (channelId: number, version: number) =>
+    request<StrategyVersion>(`/publishing/channels/${channelId}/rollback`, {
+      method: "POST",
+      body: json({ version }),
+    }),
 
   users: () => request<User[]>("/users"),
   createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>

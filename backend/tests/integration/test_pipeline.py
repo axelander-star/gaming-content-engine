@@ -90,8 +90,10 @@ def test_pipeline_runs_to_ready_to_publish(db: Session, dummies: None) -> None:
     executed = run_ticks(db, 15)
     assert chain.gameplay_file.status == M.ANALYZED
     assert chain.variant.status == V.READY_TO_PUBLISH
-    # Material first (rights gate), then every video stage exactly once, in order.
-    assert executed == list(STEPS)
+    # Material first (rights gate), then every video stage exactly once, in order;
+    # the strategy agent then looks at the channel once, which is paused after seeding,
+    # so the video stays ready and nothing is planned.
+    assert executed == [*STEPS, "publishing_strategy"]
 
 
 def test_paused_agent_blocks_pipeline(db: Session, dummies: None) -> None:

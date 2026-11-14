@@ -72,7 +72,7 @@ try {
     const rows = page.locator("table").first().locator("tbody tr");
     await rows.nth(17).waitFor();
     assert.equal(await rows.count(), 18);
-    await page.getByText("Folgt in Phase 11").first().waitFor();
+    await page.getByText("Folgt in Phase 12").first().waitFor();
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -329,6 +329,32 @@ try {
     );
     assert.match(String(playable), /^(720x1280|1080x1920)$/);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/production.png`, fullPage: true });
+  });
+
+  await step("Publishing: Strategie je Kanal mit Begründung, keine echten Posts", async () => {
+    // The ready variant makes the master dispatch the strategy agent for its channel.
+    let decided = false;
+    for (let i = 0; i < 8 && !decided; i++) {
+      await page.getByRole("link", { name: "Agenten", exact: true }).click();
+      await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
+      await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
+      await page.waitForTimeout(2500);
+      await page.getByRole("link", { name: "Publishing", exact: true }).click();
+      await page.getByRole("heading", { name: "Publishing", level: 1 }).waitFor();
+      decided = await page
+        .getByText(/^Entscheidung:/)
+        .first()
+        .waitFor({ timeout: 2000 })
+        .then(() => true)
+        .catch(() => false);
+    }
+    assert.ok(decided, "the strategy agent made no decision for any channel");
+    await page.getByText("Es gibt keine feste Menge.", { exact: false }).waitFor();
+    await page.getByLabel("Begründung").first().waitFor();
+    // seeded channels are paused, so nothing is planned and nothing is published
+    await page.getByText("Kanal ist pausiert").first().waitFor();
+    await page.getByText("Test (keine echten Posts)").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/publishing.png`, fullPage: true });
   });
 
   await step("Trendquellen zeigen Modus, Zugangsdaten und Status", async () => {

@@ -155,7 +155,7 @@ Für jeden Kanal getrennt:
 3. **Entscheidung:** Menge und Zeitpunkte für den nächsten Zeitraum, begrenzt durch `channel.min_posts` / `channel.max_posts`, Mindestabstand und Plattformlimits. Änderungen der Menge sind pro Zyklus gedämpft (keine Sprünge durch ein einzelnes virales Video).
 4. **Protokoll:** Jede Entscheidung mit Begründung und Eingangswerten in `agent_decisions`; die vorherige Strategie bleibt in `strategy_versions` und kann zurückgesetzt werden.
 
-Die konkreten Formeln und Schwellwerte werden in Phase 11 festgelegt und getestet.
+Umsetzung (Phase 11, `services/strategy.py`): Score eines Videos = 0,6 × Aufrufe relativ zum Median + 0,4 × Mittel aus Interaktionsrate und Zuschauerbindung relativ zum Median, jeweils zum ältesten verfügbaren Messzeitpunkt ab 24 h, Baseline aus mindestens 5 früheren Videos, Einzelwerte bei 5× gedeckelt. Mehr (+1), wenn der Median der letzten 6 Scores ≥ 1,2 ist und ≥ 60 % über 1,0 liegen, vorausgesetzt die letzte Änderung liegt ≥ 3 Tage zurück und es stehen genug Videos bereit; weniger (−1) bei Median ≤ 0,8 oder einem Qualitätsabfall um ≥ 0,1. Grenzen: Kanal-Min/Max, Mindestabstand im Tagesfenster, mindestens 1 bei aktivem Kanal, 0 bei Pause. Eine Entscheidung pro Kanal und Ortstag; Planung stündlich.
 
 ## 7. Budgetsteuerung
 
