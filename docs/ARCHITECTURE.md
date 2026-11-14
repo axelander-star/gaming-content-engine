@@ -144,6 +144,8 @@ Fremdschlüssel sind `NOT NULL` entlang dieser Kette. Ein Post ohne Lizenzpfad i
 
 `clips` und `variants` speichern SHA-256 der Datei, einen perzeptuellen Video-Fingerprint (Frame-Hashes) und die Szenen-IDs. QC blockiert Varianten, deren Fingerprint-Distanz zu bereits veröffentlichten Varianten unter einem Schwellwert liegt.
 
+Umsetzung (Phase 10): Der Fingerprint ist ein 64-Bit-Differenz-Hash je Sekunde des Gameplay-Clips (ohne Untertitel, damit DE- und EN-Fassung vergleichbar bleiben). Zwei Sekunden gelten als gleich bei höchstens 10 abweichenden Bits; ein Video ist ein Duplikat, wenn bei der besten zeitlichen Verschiebung mindestens 60 % seiner Sekunden gleich sind. Verglichen wird mit freigegebenen, geplanten und veröffentlichten Varianten desselben Kanals (höchstens 500 neueste). Zusätzlich blockiert: gleicher Datei-Hash (kanalübergreifend) und dieselbe Szene desselben Materials mit mehr als 50 % Überschneidung auf demselben Kanal. Varianten desselben Clips sind A/B-Tests und werden nicht blockiert.
+
 ## 6. Publishing Strategy (Konzept)
 
 Für jeden Kanal getrennt:

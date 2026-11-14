@@ -129,6 +129,8 @@ Automatisch wählbar: Epische Szene, Überraschung, Unerwartete Wendung, Storyte
 
 **Subtitle** (`SUBTITLES` → `QUALITY_CHECK`, `services/subtitles.py`): Untertitel aus den Sprachabschnitten (2 × 32 Zeichen, ≥ 0,8 s, ≤ 17 Zeichen/s), SRT, VTT und ASS; fertige Variante mit eingebrannten Untertiteln (unten mittig, 22 % Abstand zum unteren Rand, 8 % seitlich), Stimme gemischt, Gameplay beim Sprechen abgesenkt. Nutzt die Renderslots.
 
+**Quality Control** (`QUALITY_CHECK` → `QUALITY_APPROVED` → `READY_TO_PUBLISH` oder `QUALITY_REJECTED`, `services/quality.py`): blockierende Prüfungen (Datei und Hash, Dekodierung, H.264/AAC, Hochformat, ≤ 60 fps, Plattformgrenzen des Kanals, Lizenz erneut, Stimmrechte, Untertitel, Schwarzbild, Duplikate) und Abzüge vom Qualitätswert (Ton, Lautheit, Spitzenpegel, Schwarz- und Standbild, Überlänge der Stimme, Lesbarkeit). Freigabe nur ohne blockierenden Befund und mit Wert ≥ `min_quality_score`. Ergebnis in `quality_checks` (Prüfungen, Messwerte, Gründe), Wert in `variants.quality_score`; Ablehnung erzeugt eine Benachrichtigung.
+
 ## Grenzen und Pflichten einzelner Agenten
 
 - **Rights & License:** Prüft alle Kriterien aus Spezifikation Abschnitt 5 (kommerziell, Bearbeitung, Kurzvideo, Plattformen, Sprachen, Gültigkeit, Monetarisierung, Musik/Bestandteile). Ein fehlendes Kriterium bedeutet Ablehnung, nicht Annahme. Publisher-Policies (z. B. GTA 6) werden als Regeln gepflegt; keine pauschale Freigabe.

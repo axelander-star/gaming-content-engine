@@ -72,7 +72,7 @@ try {
     const rows = page.locator("table").first().locator("tbody tr");
     await rows.nth(17).waitFor();
     assert.equal(await rows.count(), 18);
-    await page.getByText("Folgt in Phase 10").first().waitFor();
+    await page.getByText("Folgt in Phase 11").first().waitFor();
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -222,7 +222,7 @@ try {
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
   });
 
-  await step("Videoproduktion: Upload bis fertige Variante mit Skript, Stimme und Untertiteln", async () => {
+  await step("Videoproduktion: Upload bis geprüfte Variante mit Skript, Stimme, Untertiteln und Qualitätsprüfung", async () => {
     // Licence-free synthetic video: calm part, hard cut, loud action part, calm tail.
     const dir = mkdtempSync(join(tmpdir(), "gce-e2e-"));
     const video = join(dir, `gameplay-${rightsTag}.mp4`);
@@ -275,7 +275,8 @@ try {
     assert.ok(materialId, "upload did not report a material id");
 
     // Master dispatches scout, rights, analysis, rendering, concept, script, localization,
-    // voice and subtitles in turn.
+    // voice, subtitles and the quality check in turn. A re-run on the same database may
+    // reject the variant as a duplicate of an earlier run; both outcomes show the check.
     const row = page.locator("tr").filter({ hasText: `#${materialId} ·` }).first();
     let scripted = false;
     for (let i = 0; i < 36 && !scripted; i++) {
@@ -286,7 +287,7 @@ try {
       await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
       await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
       scripted = await row
-        .getByText("Fertig, Qualitätsprüfung folgt")
+        .getByText(/Bereit zur Veröffentlichung|Von Qualitätsprüfung abgelehnt/)
         .first()
         .waitFor({ timeout: 2000 })
         .then(() => true)
@@ -303,6 +304,9 @@ try {
     await script.getByText(/Hook:/).waitFor();
     await script.getByText(/Vorlage \(kostenlos\)/).waitFor();
     await page.getByText(/Untertitel eingebrannt/).first().waitFor();
+    const qc = page.getByLabel(/^Qualitätsprüfung (DE|EN) [A-D]$/).first();
+    await qc.getByText(/Qualitätswert \d\.\d\d/).waitFor();
+    await qc.getByText(/\d+ von \d+ Prüfungen bestanden/).waitFor();
     const final = page.getByLabel(/^Fertiges Video (DE|EN) [A-D]$/).first();
     const finalSize = await final.evaluate(
       (el) =>
