@@ -18,6 +18,7 @@ const NAV = [
   { href: "/publishing", label: "Publishing" },
   { href: "/analytics", label: "Analytics" },
   { href: "/kosten", label: "Kosten" },
+  { href: "/system", label: "System" },
   { href: "/einstellungen", label: "Einstellungen" },
 ] as const;
 

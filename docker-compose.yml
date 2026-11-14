@@ -1,4 +1,4 @@
-# Gaming Content Engine – Docker Compose (Stand: Phase 3)
+# Gaming Content Engine – Docker Compose (Stand: Phase 15)
 #
 # Enthält die Infrastrukturdienste, die ohne eigenen Code lauffähig sind.
 # Backend (FastAPI) + Worker seit Phase 2, Dashboard (Next.js) seit Phase 3.
@@ -86,9 +86,12 @@ services:
     env_file:
       - path: .env
         required: false  # in CI/validation; production always has .env
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      BACKUP_DIR: /data/backups
     volumes:
       - media_data:/data/media
+      - backup_data:/data/backups:ro
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -124,7 +127,12 @@ services:
     env_file:
       - path: .env
         required: false
-    environment: *backend-env
+    environment:
+      <<: *backend-env
+      BACKUP_DIR: /data/backups
+    volumes:
+      - media_data:/data/media:ro
+      - backup_data:/data/backups:ro
     command: ["python", "-m", "app.scheduler"]
     healthcheck:
       disable: true
@@ -133,6 +141,29 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    networks: [internal]
+
+  # --- Phase 15: daily encrypted database backup with restore test -------
+  # Needs BACKUP_PASSPHRASE in .env (without it nothing is written and the
+  # dashboard shows a warning). Dumps land in the backup_data volume; copy them
+  # off the server as well (see docs/OPERATIONS.md).
+  backup:
+    image: gaming-content-engine/backend:local
+    <<: [*restart, *logging]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *backend-env
+      BACKUP_DIR: /data/backups
+    command: ["python", "-m", "app.backup", "loop"]
+    volumes:
+      - backup_data:/data/backups
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     networks: [internal]
 
   # --- Phase 3: frontend (Next.js dashboard) ---------------------------
@@ -203,6 +234,7 @@ networks:
   web:
 
 volumes:
+  backup_data:
   media_data:
   postgres_data:
   redis_data:

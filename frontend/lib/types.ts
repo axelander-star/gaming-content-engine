@@ -630,3 +630,64 @@ export interface CostSummary {
   api_usage_today: Record<string, number>;
   prices_configured: boolean;
 }
+
+// --- Phase 15: system status ---------------------------------------------------
+
+export type CheckStatus = "ok" | "warn" | "critical" | "unknown";
+
+export interface SystemCheck {
+  key: string;
+  label: string;
+  status: CheckStatus;
+  detail: string;
+  value: number | null;
+}
+
+export interface ScalingAdvice {
+  key: string;
+  text: string;
+  evidence: string;
+}
+
+export interface BackupInfo {
+  file: string;
+  created_at: string;
+  size_bytes: number;
+  rows: number;
+}
+
+export interface RestoreCheckInfo {
+  file: string;
+  checked_at: string;
+  ok: boolean;
+  duration_s: number;
+  tables: number;
+  rows: number;
+  problems: string[];
+}
+
+export interface MonitorSample {
+  ts: string;
+  backlog: number;
+  wait_s: number;
+  load: number | null;
+  mem_free_pct: number | null;
+  disk_pct: number;
+}
+
+export interface SystemStatus {
+  checked_at: string;
+  status: CheckStatus;
+  checks: SystemCheck[];
+  scaling: ScalingAdvice[];
+  samples: MonitorSample[];
+  backup: {
+    configured: boolean;
+    count: number;
+    total_bytes: number;
+    age_hours: number | null;
+    latest: BackupInfo | null;
+    restore_check: RestoreCheckInfo | null;
+    backups: BackupInfo[];
+  };
+}

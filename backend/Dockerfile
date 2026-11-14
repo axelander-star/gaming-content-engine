@@ -9,8 +9,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # FFmpeg/ffprobe for the technical check and rendering (Phase 7).
+# PostgreSQL 16 client (same major version as the server) and GnuPG for the
+# encrypted backups (Phase 15); the client comes from the official PGDG repository.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
+ && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core gnupg postgresql-common \
+ && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+ && apt-get install -y --no-install-recommends postgresql-client-16 \
  && rm -rf /var/lib/apt/lists/*
 
 # Dependencies first for better layer caching.
@@ -22,7 +26,7 @@ RUN pip install --upgrade pip \
 COPY . .
 
 RUN useradd --create-home --uid 10001 app && chown -R app /app \
-    && mkdir -p /data/media && chown app /data/media
+    && mkdir -p /data/media /data/backups && chown app /data/media /data/backups
 USER app
 
 EXPOSE 8000

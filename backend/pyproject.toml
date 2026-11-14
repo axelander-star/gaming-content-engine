@@ -21,7 +21,7 @@ dependencies = [
     "numpy>=1.26,<3",
     "opencv-python-headless>=4.10,<5",
     "scenedetect>=0.6.4,<0.7",
-    "cryptography>=43,<47",
+    "cryptography>=50,<51",  # 46.x has known advisories (pip-audit, Phase 15)
 ]
 
 [project.optional-dependencies]

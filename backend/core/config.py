@@ -33,6 +33,8 @@ class Settings(BaseSettings):
 
     secret_key: SecretStr = SecretStr(PLACEHOLDER)
     credentials_encryption_key: SecretStr = SecretStr(PLACEHOLDER)
+    #: Previous keys during a rotation, comma-separated (Phase 15); empty otherwise.
+    credentials_encryption_key_old: SecretStr = SecretStr("")
 
     # --- Sessions / login (Phase 3) ---
     access_token_expire_minutes: int = Field(default=30, gt=0, le=24 * 60)
@@ -128,6 +130,27 @@ class Settings(BaseSettings):
     game_intelligence_seconds: int = Field(default=24 * 3600, ge=300)
     rights_sweep_seconds: int = Field(default=24 * 3600, ge=300)  # license expiry monitoring
     material_needs_seconds: int = Field(default=24 * 3600, ge=300)
+
+    # --- Operations (Phase 15): monitoring, alerts, backups ---
+    #: How often the scheduler runs the system checks (and pushes to Uptime Kuma).
+    monitor_seconds: int = Field(default=60, ge=15)
+    #: Optional Uptime Kuma push monitor URL (``.../api/push/<token>``); contains a token.
+    uptime_kuma_push_url: SecretStr = SecretStr("")
+    disk_warn_pct: float = Field(default=80.0, gt=0, le=100)
+    disk_critical_pct: float = Field(default=90.0, gt=0, le=100)
+    #: A job waiting longer than this in a queue counts as backlog.
+    queue_wait_warn_s: int = Field(default=1800, ge=60)
+    #: Failed agent runs in the last 24 h (share of all runs) before a warning.
+    agent_error_warn_ratio: float = Field(default=0.2, gt=0, le=1)
+    backup_dir: str = "./data/backups"
+    #: Symmetric key for the GnuPG-encrypted dumps. Without it no backup is written.
+    backup_passphrase: SecretStr = SecretStr("")
+    backup_hour: int = Field(default=3, ge=0, le=23)  # local time (TZ)
+    backup_keep_days: int = Field(default=14, ge=1)
+    backup_keep_min: int = Field(default=3, ge=1)  # never prune below this many dumps
+    backup_max_age_hours: int = Field(default=30, ge=1)  # older last backup = alert
+    backup_timeout_s: int = Field(default=3600, ge=60)
+    timezone: str = Field(default="Europe/Berlin", alias="TZ")
 
     # --- Local file storage (Phase 6: license documents; R2 follows later) ---
     media_root: str = "./data/media"

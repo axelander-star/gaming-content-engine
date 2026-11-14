@@ -111,7 +111,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 - Learning Agent mit Mindestdatenmenge und kontrollierten Experimenten
 - Budget-Agent vollständig: Stufen 50/70/85/95 %, Kosten pro Video und pro 1.000 Aufrufe
 
-### Phase 15 – Monitoring, Sicherheit, Backups, Skalierung
+### Phase 15 – Monitoring, Sicherheit, Backups, Skalierung ✅
 
 - Uptime Kuma, Fehlerüberwachung, Alarme; tägliche verschlüsselte PostgreSQL-Backups mit Restore-Test
 - Sicherheitsreview, Härtung des Servers, Deployment-Skript
