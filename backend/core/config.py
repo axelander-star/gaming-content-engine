@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     secret_key: SecretStr = SecretStr(PLACEHOLDER)
     credentials_encryption_key: SecretStr = SecretStr(PLACEHOLDER)
 
+    # --- Sessions / login (Phase 3) ---
+    access_token_expire_minutes: int = Field(default=30, gt=0, le=24 * 60)
+    session_cookie_secure: bool = True  # set False only for local HTTP development
+    login_max_failures: int = Field(default=5, gt=0)
+    login_lockout_minutes: int = Field(default=15, gt=0)
+    password_min_length: int = Field(default=12, ge=8)
+
     # --- Safety switches (PROJECT_SPEC section 15) ---
     auto_publish_enabled: bool = False
     publishing_mode: Literal["mock", "live"] = "mock"
@@ -85,6 +92,8 @@ class Settings(BaseSettings):
         if thresholds != sorted(thresholds):
             raise ValueError("Budget thresholds must be ascending (warn <= reduced <= ...)")
         if self.app_env == "production":
+            if not self.session_cookie_secure:
+                raise ValueError("SESSION_COOKIE_SECURE must be true in production")
             for name in ("secret_key", "credentials_encryption_key"):
                 value: SecretStr = getattr(self, name)
                 if value.get_secret_value() in ("", PLACEHOLDER):

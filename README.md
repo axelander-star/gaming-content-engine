@@ -2,7 +2,7 @@
 
 Cloudbasiertes KI-System, das Gaming-Trends erkennt, rechtlich freigegebenes Gameplay zu eigenständigen Kurzvideos verarbeitet, diese auf Deutsch und Englisch auf YouTube Shorts, TikTok, Instagram Reels und Facebook Reels veröffentlicht und anhand der tatsächlichen Ergebnisse selbst entscheidet, wann und wie viel pro Kanal veröffentlicht wird.
 
-> **Status:** Phase 2 von 15 abgeschlossen (Backend, Datenbank, Redis-Queue). Noch kein Dashboard und keine Agenten. Siehe [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
+> **Status:** Phase 3 von 15 abgeschlossen (Backend, Datenbank, Queue, Anmeldung, Dashboard-Grundgerüst). Noch keine Agenten. Siehe [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
 
 ## Grundprinzipien
 
@@ -29,7 +29,7 @@ Cloudbasiertes KI-System, das Gaming-Trends erkennt, rechtlich freigegebenes Gam
 
 ```
 backend/          FastAPI-Anwendung, Worker, Datenmodell, Tests (siehe backend/README.md)
-frontend/         Next.js-Dashboard (ab Phase 3)
+frontend/         Next.js-Dashboard (siehe frontend/README.md)
 infrastructure/   Docker-, Caddy- und Monitoring-Konfiguration
 scripts/          Hilfs- und Prüfskripte
 docs/             Projektdokumentation
@@ -42,10 +42,12 @@ Voraussetzungen: Docker mit Compose-Plugin.
 ```bash
 cp .env.example .env
 # In .env alle Werte "change-me" ersetzen (siehe Kommentare in der Datei)
-docker compose up -d --build    # PostgreSQL, Redis, Migration + Seed, Backend, Worker
+docker compose up -d --build    # PostgreSQL, Redis, Migration + Seed, Backend, Worker, Dashboard
 docker compose ps               # postgres/redis "healthy", migrate "exited (0)"
-curl http://127.0.0.1:8000/api/health/ready
+docker compose run --rm backend python -m app.create_admin --email du@example.com
 ```
+
+Dashboard: http://127.0.0.1:3000 (lokal über HTTP nur mit `SESSION_COOKIE_SECURE=false` in `.env`; auf dem Server über Caddy mit HTTPS).
 
 Prüfungen: `./scripts/verify_phase1.sh` (Struktur, Secrets, Compose) und `./scripts/test_backend.sh` (Lint, Typen, Tests; siehe [backend/README.md](backend/README.md)).
 

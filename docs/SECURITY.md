@@ -21,12 +21,17 @@ Die automatische Veröffentlichung wird erst eingeschaltet, wenn alle Tests best
 - Secrets werden nie geloggt; der Logger maskiert bekannte Schlüsselnamen.
 - `scripts/verify_phase1.sh` und später ein CI-Schritt prüfen auf versehentlich eingecheckte Secrets.
 
-## 3. Anmeldung und Rollen (Phase 3)
+## 3. Anmeldung und Rollen (umgesetzt in Phase 3)
 
-- Passwort-Hashing mit Argon2id, Mindestlänge, Login-Rate-Limit.
-- Rollen: `admin` (alles inkl. Live-Schaltung, Budget, Not-Aus), `operator` (Agenten/Plattformen pausieren, Inhalte prüfen), `viewer` (lesen).
-- Rechteprüfung serverseitig in jedem Endpunkt, nicht nur im Frontend.
-- Kurzlebige Access-Tokens, sichere Cookies (`HttpOnly`, `Secure`, `SameSite=Strict`).
+- Passwörter mit **Argon2id** gehasht; Richtlinie: mindestens 12 Zeichen und drei Zeichenklassen.
+- **Session:** signiertes Token (HS256, 30 Minuten) im Cookie `gce_session` mit `HttpOnly`, `Secure`, `SameSite=Strict`. In production verweigert das Backend den Start mit `SESSION_COOKIE_SECURE=false`.
+- **CSRF:** Double-Submit. Jede schreibende Anfrage muss den Wert des Cookies `gce_csrf` im Header `X-CSRF-Token` mitsenden.
+- **Widerruf:** Jeder Benutzer hat eine `session_version`. Rollenwechsel, Deaktivierung, Passwortänderung und „überall abmelden“ erhöhen sie; alte Tokens werden damit sofort ungültig.
+- **Login-Sperre:** nach 5 Fehlversuchen pro E-Mail und pro IP für 15 Minuten (Redis). Unbekannte Konten und falsche Passwörter liefern dieselbe Antwort; die Antwortzeit ist durch einen Dummy-Hash angeglichen.
+- **Rollen:** `admin` (alles, inkl. Not-Aus lösen, Auto-Publish, Budget, Kanalgrenzen, Benutzer), `operator` (Not-Aus auslösen, Kanäle pausieren), `viewer` (lesen). Der letzte aktive Admin kann nicht entfernt werden.
+- Rechteprüfung serverseitig in jedem Endpunkt; das Dashboard blendet nur aus.
+- **Kein Standard-Admin:** Der erste Admin wird per CLI (`python -m app.create_admin`) mit Passwortabfrage angelegt.
+- **Doppelte Sperre für Veröffentlichungen:** Auto-Publish im Dashboard wirkt nur, wenn auch die Serverkonfiguration `AUTO_PUBLISH_ENABLED=true` und `PUBLISHING_MODE=live` erlaubt. Der Not-Aus greift, wenn er in der Konfiguration *oder* im Dashboard aktiv ist.
 
 ## 4. Netzwerk
 
@@ -62,4 +67,4 @@ Die automatische Veröffentlichung wird erst eingeschaltet, wenn alle Tests best
 
 - Auswahl des Fehlerüberwachungsdienstes (selbst gehostet vs. SaaS) – Phase 15.
 - Schlüsselrotation für `CREDENTIALS_ENCRYPTION_KEY` – Konzept in Phase 12.
-- Zwei-Faktor-Anmeldung für Admins – Entscheidung in Phase 3.
+- Zwei-Faktor-Anmeldung für Admins – verschoben auf Phase 15 (Härtung), da das Dashboard bis dahin nur von einem Betreiber genutzt wird.

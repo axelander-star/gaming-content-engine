@@ -46,8 +46,13 @@ def test_invalid_publishing_mode_rejected() -> None:
 
 def test_production_refuses_placeholder_secrets() -> None:
     with pytest.raises(ValidationError, match="SECRET_KEY"):
-        make(app_env="production")
-    ok = make(app_env="production", secret_key="x" * 40, credentials_encryption_key="y" * 40)
+        make(app_env="production", secret_key="change-me", session_cookie_secure=True)
+    ok = make(
+        app_env="production",
+        secret_key="x" * 40,
+        credentials_encryption_key="y" * 40,
+        session_cookie_secure=True,
+    )
     assert ok.app_env == "production"
 
 

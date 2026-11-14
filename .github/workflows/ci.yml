@@ -1,0 +1,156 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gce
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: gce_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gce -d gce_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://gce:ci-only-password@localhost:5432/gce_test
+      REDIS_HOST: localhost
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Type check
+        run: mypy .
+      - name: Tests
+        run: pytest --cov=. --cov-report=term-missing
+      - name: Migration matches models
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: alembic upgrade head && alembic check
+
+  repo-checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Phase checks (structure, secrets, compose)
+        run: pip install pyyaml && ./scripts/verify_phase1.sh
+
+  docker-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t gaming-content-engine/backend:ci backend
+      - name: Image starts and imports the app
+        run: docker run --rm -e APP_ENV=test gaming-content-engine/backend:ci python -c "import app.main"
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Build dashboard image
+        run: docker build -t gaming-content-engine/frontend:ci .
+
+  e2e:
+    runs-on: ubuntu-24.04
+    needs: [test, frontend]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gce
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: gce
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U gce -d gce"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://gce:ci-only-password@localhost:5432/gce
+      REDIS_HOST: localhost
+      SESSION_COOKIE_SECURE: "false"
+      SECRET_KEY: ci-only-secret-key-0123456789abcdefghijkl
+      GCE_ADMIN_PASSWORD: Ci-Admin-Passwort-2026
+      E2E_PASSWORD: Ci-Admin-Passwort-2026
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Start backend
+        working-directory: backend
+        run: |
+          pip install -e .
+          alembic upgrade head
+          python -m app.seed
+          python -m app.create_admin --email admin@example.com
+          nohup uvicorn app.main:app --port 8000 > /tmp/backend.log 2>&1 &
+      - name: Build and start dashboard
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          BACKEND_URL=http://127.0.0.1:8000 npm run build
+          cp -r .next/static .next/standalone/.next/static
+          nohup env PORT=3000 node .next/standalone/server.js > /tmp/frontend.log 2>&1 &
+          npx --yes wait-on@8.0.3 -t 60000 http://127.0.0.1:3000/login http://127.0.0.1:8000/api/health
+      - name: E2E smoke test
+        working-directory: frontend
+        run: npm run e2e
+      - name: Logs on failure
+        if: failure()
+        run: tail -n 100 /tmp/backend.log /tmp/frontend.log

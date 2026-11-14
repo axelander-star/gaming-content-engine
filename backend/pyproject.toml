@@ -1,6 +1,6 @@
 [project]
 name = "gaming-content-engine-backend"
-version = "0.2.0"
+version = "0.3.0"
 description = "Backend (API + worker) of the Gaming Content Engine"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,6 +13,9 @@ dependencies = [
     "pydantic-settings>=2.3,<3",
     "redis>=5,<9",
     "rq>=2,<4",
+    "argon2-cffi>=23,<26",
+    "pyjwt>=2.8,<3",
+    "email-validator>=2,<3",
 ]
 
 [project.optional-dependencies]

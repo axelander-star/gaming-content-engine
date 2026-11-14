@@ -61,3 +61,4 @@ Thumbs.db
 # --- Redis-Laufzeitdateien ---
 dump.rdb
 appendonly.aof
+next-env.d.ts

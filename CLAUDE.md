@@ -29,6 +29,8 @@ Der Publishing Strategy Agent soll sie pro Kanal dynamisch anhand der verfügbar
 - **Aktueller Stand:** siehe `docs/PROJECT_STATUS.md`. Dort steht, welche Phase abgeschlossen ist und welche als Nächstes kommt.
 - **Phasenabschluss:** Nach jeder Phase `scripts/verify_phase1.sh` und `scripts/test_backend.sh` ausführen (plus die Tests der jeweiligen Phase) und die sechs Punkte aus PROJECT_SPEC.md Abschnitt 19 ausgeben.
 - **Backend:** Code in `backend/` (Importwurzel ist `backend/`). Statusänderungen nur über `services/workflow.py`. Neue Tabellen/Spalten immer mit Alembic-Migration (`alembic revision --autogenerate`), danach `alembic check`. Details: `backend/README.md`.
+- **Dashboard:** Code in `frontend/` (Next.js, TypeScript strict). Neue Backend-Endpunkte im API-Client `frontend/lib/api.ts` typisieren. Prüfen mit `npm run typecheck`, `npm run build` und `npm run e2e` (siehe `frontend/README.md`).
+- **Merge:** Phasen-PRs dürfen nach grüner CI selbst nach main gemergt werden (Entscheidung des Betreibers vom 14.11.2026).
 - **Sprache:** Dokumentation und Kommunikation auf Deutsch; Code-Bezeichner, Commit-Messages und Kommentare im Code auf Englisch.
 - **Sicherheitsvorgaben:** `AUTO_PUBLISH_ENABLED=false` und `PUBLISHING_MODE=mock` bleiben Standard. Nie echte Plattform-Credentials in Dateien schreiben, die eingecheckt werden.
 - **Agenten-Referenz:** `docs/AGENTS.md` (Zuständigkeiten, Ein-/Ausgaben, Status-Übergänge).
