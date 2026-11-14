@@ -17,6 +17,7 @@
   --danger-bg: #fde8e8;
   --danger: #c0262d;
   --radius: 10px;
+  --series-1: #2a78d6;
   color-scheme: light;
 }
 
@@ -36,6 +37,7 @@
     --warn: #f0b544;
     --danger-bg: #3d1517;
     --danger: #ff7076;
+    --series-1: #3987e5;
     color-scheme: dark;
   }
 }
@@ -624,4 +626,87 @@ td .badge {
   flex-wrap: wrap;
   gap: 6px 10px;
   align-items: baseline;
+}
+
+/* --- charts (Phase 14) --- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.chart-grid-4,
+.chart-grid-3 {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.chart {
+  margin: 0;
+}
+.chart figcaption {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+.chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.chart-axis {
+  fill: var(--muted);
+  font-size: 9px;
+}
+.chart-bar {
+  fill: var(--series-1);
+}
+.chart-mark:hover .chart-bar {
+  opacity: 0.8;
+}
+.barlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.barlist li {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) 2fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.barlist-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.barlist-track {
+  background: var(--surface-2);
+  border-radius: 4px;
+  height: 10px;
+  overflow: hidden;
+}
+.barlist-bar {
+  display: block;
+  height: 100%;
+  background: var(--series-1);
+  border-radius: 4px;
+}
+.barlist-value {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }

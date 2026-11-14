@@ -22,7 +22,7 @@ from services.orchestrator import submit
 
 log = logging.getLogger("scheduler")
 
-SWEEP_AGENTS = {"rights_license", "material_scout"}
+SWEEP_AGENTS = {"rights_license", "material_scout", "analytics"}
 
 
 @dataclass
@@ -42,6 +42,8 @@ class Schedule:
                 "game_intelligence": settings.game_intelligence_seconds,
                 "rights_license": settings.rights_sweep_seconds,
                 "material_scout": settings.material_needs_seconds,
+                "analytics": settings.analytics_seconds,
+                "learning": settings.learning_seconds,
             }
         )
 

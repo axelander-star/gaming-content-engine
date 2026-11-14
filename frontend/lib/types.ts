@@ -537,3 +537,96 @@ export interface ChannelPlan {
   history: StrategyVersion[];
   jobs: PlannedJob[];
 }
+
+// --- Analytics, Learning, Kosten (Phase 14) ---
+
+export interface PerfSummary {
+  posts: number;
+  measured: number;
+  views: number;
+  median_views: number | null;
+  engagement_rate: number | null;
+  retention_pct: number | null;
+  avg_view_duration_s: number | null;
+  followers_gained: number;
+}
+
+export interface PerfGroup extends PerfSummary {
+  key: string;
+}
+
+export interface PerfVideo {
+  post_id: number;
+  title: string | null;
+  url: string | null;
+  channel: string;
+  game: string | null;
+  format: string | null;
+  views: number;
+  window: string | null;
+  is_mock: boolean;
+}
+
+export interface AnalyticsOverview {
+  days: number;
+  test_data: boolean;
+  totals: PerfSummary;
+  timeline: (PerfSummary & { day: string })[];
+  groups: Record<string, PerfGroup[]>;
+  top: PerfVideo[];
+  weak: PerfVideo[];
+  options: Record<string, string[]>;
+}
+
+export interface AnalyticsFilters {
+  days: number;
+  platform?: string;
+  language?: string;
+  game?: string;
+  format?: string;
+  hook?: string;
+  hour?: string;
+}
+
+export interface LearningVersionOut {
+  version: number;
+  status: "trial" | "active" | "rolled_back" | "superseded";
+  created_at: string;
+  weights: Record<string, Record<string, number>>;
+  reasons: string[];
+  trial_until: string | null;
+  evaluation: Record<string, unknown>;
+  created_by: string;
+  rolled_back_to: number | null;
+  baseline: number | null;
+}
+
+export interface CostSummary {
+  month: string;
+  budget: {
+    budget_eur: number;
+    spent_eur: number;
+    used_pct: number;
+    level: string;
+    thresholds: Record<string, number>;
+  };
+  costs: Record<
+    "server" | "other_fixed" | "storage" | "ai" | "tts" | "api" | "other" | "total",
+    number
+  >;
+  storage: { bytes: number; price_per_gb: number };
+  videos: {
+    produced: number;
+    published: number;
+    published_test: number;
+    views: number;
+    views_test: number;
+  };
+  unit_costs: {
+    per_produced: number | null;
+    per_published: number | null;
+    per_1000_views: number | null;
+  };
+  api_usage_today: Record<string, number>;
+  prices_configured: boolean;
+}

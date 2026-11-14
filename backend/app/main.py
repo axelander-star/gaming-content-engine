@@ -7,6 +7,7 @@ import logging
 from fastapi import FastAPI
 
 from api.agents import router as agents_router
+from api.analytics import router as analytics_router
 from api.auth import router as auth_router
 from api.channels import oauth_router
 from api.channels import router as channels_router
@@ -30,7 +31,7 @@ def create_app() -> FastAPI:
     is_prod = settings.app_env == "production"
     app = FastAPI(
         title="Gaming Content Engine API",
-        version="0.13.0",
+        version="0.14.0",
         # Interactive docs only outside production.
         docs_url=None if is_prod else f"{API_PREFIX}/docs",
         redoc_url=None,
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
         rights_router,
         production_router,
         publishing_router,
+        analytics_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
     logging.getLogger(__name__).info(

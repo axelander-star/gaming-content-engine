@@ -41,7 +41,7 @@ CREATOR_INFO_URL = f"{API}/post/publish/creator_info/query/"
 INIT_URL = f"{API}/post/publish/video/init/"
 STATUS_URL = f"{API}/post/publish/status/fetch/"
 PUBLISH_SCOPE = "video.publish"
-SCOPES = (PUBLISH_SCOPE,)
+SCOPES = (PUBLISH_SCOPE, "video.list")  # video.list: statistics (Phase 14)
 PROVIDER = "tiktok"
 
 #: Files up to this size go in one request; larger ones in chunks (min 5 MB, max 64 MB

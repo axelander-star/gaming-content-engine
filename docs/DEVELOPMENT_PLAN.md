@@ -105,7 +105,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 - TikTok Content Posting API (Audit-Status beachten), Instagram Graph API (Reels), Facebook Graph API (Reels)
 - Ohne Freigabe bleibt das Video `READY_TO_PUBLISH`
 
-### Phase 14 – Analytics, Learning Agent, Budgetkontrolle
+### Phase 14 – Analytics, Learning Agent, Budgetkontrolle ✅
 
 - Metrikabruf je Plattform und Messzeitpunkt, Snapshots, Berichte
 - Learning Agent mit Mindestdatenmenge und kontrollierten Experimenten

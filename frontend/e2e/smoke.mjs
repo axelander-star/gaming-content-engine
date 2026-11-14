@@ -27,7 +27,10 @@ const step = async (name, fn) => {
 };
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 2 });
+const page = await browser.newPage({
+  viewport: { width: 1360, height: 900 },
+  deviceScaleFactor: 2,
+});
 try {
   await step("Unangemeldet wird auf /login umgeleitet", async () => {
     await page.goto(BASE + "/");
@@ -72,7 +75,7 @@ try {
     const rows = page.locator("table").first().locator("tbody tr");
     await rows.nth(17).waitFor();
     assert.equal(await rows.count(), 18);
-    await page.getByText("Folgt in Phase 14").first().waitFor();
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 18 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -134,202 +137,264 @@ try {
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
   });
 
-  await step("Rechte: Lizenz mit Nachweis freigeben, Material wird geprüft und freigegeben", async () => {
-    const tag = Date.now().toString(36);
-    rightsTag = tag;
-    const sha = Array.from({ length: 64 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
-    await page.getByRole("link", { name: "Rechte", exact: true }).click();
-    await page.getByRole("heading", { name: "Rechte und Lizenzen", level: 1 }).waitFor();
-    await page.getByRole("cell", { name: /Grand Theft Auto VI/ }).waitFor(); // seeded policy
-
-    const sources = page.locator("section").filter({ hasText: "Quellen und Creator" });
-    await sources.getByPlaceholder("Name des Creators").fill(`E2E Creator ${tag}`);
-    await sources.getByRole("button", { name: "Creator anlegen" }).click();
-    await sources.getByRole("listitem").filter({ hasText: `E2E Creator ${tag}` }).waitFor();
-    await sources.getByPlaceholder("Name der Quelle").fill(`E2E Quelle ${tag}`);
-    await sources.getByLabel("Creator", { exact: true }).selectOption({ label: `E2E Creator ${tag}` });
-    await sources.getByPlaceholder("Herkunftsnotiz").fill("Lizenzvertrag E2E");
-    await sources.getByRole("button", { name: "Quelle anlegen" }).click();
-    await sources.getByRole("cell", { name: `E2E Quelle ${tag}` }).waitFor();
-
-    const policies = page.locator("section").filter({ hasText: "Publisher-Richtlinien" });
-    await policies.getByPlaceholder("Neues Spiel").fill(`E2E Spiel ${tag}`);
-    await policies.getByRole("button", { name: "Spiel anlegen" }).click();
-    await policies.getByLabel("Spiel der Richtlinie").selectOption({ label: `E2E Spiel ${tag}` });
-    await policies.getByLabel("Richtlinie", { exact: true }).selectOption("permitted");
-    await policies.getByPlaceholder("Begründung / Fundstelle").fill("Clips laut Richtlinie erlaubt");
-    await policies.getByRole("button", { name: "Richtlinie speichern" }).click();
-    await policies.getByRole("cell", { name: `E2E Spiel ${tag}` }).waitFor();
-
-    const licenses = page.locator("section").filter({ hasText: "Lizenzen" }).first();
-    await licenses.getByLabel("Quelle der Lizenz").selectOption({ label: `E2E Quelle ${tag}` });
-    await licenses.getByRole("button", { name: "Lizenz anlegen" }).click();
-    await licenses.getByText("Ohne Nachweis keine Freigabe.").waitFor();
-    for (const label of ["Kommerziell", "Bearbeitung", "Kurzvideos", "Monetarisierung", "Musik freigegeben"]) {
-      await licenses.getByLabel(label, { exact: true }).check();
-    }
-    for (const label of ["YouTube Shorts", "TikTok", "Instagram Reels", "Facebook Reels", "Deutsch", "Englisch"]) {
-      await licenses.getByLabel(label, { exact: true }).check();
-    }
-    await licenses.getByRole("button", { name: "Bedingungen speichern" }).click();
-    await licenses.getByLabel("Lizenzdokument").setInputFiles({
-      name: "lizenz.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from(`%PDF-1.4\n% E2E ${tag}\n`),
-    });
-    await licenses.getByRole("button", { name: "Dokument hochladen" }).click();
-    await licenses.getByText("Version 1: lizenz.pdf").waitFor();
-    await licenses.getByRole("button", { name: "Lizenz freigeben" }).click();
-    await licenses.getByText(/Geprüft am/).waitFor();
-
-    const material = page.locator("section").filter({ hasText: "Material" }).first();
-    const option = await page
-      .getByLabel("Lizenz", { exact: true })
-      .locator("option", { hasText: `E2E Quelle ${tag}` })
-      .getAttribute("value");
-    await material.getByLabel("Lizenz", { exact: true }).selectOption(option);
-    await material.getByLabel("Spiel", { exact: true }).selectOption({ label: `E2E Spiel ${tag}` });
-    await material.getByPlaceholder("Titel").fill(`E2E Material ${tag}`);
-    await material.getByPlaceholder("Speicherort (z. B. r2://…)").fill(`mock://e2e/${tag}.mp4`);
-    await material.getByPlaceholder("SHA-256 der Datei").fill(sha);
-    await material.getByRole("button", { name: "Material registrieren" }).click();
-    const row = material.locator("tr").filter({ hasText: `E2E Material ${tag}` });
-    await row.getByText("Neu erfasst").waitFor();
-
-    // Master dispatches the Material Scout, then the Rights & License Agent.
-    let approved = false;
-    for (let i = 0; i < 6 && !approved; i++) {
-      await page.getByRole("link", { name: "Agenten", exact: true }).click();
-      await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
-      await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
-      await page.waitForTimeout(2500);
+  await step(
+    "Rechte: Lizenz mit Nachweis freigeben, Material wird geprüft und freigegeben",
+    async () => {
+      const tag = Date.now().toString(36);
+      rightsTag = tag;
+      const sha = Array.from(
+        { length: 64 },
+        () => "0123456789abcdef"[Math.floor(Math.random() * 16)],
+      ).join("");
       await page.getByRole("link", { name: "Rechte", exact: true }).click();
-      approved = await page
-        .locator("tr")
-        .filter({ hasText: `E2E Material ${tag}` })
-        .getByText("Freigegeben")
-        .waitFor({ timeout: 2000 })
-        .then(() => true)
-        .catch(() => false);
-    }
-    assert.ok(approved, "material was not approved by the rights check");
-    await page.getByRole("button", { name: `E2E Material ${tag}` }).click();
-    const checks = page.getByRole("table", { name: /Rechteprüfung Material/ });
-    await checks.getByText("Publisher-Richtlinie geprüft und erfüllt").waitFor();
-    assert.equal(await checks.getByText("erfüllt", { exact: true }).count(), 12);
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/rights.png`, fullPage: true });
-    await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
-    await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
-  });
+      await page.getByRole("heading", { name: "Rechte und Lizenzen", level: 1 }).waitFor();
+      await page.getByRole("cell", { name: /Grand Theft Auto VI/ }).waitFor(); // seeded policy
 
-  await step("Videoproduktion: Upload bis geprüfte Variante mit Skript, Stimme, Untertiteln und Qualitätsprüfung", async () => {
-    // Licence-free synthetic video: calm part, hard cut, loud action part, calm tail.
-    const dir = mkdtempSync(join(tmpdir(), "gce-e2e-"));
-    const video = join(dir, `gameplay-${rightsTag}.mp4`);
-    const parts = [
-      ["color=c=0x303840:s=1280x720:r=30:d=20", "sine=f=220:d=20:sample_rate=48000", 0.03],
-      ["testsrc2=s=1280x720:r=30:d=15", "anoisesrc=c=pink:d=15:sample_rate=48000", 0.6],
-      ["color=c=0x203020:s=1280x720:r=30:d=10", "sine=f=330:d=10:sample_rate=48000", 0.03],
-    ];
-    const inputs = parts.flatMap(([v]) => ["-f", "lavfi", "-i", v]);
-    inputs.push(...parts.flatMap(([, a]) => ["-f", "lavfi", "-i", a]));
-    const graph =
-      parts.map(([, , vol], i) => `[${i + 3}:a]volume=${vol},aformat=channel_layouts=stereo[a${i}];`).join("") +
-      parts.map((_, i) => `[${i}:v][a${i}]`).join("") +
-      "concat=n=3:v=1:a=1[v][a]";
-    const ff = spawnSync("ffmpeg", [
-      "-v", "error", "-y", ...inputs, "-filter_complex", graph, "-map", "[v]", "-map", "[a]",
-      "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", video,
-    ]);
-    assert.equal(ff.status, 0, `ffmpeg failed: ${ff.stderr}`);
+      const sources = page.locator("section").filter({ hasText: "Quellen und Creator" });
+      await sources.getByPlaceholder("Name des Creators").fill(`E2E Creator ${tag}`);
+      await sources.getByRole("button", { name: "Creator anlegen" }).click();
+      await sources
+        .getByRole("listitem")
+        .filter({ hasText: `E2E Creator ${tag}` })
+        .waitFor();
+      await sources.getByPlaceholder("Name der Quelle").fill(`E2E Quelle ${tag}`);
+      await sources
+        .getByLabel("Creator", { exact: true })
+        .selectOption({ label: `E2E Creator ${tag}` });
+      await sources.getByPlaceholder("Herkunftsnotiz").fill("Lizenzvertrag E2E");
+      await sources.getByRole("button", { name: "Quelle anlegen" }).click();
+      await sources.getByRole("cell", { name: `E2E Quelle ${tag}` }).waitFor();
 
-    // The whole pipeline of one upload needs about ten production jobs; leave headroom.
-    await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
-    const ops = page.locator("form").filter({ has: page.getByLabel("Max. tägliche Produktionsjobs") });
-    await ops.getByLabel("Max. tägliche Produktionsjobs").fill("500");
-    await ops.getByLabel("Kreative Varianten je Clip (1–4)").fill("2");
-    await ops.getByRole("button", { name: "Speichern" }).click();
-    await ops.getByText("Gespeichert.").waitFor();
+      const policies = page.locator("section").filter({ hasText: "Publisher-Richtlinien" });
+      await policies.getByPlaceholder("Neues Spiel").fill(`E2E Spiel ${tag}`);
+      await policies.getByRole("button", { name: "Spiel anlegen" }).click();
+      await policies.getByLabel("Spiel der Richtlinie").selectOption({ label: `E2E Spiel ${tag}` });
+      await policies.getByLabel("Richtlinie", { exact: true }).selectOption("permitted");
+      await policies
+        .getByPlaceholder("Begründung / Fundstelle")
+        .fill("Clips laut Richtlinie erlaubt");
+      await policies.getByRole("button", { name: "Richtlinie speichern" }).click();
+      await policies.getByRole("cell", { name: `E2E Spiel ${tag}` }).waitFor();
 
-    await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
-    await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
-    await page.getByLabel("Renderkapazität").waitFor();
-    const upload = page.getByRole("form", { name: "Gameplay hochladen" });
-    await upload.getByLabel("Videodatei").setInputFiles({
-      name: `gameplay-${rightsTag}.mp4`,
-      mimeType: "video/mp4",
-      buffer: readFileSync(video),
-    });
-    const approvedIds = await upload
-      .getByLabel("Lizenz", { exact: true })
-      .locator("option", { hasText: "freigegeben" })
-      .evaluateAll((opts) => opts.map((o) => Number(o.getAttribute("value"))));
-    const option = String(Math.max(...approvedIds)); // the licence approved in the rights step
-    await upload.getByLabel("Lizenz", { exact: true }).selectOption(option);
-    await upload.getByLabel("Spiel", { exact: true }).selectOption({ label: `E2E Spiel ${rightsTag}` });
-    await upload.getByPlaceholder("Titel").fill(`E2E Gameplay ${rightsTag}`);
-    await upload.getByRole("button", { name: "Hochladen" }).click();
-    const status = await page.getByRole("status").filter({ hasText: /Material #\d+ hochgeladen/ });
-    await status.waitFor({ timeout: 60000 });
-    const materialId = (await status.textContent())?.match(/Material #(\d+)/)?.[1];
-    assert.ok(materialId, "upload did not report a material id");
+      const licenses = page.locator("section").filter({ hasText: "Lizenzen" }).first();
+      await licenses.getByLabel("Quelle der Lizenz").selectOption({ label: `E2E Quelle ${tag}` });
+      await licenses.getByRole("button", { name: "Lizenz anlegen" }).click();
+      await licenses.getByText("Ohne Nachweis keine Freigabe.").waitFor();
+      for (const label of [
+        "Kommerziell",
+        "Bearbeitung",
+        "Kurzvideos",
+        "Monetarisierung",
+        "Musik freigegeben",
+      ]) {
+        await licenses.getByLabel(label, { exact: true }).check();
+      }
+      for (const label of [
+        "YouTube Shorts",
+        "TikTok",
+        "Instagram Reels",
+        "Facebook Reels",
+        "Deutsch",
+        "Englisch",
+      ]) {
+        await licenses.getByLabel(label, { exact: true }).check();
+      }
+      await licenses.getByRole("button", { name: "Bedingungen speichern" }).click();
+      await licenses.getByLabel("Lizenzdokument").setInputFiles({
+        name: "lizenz.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from(`%PDF-1.4\n% E2E ${tag}\n`),
+      });
+      await licenses.getByRole("button", { name: "Dokument hochladen" }).click();
+      await licenses.getByText("Version 1: lizenz.pdf").waitFor();
+      await licenses.getByRole("button", { name: "Lizenz freigeben" }).click();
+      await licenses.getByText(/Geprüft am/).waitFor();
 
-    // Master dispatches scout, rights, analysis, rendering, concept, script, localization,
-    // voice, subtitles and the quality check in turn. A re-run on the same database may
-    // reject the variant as a duplicate of an earlier run; both outcomes show the check.
-    const row = page.locator("tr").filter({ hasText: `#${materialId} ·` }).first();
-    let scripted = false;
-    for (let i = 0; i < 36 && !scripted; i++) {
-      await page.getByRole("link", { name: "Agenten", exact: true }).click();
-      await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
-      await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
-      await page.waitForTimeout(4000);
+      const material = page.locator("section").filter({ hasText: "Material" }).first();
+      const option = await page
+        .getByLabel("Lizenz", { exact: true })
+        .locator("option", { hasText: `E2E Quelle ${tag}` })
+        .getAttribute("value");
+      await material.getByLabel("Lizenz", { exact: true }).selectOption(option);
+      await material
+        .getByLabel("Spiel", { exact: true })
+        .selectOption({ label: `E2E Spiel ${tag}` });
+      await material.getByPlaceholder("Titel").fill(`E2E Material ${tag}`);
+      await material.getByPlaceholder("Speicherort (z. B. r2://…)").fill(`mock://e2e/${tag}.mp4`);
+      await material.getByPlaceholder("SHA-256 der Datei").fill(sha);
+      await material.getByRole("button", { name: "Material registrieren" }).click();
+      const row = material.locator("tr").filter({ hasText: `E2E Material ${tag}` });
+      await row.getByText("Neu erfasst").waitFor();
+
+      // Master dispatches the Material Scout, then the Rights & License Agent.
+      let approved = false;
+      for (let i = 0; i < 6 && !approved; i++) {
+        await page.getByRole("link", { name: "Agenten", exact: true }).click();
+        await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
+        await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
+        await page.waitForTimeout(2500);
+        await page.getByRole("link", { name: "Rechte", exact: true }).click();
+        approved = await page
+          .locator("tr")
+          .filter({ hasText: `E2E Material ${tag}` })
+          .getByText("Freigegeben")
+          .waitFor({ timeout: 2000 })
+          .then(() => true)
+          .catch(() => false);
+      }
+      assert.ok(approved, "material was not approved by the rights check");
+      await page.getByRole("button", { name: `E2E Material ${tag}` }).click();
+      const checks = page.getByRole("table", { name: /Rechteprüfung Material/ });
+      await checks.getByText("Publisher-Richtlinie geprüft und erfüllt").waitFor();
+      assert.equal(await checks.getByText("erfüllt", { exact: true }).count(), 12);
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/rights.png`, fullPage: true });
+      await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
+      await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
+    },
+  );
+
+  await step(
+    "Videoproduktion: Upload bis geprüfte Variante mit Skript, Stimme, Untertiteln und Qualitätsprüfung",
+    async () => {
+      // Licence-free synthetic video: calm part, hard cut, loud action part, calm tail.
+      const dir = mkdtempSync(join(tmpdir(), "gce-e2e-"));
+      const video = join(dir, `gameplay-${rightsTag}.mp4`);
+      const parts = [
+        ["color=c=0x303840:s=1280x720:r=30:d=20", "sine=f=220:d=20:sample_rate=48000", 0.03],
+        ["testsrc2=s=1280x720:r=30:d=15", "anoisesrc=c=pink:d=15:sample_rate=48000", 0.6],
+        ["color=c=0x203020:s=1280x720:r=30:d=10", "sine=f=330:d=10:sample_rate=48000", 0.03],
+      ];
+      const inputs = parts.flatMap(([v]) => ["-f", "lavfi", "-i", v]);
+      inputs.push(...parts.flatMap(([, a]) => ["-f", "lavfi", "-i", a]));
+      const graph =
+        parts
+          .map(([, , vol], i) => `[${i + 3}:a]volume=${vol},aformat=channel_layouts=stereo[a${i}];`)
+          .join("") +
+        parts.map((_, i) => `[${i}:v][a${i}]`).join("") +
+        "concat=n=3:v=1:a=1[v][a]";
+      const ff = spawnSync("ffmpeg", [
+        "-v",
+        "error",
+        "-y",
+        ...inputs,
+        "-filter_complex",
+        graph,
+        "-map",
+        "[v]",
+        "-map",
+        "[a]",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        video,
+      ]);
+      assert.equal(ff.status, 0, `ffmpeg failed: ${ff.stderr}`);
+
+      // The whole pipeline of one upload needs about ten production jobs; leave headroom.
+      await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
+      const ops = page
+        .locator("form")
+        .filter({ has: page.getByLabel("Max. tägliche Produktionsjobs") });
+      await ops.getByLabel("Max. tägliche Produktionsjobs").fill("500");
+      await ops.getByLabel("Kreative Varianten je Clip (1–4)").fill("2");
+      await ops.getByRole("button", { name: "Speichern" }).click();
+      await ops.getByText("Gespeichert.").waitFor();
+
       await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
       await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
-      scripted = await row
-        .getByText(/Bereit zur Veröffentlichung|Von Qualitätsprüfung abgelehnt/)
+      await page.getByLabel("Renderkapazität").waitFor();
+      const upload = page.getByRole("form", { name: "Gameplay hochladen" });
+      await upload.getByLabel("Videodatei").setInputFiles({
+        name: `gameplay-${rightsTag}.mp4`,
+        mimeType: "video/mp4",
+        buffer: readFileSync(video),
+      });
+      const approvedIds = await upload
+        .getByLabel("Lizenz", { exact: true })
+        .locator("option", { hasText: "freigegeben" })
+        .evaluateAll((opts) => opts.map((o) => Number(o.getAttribute("value"))));
+      const option = String(Math.max(...approvedIds)); // the licence approved in the rights step
+      await upload.getByLabel("Lizenz", { exact: true }).selectOption(option);
+      await upload
+        .getByLabel("Spiel", { exact: true })
+        .selectOption({ label: `E2E Spiel ${rightsTag}` });
+      await upload.getByPlaceholder("Titel").fill(`E2E Gameplay ${rightsTag}`);
+      await upload.getByRole("button", { name: "Hochladen" }).click();
+      const status = await page
+        .getByRole("status")
+        .filter({ hasText: /Material #\d+ hochgeladen/ });
+      await status.waitFor({ timeout: 60000 });
+      const materialId = (await status.textContent())?.match(/Material #(\d+)/)?.[1];
+      assert.ok(materialId, "upload did not report a material id");
+
+      // Master dispatches scout, rights, analysis, rendering, concept, script, localization,
+      // voice, subtitles and the quality check in turn. A re-run on the same database may
+      // reject the variant as a duplicate of an earlier run; both outcomes show the check.
+      const row = page
+        .locator("tr")
+        .filter({ hasText: `#${materialId} ·` })
+        .first();
+      let scripted = false;
+      for (let i = 0; i < 36 && !scripted; i++) {
+        await page.getByRole("link", { name: "Agenten", exact: true }).click();
+        await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
+        await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
+        await page.waitForTimeout(4000);
+        await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
+        await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
+        scripted = await row
+          .getByText(/Bereit zur Veröffentlichung|Von Qualitätsprüfung abgelehnt/)
+          .first()
+          .waitFor({ timeout: 2000 })
+          .then(() => true)
+          .catch(() => false);
+      }
+      assert.ok(scripted, "the uploaded gameplay did not become a finished variant");
+      await row.getByText(/×\d+, \d+(\.\d+)? fps/).waitFor();
+      await row.getByRole("button", { name: /^Clip \d+$/ }).click();
+      const preview = page.getByLabel(/^Vorschau Clip \d+$/);
+      await preview.waitFor();
+      await page.getByText("Szenenbewertung").waitFor();
+      const script = page.getByLabel(/^Skript (DE|EN) A$/).first();
+      await script.getByText("Hauptvariante").waitFor();
+      await script.getByText(/Hook:/).waitFor();
+      await script.getByText(/Vorlage \(kostenlos\)/).waitFor();
+      await page
+        .getByText(/Untertitel eingebrannt/)
         .first()
-        .waitFor({ timeout: 2000 })
-        .then(() => true)
-        .catch(() => false);
-    }
-    assert.ok(scripted, "the uploaded gameplay did not become a finished variant");
-    await row.getByText(/×\d+, \d+(\.\d+)? fps/).waitFor();
-    await row.getByRole("button", { name: /^Clip \d+$/ }).click();
-    const preview = page.getByLabel(/^Vorschau Clip \d+$/);
-    await preview.waitFor();
-    await page.getByText("Szenenbewertung").waitFor();
-    const script = page.getByLabel(/^Skript (DE|EN) A$/).first();
-    await script.getByText("Hauptvariante").waitFor();
-    await script.getByText(/Hook:/).waitFor();
-    await script.getByText(/Vorlage \(kostenlos\)/).waitFor();
-    await page.getByText(/Untertitel eingebrannt/).first().waitFor();
-    const qc = page.getByLabel(/^Qualitätsprüfung (DE|EN) [A-D]$/).first();
-    await qc.getByText(/Qualitätswert \d\.\d\d/).waitFor();
-    await qc.getByText(/\d+ von \d+ Prüfungen bestanden/).waitFor();
-    const final = page.getByLabel(/^Fertiges Video (DE|EN) [A-D]$/).first();
-    const finalSize = await final.evaluate(
-      (el) =>
-        new Promise((resolve) => {
-          const v = /** @type {HTMLVideoElement} */ (el);
-          if (v.readyState >= 1) return resolve(v.videoWidth + "x" + v.videoHeight);
-          v.addEventListener("loadedmetadata", () => resolve(v.videoWidth + "x" + v.videoHeight));
-          v.addEventListener("error", () => resolve("error"));
-        }),
-    );
-    assert.match(String(finalSize), /^(720x1280|1080x1920)$/);
-    const playable = await preview.evaluate(
-      (el) =>
-        new Promise((resolve) => {
-          const v = /** @type {HTMLVideoElement} */ (el);
-          if (v.readyState >= 1) return resolve(v.videoWidth + "x" + v.videoHeight);
-          v.addEventListener("loadedmetadata", () => resolve(v.videoWidth + "x" + v.videoHeight));
-          v.addEventListener("error", () => resolve("error"));
-        }),
-    );
-    assert.match(String(playable), /^(720x1280|1080x1920)$/);
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/production.png`, fullPage: true });
-  });
+        .waitFor();
+      const qc = page.getByLabel(/^Qualitätsprüfung (DE|EN) [A-D]$/).first();
+      await qc.getByText(/Qualitätswert \d\.\d\d/).waitFor();
+      await qc.getByText(/\d+ von \d+ Prüfungen bestanden/).waitFor();
+      const final = page.getByLabel(/^Fertiges Video (DE|EN) [A-D]$/).first();
+      const finalSize = await final.evaluate(
+        (el) =>
+          new Promise((resolve) => {
+            const v = /** @type {HTMLVideoElement} */ (el);
+            if (v.readyState >= 1) return resolve(v.videoWidth + "x" + v.videoHeight);
+            v.addEventListener("loadedmetadata", () => resolve(v.videoWidth + "x" + v.videoHeight));
+            v.addEventListener("error", () => resolve("error"));
+          }),
+      );
+      assert.match(String(finalSize), /^(720x1280|1080x1920)$/);
+      const playable = await preview.evaluate(
+        (el) =>
+          new Promise((resolve) => {
+            const v = /** @type {HTMLVideoElement} */ (el);
+            if (v.readyState >= 1) return resolve(v.videoWidth + "x" + v.videoHeight);
+            v.addEventListener("loadedmetadata", () => resolve(v.videoWidth + "x" + v.videoHeight));
+            v.addEventListener("error", () => resolve("error"));
+          }),
+      );
+      assert.match(String(playable), /^(720x1280|1080x1920)$/);
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/production.png`, fullPage: true });
+    },
+  );
 
   await step("Publishing: Strategie je Kanal mit Begründung, keine echten Posts", async () => {
     // The ready variant makes the master dispatch the strategy agent for its channel.
@@ -357,6 +422,26 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/publishing.png`, fullPage: true });
   });
 
+  await step("Analytics und Kosten: Filter, Diagramme, Lernstand und Budget", async () => {
+    await page.getByRole("link", { name: "Analytics", exact: true }).click();
+    await page.getByRole("heading", { name: "Analytics", level: 1 }).waitFor();
+    const filters = page.getByRole("group", { name: "Filter" });
+    for (const label of ["Zeitraum", "Plattform", "Sprache", "Spiel", "Format", "Hook"]) {
+      await filters.getByRole("combobox", { name: label }).waitFor();
+    }
+    await page.getByRole("figure", { name: "Aufrufe", exact: true }).waitFor();
+    await page.getByRole("figure", { name: "Aufrufe pro Spiel" }).waitFor();
+    await page.getByText("Erkenntnisse (Learning Agent)").waitFor();
+    await filters.getByRole("combobox", { name: "Zeitraum" }).selectOption("7");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/analytics.png`, fullPage: true });
+    await page.getByRole("link", { name: "Kosten", exact: true }).click();
+    await page.getByRole("heading", { name: "Kosten", level: 1 }).waitFor();
+    await page.getByText("Monatliche Gesamtkosten").waitFor();
+    await page.getByText("Budgetstufe:").waitFor();
+    await page.getByRole("figure", { name: "Kosten im Monat" }).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/kosten.png`, fullPage: true });
+  });
+
   await step("Trendquellen zeigen Modus, Zugangsdaten und Status", async () => {
     await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
     const sources = page.locator("section").filter({ hasText: "Trendquellen" });
@@ -369,19 +454,22 @@ try {
     if (SHOTS) await sources.screenshot({ path: `${SHOTS}/trend-sources.png` });
   });
 
-  await step("Plattform-Verbindungen: ohne App-Zugang keine Anmeldung, nichts verbunden", async () => {
-    const channels = page.locator("section").filter({ hasText: "Kanäle und Sicherheitsgrenzen" });
-    await channels.getByRole("columnheader", { name: "Verbindung" }).waitFor();
-    const connect = channels.getByRole("button", { name: "Mit YouTube verbinden" }).first();
-    await connect.click();
-    await channels.getByText("YouTube-OAuth-Client ist nicht eingerichtet").waitFor();
-    await channels.getByRole("button", { name: "Mit TikTok verbinden" }).first().click();
-    await channels.getByText("TikTok-App ist nicht eingerichtet").waitFor();
-    await channels.getByRole("button", { name: "Mit Instagram verbinden" }).first().click();
-    await channels.getByText("Meta-App ist nicht eingerichtet").waitFor();
-    assert.equal(await channels.getByText("Verbunden", { exact: true }).count(), 0);
-    assert.ok(page.url().includes("/einstellungen"), "must not leave the dashboard");
-  });
+  await step(
+    "Plattform-Verbindungen: ohne App-Zugang keine Anmeldung, nichts verbunden",
+    async () => {
+      const channels = page.locator("section").filter({ hasText: "Kanäle und Sicherheitsgrenzen" });
+      await channels.getByRole("columnheader", { name: "Verbindung" }).waitFor();
+      const connect = channels.getByRole("button", { name: "Mit YouTube verbinden" }).first();
+      await connect.click();
+      await channels.getByText("YouTube-OAuth-Client ist nicht eingerichtet").waitFor();
+      await channels.getByRole("button", { name: "Mit TikTok verbinden" }).first().click();
+      await channels.getByText("TikTok-App ist nicht eingerichtet").waitFor();
+      await channels.getByRole("button", { name: "Mit Instagram verbinden" }).first().click();
+      await channels.getByText("Meta-App ist nicht eingerichtet").waitFor();
+      assert.equal(await channels.getByText("Verbunden", { exact: true }).count(), 0);
+      assert.ok(page.url().includes("/einstellungen"), "must not leave the dashboard");
+    },
+  );
 
   await step("Automatische Veröffentlichung ist gesperrt", async () => {
     const auto = page.getByRole("switch", { name: "Automatische Veröffentlichung" });
@@ -401,7 +489,10 @@ try {
     await page.getByRole("link", { name: "Einstellungen" }).click();
     await page.getByRole("switch", { name: "Not-Aus", checked: true }).click();
     await page.getByRole("switch", { name: "Not-Aus", checked: false }).waitFor();
-    await page.getByRole("alert").filter({ hasText: "Not-Aus ist aktiv" }).waitFor({ state: "detached" });
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Not-Aus ist aktiv" })
+      .waitFor({ state: "detached" });
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/settings.png`, fullPage: true });
   });
 

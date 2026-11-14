@@ -45,6 +45,8 @@ UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
 SCOPES = (
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
+    # statistics for Analytics (Phase 14): view duration, retention, shares
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
 )
 UPLOAD_SCOPE = SCOPES[0]
 PROVIDER = "youtube"

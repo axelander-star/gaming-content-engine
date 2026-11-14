@@ -89,6 +89,12 @@ class Settings(BaseSettings):
     budget_reduced_pct: int = Field(default=70, ge=0, le=100)
     budget_priority_only_pct: int = Field(default=85, ge=0, le=100)
     budget_stop_paid_pct: int = Field(default=95, ge=0, le=100)
+    #: Fixed monthly costs (Phase 14). Enter the current provider prices; they count
+    #: fully against the month's budget because they run even when production pauses.
+    server_monthly_eur: float = Field(default=0.0, ge=0)
+    other_fixed_monthly_eur: float = Field(default=0.0, ge=0)  # backups, domain, …
+    #: Storage price per GB and month (e.g. object storage), for the cost estimate.
+    storage_eur_per_gb_month: float = Field(default=0.0, ge=0)
 
     # --- PostgreSQL ---
     postgres_host: str = "localhost"
@@ -114,6 +120,11 @@ class Settings(BaseSettings):
     agent_max_retries: int = Field(default=3, ge=0, le=20)
     agent_retry_base_delay_s: int = Field(default=300, ge=0)
     trend_research_seconds: int = Field(default=6 * 3600, ge=300)
+    #: Analytics sweep (Phase 14): measures posts at 1 h, 6 h, 24 h, 48 h, 7 days.
+    analytics_seconds: int = Field(default=1800, ge=60)
+    analytics_batch_size: int = Field(default=500, ge=1, le=10_000)
+    #: Learning Agent (Phase 14): evaluates trials and derives new factors.
+    learning_seconds: int = Field(default=6 * 3600, ge=300)
     game_intelligence_seconds: int = Field(default=24 * 3600, ge=300)
     rights_sweep_seconds: int = Field(default=24 * 3600, ge=300)  # license expiry monitoring
     material_needs_seconds: int = Field(default=24 * 3600, ge=300)

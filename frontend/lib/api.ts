@@ -8,7 +8,11 @@ import type {
   AgentRun,
   Budget,
   Channel,
+  AnalyticsFilters,
+  AnalyticsOverview,
   ChannelPlan,
+  CostSummary,
+  LearningVersionOut,
   Clip,
   Creator,
   EffectiveControls,
@@ -259,6 +263,19 @@ export const api = {
       method: "POST",
       body: json({ version }),
     }),
+
+  // analytics, learning and costs (Phase 14)
+  analytics: (filters: AnalyticsFilters) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== "") params.set(key, String(value));
+    }
+    return request<AnalyticsOverview>(`/analytics/overview?${params.toString()}`);
+  },
+  learningVersions: () => request<LearningVersionOut[]>("/analytics/learning"),
+  rollbackLearning: (version: number) =>
+    request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, { method: "POST" }),
+  costSummary: () => request<CostSummary>("/costs/summary"),
 
   users: () => request<User[]>("/users"),
   createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>

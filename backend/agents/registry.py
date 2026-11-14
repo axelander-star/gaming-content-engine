@@ -41,6 +41,18 @@ def _master() -> Agent:
     return MasterOrchestratorAgent()
 
 
+def _analytics() -> Agent:
+    from agents.analytics import AnalyticsAgent
+
+    return AnalyticsAgent()
+
+
+def _learning() -> Agent:
+    from agents.learning import LearningAgent
+
+    return LearningAgent()
+
+
 def _budget() -> Agent:
     from agents.budget_cost import BudgetCostAgent
 
@@ -184,10 +196,10 @@ _SPECS: tuple[AgentSpec, ...] = (
               stage=Stage(V, "SCHEDULED", step="due"), factory=_publishing),
     AgentSpec("analytics", 16, "Analytics",
               "Ruft Statistiken ab und erkennt starke und schwache Videos.", 14,
-              CostKind.FREE_API, stage=Stage(V, "ANALYTICS_PENDING")),
+              CostKind.FREE_API, factory=_analytics),
     AgentSpec("learning", 17, "Learning",
               "Leitet aus ausreichend Daten kontrollierte Strategieänderungen ab.", 14,
-              CostKind.LOCAL),
+              CostKind.LOCAL, factory=_learning),
     AgentSpec("budget_cost", 18, "Budget & Cost",
               "Überwacht Kosten und Budgetstufen, begrenzt teure Aufgaben.", 4, CostKind.LOCAL,
               factory=_budget),
