@@ -1,0 +1,65 @@
+[project]
+name = "gaming-content-engine-backend"
+version = "0.2.0"
+description = "Backend (API + worker) of the Gaming Content Engine"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "sqlalchemy>=2.0,<2.2",
+    "psycopg[binary]>=3.2,<4",
+    "alembic>=1.13,<2",
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.3,<3",
+    "redis>=5,<9",
+    "rq>=2,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "mypy>=1.10",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*", "agents*", "api*", "core*", "database*", "models*", "services*", "workflows*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["integration: needs a running PostgreSQL and Redis"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["database/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "N", "SIM", "RUF"]
+ignore = ["S101", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["database/migrations/versions/"]
+
+[[tool.mypy.overrides]]
+module = ["rq.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Tests: rq.Job.refresh is untyped; status narrowing after service calls is a false positive.
+module = ["tests.*"]
+disable_error_code = ["no-untyped-call", "comparison-overlap"]

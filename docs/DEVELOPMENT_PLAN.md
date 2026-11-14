@@ -14,15 +14,16 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** Struktur vollständig, Compose-Datei valide, keine Secrets im Repo (`scripts/verify_phase1.sh`).
 
-### Phase 2 – Docker, PostgreSQL, Redis, Backend
+### Phase 2 – Docker, PostgreSQL, Redis, Backend ✅
 
-- FastAPI-Projekt (`backend/`) mit Python 3.12, `pyproject.toml`, Ruff, mypy, pytest
+- FastAPI-Projekt (`backend/`) mit Python 3.12, `pyproject.toml`, Ruff, mypy (strict), pytest, GitHub-Actions-CI
 - Konfiguration über Pydantic Settings (sichere Standardwerte, Pflichtfelder)
 - SQLAlchemy-2.x-Modelle für alle Tabellen aus Abschnitt 10, Alembic-Erstmigration
 - Statusmaschine mit erlaubten Übergängen als Code + Tests
-- Redis-Anbindung, Job-Queue-Grundgerüst (Entscheidung arq/RQ)
-- Health-Endpunkte (`/health`, `/health/db`, `/health/redis`), strukturierte JSON-Logs
-- Backend- und Worker-Container im Compose, Caddy-Route `/api`
+- Redis-Anbindung, Job-Queue mit RQ (idempotente Job-IDs), Worker-Prozess
+- Health-Endpunkte (`/api/health`, `/api/health/ready`), strukturierte JSON-Logs mit Secret-Maskierung
+- Backend-, Worker- und Migrations-Container im Compose, Caddy-Route `/api`
+- Basisdaten: 4 Plattformen, 8 Kanäle (DE/EN), alle pausiert und ohne Veröffentlichungsfreigabe
 
 **Abnahme:** `docker compose up` startet alles healthy; Migration läuft; Tests für Modelle, Statusübergänge und Health grün.
 

@@ -40,7 +40,7 @@ Dieses Dokument beschreibt die Zielarchitektur der Gaming Content Engine. Verbin
 | # | Entscheidung | Begründung |
 |---|---|---|
 | A1 | **Ein Python-Backend-Paket** für API und Worker, zwei Prozesse (`api`, `worker`) aus demselben Image. | Gemeinsame Modelle und Services, kein doppelter Code, passt auf einen CX33. |
-| A2 | **Redis als Aufgabenwarteschlange** mit einer schlanken Job-Bibliothek (Kandidaten: `arq` oder `RQ`; Entscheidung in Phase 2). | In der Spezifikation vorgegeben; geringe Komplexität. |
+| A2 | **Redis als Aufgabenwarteschlange mit RQ** (entschieden in Phase 2). Drei Queues `high`, `default`, `low`; deterministische Job-IDs (`enqueue_unique`) verhindern doppelte Jobs. | Spezifikation gibt Redis vor. RQ ist synchron, aktiv gepflegt und passt zu CPU-lastigen Jobs (FFmpeg); arq wäre nur bei async-Agenten im Vorteil. |
 | A3 | **PostgreSQL ist die Quelle der Wahrheit.** Redis enthält nur flüchtige Zustände (Jobs, Locks, Rate-Limit-Zähler). | Jede Entscheidung muss nachvollziehbar und nach Neustart vorhanden sein. |
 | A4 | **Jeder externe Dienst hinter einem Adapter-Interface** mit `Mock`- und `Live`-Implementierung. Auswahl über Konfiguration, Standard ist `Mock`. | Entwicklung ohne echte Veröffentlichungen und ohne Kosten; Tests deterministisch. |
 | A5 | **n8n nur für Zeitsteuerung und Benachrichtigungen**, nicht für Geschäftslogik. | Logik bleibt testbar und versioniert im Python-Code. n8n ist optional. |
@@ -48,6 +48,7 @@ Dieses Dokument beschreibt die Zielarchitektur der Gaming Content Engine. Verbin
 | A7 | **Medien liegen in Cloudflare R2**, lokal nur als temporäre Arbeitskopie. In Entwicklung ein lokales Verzeichnis als Mock-Speicher. | 80 GB Serverplatte reichen nicht für ein Medienarchiv. |
 | A8 | **Gate-Prüfungen im Code, nicht nur in Agenten.** Rechte-, Qualitäts-, Budget- und Not-Aus-Prüfung sind zentrale Services, die vor jedem Statuswechsel und jedem externen Aufruf erzwungen werden. | Geschäftsregeln 1, 2, 8, 9 dürfen nicht von einem einzelnen Agenten abhängen. |
 | A9 | **Veröffentlichungsmenge wird nie als Konstante programmiert.** Es gibt nur pro Kanal konfigurierte Sicherheitsgrenzen (min/max); die Menge berechnet der Publishing Strategy Agent. | CLAUDE.md, Spezifikation Abschnitt 3. |
+| A10 | **Enums als VARCHAR + CHECK-Constraint** statt nativer PostgreSQL-Enums. | Neue Statuswerte lassen sich per einfacher Migration ergänzen; die Datenbank lehnt trotzdem ungültige Werte ab. |
 
 ## 3. Datenfluss (Pipeline)
 
@@ -97,7 +98,7 @@ Zusätzlich auf beiden Ebenen:
 - `QUALITY_REJECTED`: von QC abgelehnt, zurück zu `EDITING` oder `ARCHIVED`.
 - `READY_TO_PUBLISH` bleibt bestehen, wenn die Plattform nicht autorisiert ist (Spezifikation Abschnitt 11).
 
-Erlaubte Übergänge werden zentral definiert (Tabelle im Code) und vom Backend erzwungen. Jeder Übergang erzeugt einen Eintrag in `audit_logs`.
+Erlaubte Übergänge stehen zentral in `backend/core/states.py` und werden von `backend/services/workflow.py` erzwungen (`transition`, `mark_failed`, `retry`). Jeder Übergang erzeugt einen Eintrag in `audit_logs`. Ein Video kann nur aus `SCHEDULED` veröffentlicht werden, und `SCHEDULED` ist nur über `QUALITY_APPROVED → READY_TO_PUBLISH` erreichbar; Material erreicht `ANALYZED` nur über `RIGHTS_APPROVED`.
 
 ## 5. Datenmodell
 
@@ -113,6 +114,13 @@ Mindestumfang laut Spezifikation Abschnitt 10, gruppiert nach Bereich:
 | Publishing | `publishing_jobs`, `posts` |
 | Analytics | `metrics`, `analytics_snapshots` |
 | Steuerung | `agent_runs`, `agent_decisions`, `costs` |
+
+Umgesetzt in Phase 2 (`backend/models/`, Migration `backend/database/migrations/`). Abweichungen und Details:
+
+- `metrics.measure_window` statt `window` (reserviertes SQL-Wort), Werte `1h`, `6h`, `24h`, `48h`, `7d`, `other`; alle Kennzahlen nullable, weil Plattformen unterschiedliche Werte liefern.
+- `channels.max_posts_per_day` ist eine Sicherheitsgrenze mit Standard **0**: Ein neuer Kanal kann nichts veröffentlichen, bis der Betreiber ihn konfiguriert. Die Datenbank erzwingt `max >= min >= 0`.
+- Lizenzrechte (`allows_*`, `music_cleared`) stehen standardmäßig auf `false`.
+- `posts` hat einen eindeutigen Index auf (`variant_id`, `channel_id`), `publishing_jobs.idempotency_key` ist eindeutig.
 
 Ergänzend in Phase 11/14 geplant: `strategy_versions` (gespeicherte Publishing-Strategien je Kanal für Rollback) und `experiments` (kontrollierte Tests).
 
