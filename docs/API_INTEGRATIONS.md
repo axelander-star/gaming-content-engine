@@ -39,6 +39,33 @@ Standard ist `TREND_SOURCES_MODE=mock`: erfundene Testspiele mit festen, datumsa
 - ⚠️ Vor dem Einschalten prüfen: aktuelle Twitch-Rate-Limits, ob Kategorie 20 (Gaming) für `mostPopular` in DE und US geliefert wird, Steam-Nutzungsbedingungen.
 - Spieldetails aus dem Steam-Store (inoffizielle Endpunkte) werden bewusst **nicht** genutzt.
 
+### Live-Anbindung einrichten (ergänzt am 14.11.2026)
+
+**Zugangsdaten eintragen.** Nur als Umgebungsvariablen, nie im Code oder in Git:
+
+| Variable | Wofür |
+|---|---|
+| `YOUTUBE_API_KEY` | YouTube Data API v3, API-Schlüssel (in der Google Cloud Console auf „YouTube Data API v3“ beschränken) |
+| `TWITCH_CLIENT_ID` | Twitch-App, Client-ID |
+| `TWITCH_CLIENT_SECRET` | Twitch-App, Client-Secret |
+
+- Betrieb mit Docker: Datei `.env` im Hauptordner des Repos (Kopie von `.env.example`, durch `.gitignore` ausgeschlossen). Jede Variable steht dort genau einmal im Abschnitt „Trendquellen“.
+- Lokaler Start aus `backend/`: Es werden `../.env` und `backend/.env` gelesen. Leere Werte gelten als „nicht gesetzt“; eine leere Zeile überschreibt also nie einen echten Wert.
+- Danach erst `TREND_SOURCES_MODE=live` setzen. Mit `mock` laufen weiter Testdaten. Das ist auch der Rückfall, falls eine Quelle ausfällt.
+
+**Nur lesend.** Twitch nutzt ein App-Access-Token (Client Credentials) ohne Benutzerrechte, YouTube nur `videos.list` mit API-Schlüssel, Steam nur die öffentliche Spielerzahl. Es gibt keine schreibenden Aufrufe und keine kostenpflichtigen Dienste.
+
+**Quoten und Rate Limits.**
+- Jeder Aufruf wird vorab gegen eine eigene Tagesgrenze in Redis gezählt (YouTube `YOUTUBE_DAILY_QUOTA_UNITS`, Twitch und Steam je 2000 Anfragen pro Tag) und pro Lauf zusätzlich begrenzt.
+- Das Twitch-Token wird bis kurz vor Ablauf wiederverwendet (Redis, mit TTL) statt bei jedem Lauf neu angefordert. Bei HTTP 401 wird es verworfen.
+- HTTP 429 (Rate Limit) beendet den Twitch-Lauf sofort statt zu wiederholen. Bei YouTube beenden 400/401/403/429 den Lauf nach dem ersten Fehler, weil die zweite Sprache gleich scheitern würde.
+
+**Status im Dashboard** (Einstellungen, „Trendquellen“): Modus, ob die Zugangsdaten hinterlegt sind (nur ja/nein, nie der Wert), Status des letzten Laufs oder Tests, verbrauchte Quote heute und Fehlertexte. Fehlertexte enthalten nur HTTP-Status und den Fehlergrund des Anbieters (z. B. `HTTP 403 Zugriff verweigert (quotaExceeded)`), nie URLs oder Schlüssel. Ein Lauf mit Testdaten wird als „Testdaten, keine Verbindung“ angezeigt, nie als „Verbunden“.
+
+**Verbindungstest** (nur Admin, `POST /api/trends/sources/{youtube|twitch|steam}/test`): genau eine lesende Anfrage, auch im Mock-Modus, damit die Schlüssel vor dem Umschalten geprüft werden können. Verbrauch: YouTube 1 Einheit, Twitch 1 Anfrage (plus Token, falls keines gespeichert ist), Steam 1 Anfrage. Jeder Test steht im Audit-Log.
+
+**Auswertung.** Je Spiel und Sprache speichert jeder Trendlauf Score, Aufrufe (YouTube), Zuschauer (Twitch), Spieler (Steam) und das Wachstum. `GET /api/games/{id}/history` liefert den Verlauf; das Dashboard zeigt ihn beim Aufklappen eines Spiels als Kurve mit Tabelle.
+
 ## Publishing-Plattformen (Phase 12/13)
 
 ### YouTube (Shorts)

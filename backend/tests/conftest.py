@@ -20,6 +20,11 @@ os.environ.setdefault("REDIS_HOST", "127.0.0.1")
 os.environ.setdefault("REDIS_DB", "15")  # keep tests away from dev data
 os.environ.setdefault("SESSION_COOKIE_SECURE", "false")  # TestClient talks plain HTTP
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production-0123456789")
+# Tests never use real API keys or the operator's .env file: no real calls, no leaks in logs.
+os.environ.pop("YOUTUBE_API_KEY", None)
+os.environ.pop("TWITCH_CLIENT_ID", None)
+os.environ.pop("TWITCH_CLIENT_SECRET", None)
+os.environ.pop("TREND_SOURCES_MODE", None)
 
 from alembic import command
 from alembic.config import Config
@@ -29,10 +34,13 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from core.config import get_settings
+from core.config import Settings, get_settings
 from core.enums import UserRole
 from models.access import User
 from services.queue import get_redis
+
+Settings.model_config["env_file"] = None  # ignore .env files (see above)
+get_settings.cache_clear()
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

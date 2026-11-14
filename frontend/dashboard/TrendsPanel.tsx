@@ -7,6 +7,8 @@ import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/labels";
 import type { Game, Language, TrendItem, TrendReport } from "@/lib/types";
 
+import { TrendHistory } from "./TrendHistory";
+
 const SOURCE_LABELS: Record<string, string> = {
   youtube: "YouTube",
   twitch: "Twitch",
@@ -56,6 +58,7 @@ function GameDetails({ id, language }: { id: number; language: Language }) {
         ))}
       </ul>
       {p.rights_note && <p className="muted">{p.rights_note}</p>}
+      <TrendHistory gameId={id} language={language} />
     </div>
   );
 }

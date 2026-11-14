@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated, Any
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from redis import Redis
 from sqlalchemy import select
 
-from api.deps import DbSession, Viewer
+from api.deps import Admin, AppSettings, DbSession, Viewer, csrf_protect
 from core.catalog import audience_for
 from core.enums import Language
 from models.trends import Game, Trend, TrendReport
+from services import audit, source_status
+from services.queue import get_redis
 from services.trends import latest_trends
 
 router = APIRouter(tags=["trends"])
@@ -128,3 +131,109 @@ def get_game(game_id: int, _: Viewer, db: DbSession) -> Game:
     if game is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Game not found")
     return game
+
+
+class HistoryPoint(BaseModel):
+    detected_at: datetime
+    score: float
+    is_mock: bool
+    metrics: dict[str, float]  # metric -> value, e.g. video_views, live_viewers, players
+    growth_pct: dict[str, float]
+
+
+@router.get("/games/{game_id}/history", response_model=list[HistoryPoint])
+def game_history(
+    game_id: int,
+    _: Viewer,
+    db: DbSession,
+    language: Language = Language.DE,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+) -> list[HistoryPoint]:
+    """Score and raw values of one game over time (one point per trend run)."""
+    if db.get(Game, game_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Game not found")
+    since = datetime.now(UTC) - timedelta(days=days)
+    rows = db.scalars(
+        select(Trend)
+        .where(Trend.game_id == game_id, Trend.language == language, Trend.detected_at >= since)
+        .order_by(Trend.detected_at)
+    )
+    points = []
+    for t in rows:
+        per_source = (t.metrics or {}).get("per_source", {})
+        values = {
+            str(v["metric"]): float(v["value"])
+            for v in per_source.values()
+            if isinstance(v, dict) and v.get("value") is not None
+        }
+        growth = {
+            str(v["metric"]): float(v["growth_pct"])
+            for v in per_source.values()
+            if isinstance(v, dict) and v.get("growth_pct") is not None
+        }
+        points.append(
+            HistoryPoint(
+                detected_at=t.detected_at,
+                score=float(t.score),
+                is_mock=t.is_mock,
+                metrics=values,
+                growth_pct=growth,
+            )
+        )
+    return points
+
+
+# --- connection status of the trend sources -------------------------------------
+
+RedisDep = Annotated[Redis, Depends(get_redis)]
+SourceName = Literal["youtube", "twitch", "steam"]
+
+
+class SourceStatusOut(BaseModel):
+    name: str
+    label: str
+    mode: str
+    configured: bool
+    credentials: list[str]  # variable names only, never values
+    quota_used: int
+    quota_limit: int
+    quota_unit: str
+    last: dict[str, Any] | None
+
+
+@router.get("/trends/sources", response_model=list[SourceStatusOut])
+def source_overview(_: Viewer, settings: AppSettings, redis: RedisDep) -> list[dict[str, Any]]:
+    return source_status.overview(settings, redis)
+
+
+@router.post(
+    "/trends/sources/{name}/test",
+    response_model=SourceStatusOut,
+    dependencies=[Depends(csrf_protect)],
+)
+def test_source(
+    name: SourceName, admin: Admin, db: DbSession, settings: AppSettings, redis: RedisDep
+) -> dict[str, Any]:
+    """One read-only request against the real API, counted against the daily quota.
+
+    Runs only when an admin presses the button; works in mock mode too, so the
+    keys can be checked before live mode is switched on."""
+    from services.sources.live import SteamSource, TwitchSource, YouTubeSource
+
+    result = (
+        YouTubeSource(settings, redis).check()
+        if name == "youtube"
+        else TwitchSource(settings, redis).check()
+        if name == "twitch"
+        else SteamSource(settings, redis).check()
+    )
+    entry = source_status.record(redis, result, settings.trend_sources_mode, kind="test")
+    audit.record(
+        db,
+        "trend_source.test",
+        user_id=admin.id,
+        entity_type="trend_sources",
+        after={"source": name, "state": entry["state"], "errors": entry["errors"]},
+    )
+    db.commit()
+    return next(s for s in source_status.overview(settings, redis) if s["name"] == name)

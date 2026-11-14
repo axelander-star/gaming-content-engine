@@ -7,20 +7,33 @@ audience and writes one trend report per language.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
+from redis.exceptions import RedisError
 from sqlalchemy import select
 
 from agents.base import Agent, AgentContext, AgentResult
 from core.config import Settings
 from models.trends import Game
-from services import trends
+from services import source_status, trends
 from services.controls import get_operations
 from services.sources import get_sources
 from services.sources.base import KnownGame, Observation, TrendSource
 
 SourcesFactory = Callable[[Settings], list[TrendSource]]
+log = logging.getLogger("trend_research")
+
+
+def _record_status(settings: Settings, result: Any) -> None:
+    """Connection status for the dashboard; failing to store it never stops the run."""
+    try:
+        from services.queue import get_redis
+
+        source_status.record(get_redis(), result, settings.trend_sources_mode)
+    except RedisError as exc:
+        log.warning("could not store source status", extra={"error": str(exc)})
 
 
 def _default_sources(settings: Settings) -> list[TrendSource]:
@@ -50,6 +63,7 @@ class TrendResearchAgent(Agent):
         report: dict[str, dict[str, Any]] = {}
         for source in self._sources(ctx.settings):
             result = source.fetch(known, languages)
+            _record_status(ctx.settings, result)
             report[source.name] = {
                 "requests": result.requests,
                 "observations": len(result.observations),
