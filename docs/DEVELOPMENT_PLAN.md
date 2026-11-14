@@ -88,7 +88,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** Fehlerhafte Exporte und Duplikate werden zuverlässig blockiert.
 
-### Phase 11 – Publishing Strategy Agent
+### Phase 11 – Publishing Strategy Agent ✅
 
 - Kanal-Baselines je Messzeitpunkt, gedämpfte Mengenanpassung, Grenzen, Mindestabstand
 - `strategy_versions` mit Rollback; Entscheidungsbegründung im Dashboard

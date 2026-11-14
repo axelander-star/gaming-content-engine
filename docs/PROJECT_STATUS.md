@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 10 abgeschlossen · **Nächste Phase:** 11 (Publishing Strategy Agent)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 11 abgeschlossen · **Nächste Phase:** 12 (YouTube-Integration)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -18,7 +18,7 @@
 | 8 | Creative Director, Hooks, Skripte | ✅ abgeschlossen |
 | 9 | Lokalisierung, Voiceover, Untertitel | ✅ abgeschlossen |
 | 10 | Quality Control und Duplikaterkennung | ✅ abgeschlossen |
-| 11 | Publishing Strategy Agent | ⏳ offen |
+| 11 | Publishing Strategy Agent | ✅ abgeschlossen |
 | 12 | YouTube-Integration | ⏳ offen |
 | 13 | TikTok, Instagram, Facebook | ⏳ offen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
@@ -27,6 +27,52 @@
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
 Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 11 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Publishing Strategy Agent** (Agent 14): entscheidet für jeden Kanal getrennt, ob, wie viel, was und wann veröffentlicht wird. Es gibt keine feste Menge
+  - **Menge** einmal pro Tag je Kanal: Jedes Video wird mit dem Kanalschnitt **zum selben Messzeitpunkt** verglichen (Median der früheren Videos nach 24 h, 48 h oder 7 Tagen; Reichweite 60 %, Interaktion und Zuschauerbindung 40 %). Videos unter 24 h werden noch nicht bewertet. Mehr nur, wenn der Median der letzten sechs Videos mindestens 1,2× über dem Schnitt liegt und mindestens 60 % von ihnen darüber sind; weniger bei höchstens 0,8× oder sinkender Qualität. Höchstens ±1 pro Tag, nach einer Änderung drei Tage messen, bevor weiter erhöht wird. Ohne genügend Daten bleibt die Menge
+  - **Sicherheitsregeln:** Ein einzelnes virales Video erhöht nichts (Werte gedeckelt, Mehrheit nötig). Die Menge bleibt innerhalb der Kanalgrenzen und dessen, was mit dem Mindestabstand ins Tagesfenster passt. Erhöht wird nur, wenn genug Videos bereitstehen. Ein aktiver Kanal behält mindestens ein Video pro Tag; stoppen heißt pausieren. Nach einer Pause beginnt der Kanal wieder vorsichtig mit einem
+  - **Auswahl:** zuerst die Qualität, dazu ein Bonus oder Abzug für Spiele, Formate und Hooks, die auf dem Kanal nachweislich gut oder schwach laufen (ab drei Videos). Nur eine Variante pro Clip und Tag; ab zwei Videos pro Tag ist eine Testvariante dabei
+  - **Zeitpunkt:** im Tagesfenster des Kanals (Standard 11–21 Uhr Ortszeit, DE Europe/Berlin, EN America/New_York) mit Mindestabstand; mit genug Daten zuerst die Stunden, die auf dem Kanal am besten liefen
+  - **Zurückhalten und zurücknehmen:** Bereits geplante Videos werden zurückgenommen, wenn die Qualität unter dem Minimum liegt, die Rechte nicht mehr gelten, der Kanal pausiert ist oder mehr geplant ist als die Tagesmenge. Im Live-Modus wird nur für autorisierte Kanäle mit freigegebener Veröffentlichung geplant
+- **Strategie-Versionen** (`strategy_versions`): Jede Tagesentscheidung wird mit Begründung und Messwerten gespeichert. Ein Admin kann eine frühere Version wiederherstellen; sie gilt für den Rest des Tages
+- **Master:** startet den Agenten einmal pro Kanal mit wartenden oder geplanten Videos, höchstens alle 60 Minuten (`STRATEGY_INTERVAL_MINUTES`)
+- **Nichts wird veröffentlicht:** Der Agent legt nur Aufträge (`publishing_jobs`, Modus Mock) an und setzt die Variante auf `SCHEDULED`. Veröffentlichen ist Aufgabe von Phase 12/13
+- **Dashboard „Publishing“:** je Kanal Entscheidung, Begründung, Messwerte, geplante und zurückgenommene Veröffentlichungen, frühere Versionen mit „Zurücksetzen“ (Screenshot: `screenshots/phase11-publishing.png`)
+- **API:** `GET /api/publishing/plan`, `POST /api/publishing/channels/{id}/rollback` (Admin)
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/strategy.py`, `backend/agents/publishing_strategy.py`, `backend/api/publishing.py`, Migration `20261114_ade2a3503d9a_strategy_versions.py`, `tests/unit/test_strategy_simulation.py`, `tests/integration/test_publishing_strategy.py`, `frontend/dashboard/PublishingView.tsx`
+- Geändert: `backend/models/{publishing,__init__}.py`, `agents/{master,registry,quality_control}.py`, `services/{gates,orchestrator}.py`, `core/config.py`, `app/main.py`, Tests (`test_agents.py`, `test_agents_api.py`, `test_pipeline.py`), `frontend/app/(dashboard)/publishing/page.tsx`, `frontend/lib/{api,types}.ts`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, Dokumentation
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest), Migration und `alembic check`
+- **Simulationen mit synthetischen Kanalverläufen:** Datenmangel, erster Start, einzelnes virales Video, breiter Erfolg, schwache Ergebnisse, Qualitätsabfall, fehlender Vorrat, Kanalgrenzen, 30-Tage-Verlauf (virales Video, dann Wachstum, dann Qualitätsabfall); dazu Auswahl, Zeitfenster, Mindestabstand und beste Stunden
+- Mit Datenbank: erster Plan, Erhöhung am Folgetag, Rücknahme bei Qualität, Pause und Neustart, Live-Modus ohne Autorisierung, Kanal ohne Grenzen, Master-Verteilung je Kanal und Intervall, API mit Rücksetzen und Rechteprüfung
+- Frontend `typecheck` und `build`; E2E mit neuem Schritt „Publishing“
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 282 Backend-Tests bestanden; ruff, mypy und `alembic check` ohne Befund
+- **Abnahme Phase 11:** Simulationen mit Einzel-Viral, Qualitätsabfall und Datenmangel verhalten sich wie vorgesehen
+- 16 E2E-Schritte bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Es gibt noch keine echten Kennzahlen (Analytics folgt in Phase 14). Bis dahin startet jeder Kanal mit einem Video pro Tag und ändert die Menge nicht
+- Die Schwellwerte (1,2×, 0,8×, 60 %, drei Tage) sind begründete Startwerte und werden mit echten Daten überprüft
+- Geplant wird für den laufenden Tag; ein Plan für mehrere Tage im Voraus fehlt noch
+- Die eingerichteten Kanäle sind weiterhin pausiert und haben die Höchstgrenze 0. Erst wenn der Betreiber Grenzen setzt und einen Kanal fortsetzt, wird geplant
+
+### 6. Nächster Schritt
+
+Phase 12: YouTube-Integration (OAuth, verschlüsselte Tokens, Upload über die YouTube Data API, Quoten). Echte Uploads nur nach ausdrücklicher Freigabe; bis dahin Mock.
 
 ## Phase 10 – Bericht
 
@@ -512,6 +558,11 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Qualitätsprüfung: blockierende Prüfungen plus Qualitätswert mit Abzügen | Kaputte Exporte, Rechte und Duplikate dürfen nie durch einen guten Wert ausgeglichen werden |
 | 14.11.2026 | Duplikate je Kanal; Varianten desselben Clips gelten als A/B-Test | Dieselbe Szene auf DE- und EN-Kanal ist gewollt, auf demselben Kanal nicht |
 | 14.11.2026 | Fertige Varianten auf −14 LUFS normalisiert | Üblicher Wiedergabepegel der Kurzvideo-Apps, kein Lautstärkesprung |
+
+| 14.11.2026 | Menge einmal pro Tag je Kanal, höchstens ±1, Erhöhung erst nach drei Tagen Messung | Gedämpft und nachvollziehbar; jede Änderung wird erst gemessen |
+| 14.11.2026 | Vergleich mit dem Kanalschnitt zum selben Messzeitpunkt (Median), Videos unter 24 h werden nicht bewertet | Spezifikation Abschnitt 3: kein Urteil nach einer Stunde, robust gegen Ausreißer |
+| 14.11.2026 | Aktiver Kanal mindestens ein Video pro Tag; stoppen nur per Pause | Bei null Videos entstehen keine Daten mehr, der Kanal käme nie zurück |
+| 14.11.2026 | Rücksetzen erzeugt eine neue Version statt die alte zu löschen | Verlauf bleibt vollständig nachvollziehbar |
 
 ## Offene Punkte
 

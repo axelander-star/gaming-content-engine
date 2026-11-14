@@ -291,7 +291,7 @@ def _picture_and_sound(
 
 def _rights_voice_subtitles(s: Session, variant: Variant) -> list[Check]:
     checks = []
-    source = gates._source_file(s, variant)
+    source = gates.source_file(s, variant)
     problem = "Quellmaterial nicht gefunden" if source is None else gates.rights_check(s, source)
     checks.append(Check("rights", problem is None, problem or "Lizenz gültig", blocking=True))
 

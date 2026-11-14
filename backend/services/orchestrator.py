@@ -44,6 +44,8 @@ def _spec(agent_name: str) -> AgentSpec:
 def job_key(agent_name: str, payload: dict[str, Any]) -> str:
     """Deterministic id: one queued job per agent, entity and entity status."""
     if payload.get("sweep"):
+        if "channel_id" in payload:
+            return f"agent-{agent_name}-sweep-channel-{payload['channel_id']}"
         return f"agent-{agent_name}-sweep"
     if "entity_type" in payload and "entity_id" in payload:
         status = payload.get("status", "")

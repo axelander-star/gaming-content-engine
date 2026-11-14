@@ -131,6 +131,8 @@ Automatisch wählbar: Epische Szene, Überraschung, Unerwartete Wendung, Storyte
 
 **Quality Control** (`QUALITY_CHECK` → `QUALITY_APPROVED` → `READY_TO_PUBLISH` oder `QUALITY_REJECTED`, `services/quality.py`): blockierende Prüfungen (Datei und Hash, Dekodierung, H.264/AAC, Hochformat, ≤ 60 fps, Plattformgrenzen des Kanals, Lizenz erneut, Stimmrechte, Untertitel, Schwarzbild, Duplikate) und Abzüge vom Qualitätswert (Ton, Lautheit, Spitzenpegel, Schwarz- und Standbild, Überlänge der Stimme, Lesbarkeit). Freigabe nur ohne blockierenden Befund und mit Wert ≥ `min_quality_score`. Ergebnis in `quality_checks` (Prüfungen, Messwerte, Gründe), Wert in `variants.quality_score`; Ablehnung erzeugt eine Benachrichtigung.
 
+**Publishing Strategy** (`READY_TO_PUBLISH` → `SCHEDULED`, `services/strategy.py`): läuft je Kanal (Payload `sweep` + `channel_id`), vom Master höchstens alle `strategy_interval_minutes` gestartet. Einmal pro Ortstag eine neue `strategy_versions`-Zeile (Menge, Begründung, Messwerte); danach Rücknahme nicht mehr passender Planungen und Auswahl der besten Videos für die freien Plätze mit Zeitpunkten im Tagesfenster. Legt `publishing_jobs` an (Modus wie `PUBLISHING_MODE`, Standard Mock), veröffentlicht nichts.
+
 ## Grenzen und Pflichten einzelner Agenten
 
 - **Rights & License:** Prüft alle Kriterien aus Spezifikation Abschnitt 5 (kommerziell, Bearbeitung, Kurzvideo, Plattformen, Sprachen, Gültigkeit, Monetarisierung, Musik/Bestandteile). Ein fehlendes Kriterium bedeutet Ablehnung, nicht Annahme. Publisher-Policies (z. B. GTA 6) werden als Regeln gepflegt; keine pauschale Freigabe.

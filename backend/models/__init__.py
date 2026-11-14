@@ -14,7 +14,7 @@ from models.production import (
     Variant,
     Voiceover,
 )
-from models.publishing import Post, PublishingJob
+from models.publishing import Post, PublishingJob, StrategyVersion
 from models.rights import (
     Asset,
     Creator,
@@ -52,6 +52,7 @@ __all__ = [
     "Scene",
     "Script",
     "Source",
+    "StrategyVersion",
     "Subtitle",
     "SystemSetting",
     "Trend",

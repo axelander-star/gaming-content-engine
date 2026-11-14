@@ -126,7 +126,7 @@ def rights_check(
     return f"{failed.label}: {failed.reason}"
 
 
-def _source_file(session: Session, variant: Variant) -> GameplayFile | None:
+def source_file(session: Session, variant: Variant) -> GameplayFile | None:
     return session.scalar(
         select(GameplayFile)
         .join(Scene, Scene.gameplay_file_id == GameplayFile.id)
@@ -194,7 +194,7 @@ def check_entity(
             if problem:
                 return GateResult.deny("rights", problem)
         return GateResult.ok()
-    source = _source_file(session, entity)
+    source = source_file(session, entity)
     if source is None or source.status != MaterialStatus.ANALYZED:
         return GateResult.deny("rights", "source material has not passed rights and analysis")
     problem = rights_check(session, source)

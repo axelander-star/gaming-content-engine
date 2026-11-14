@@ -192,11 +192,20 @@ export interface Game {
 // --- Rights management (Phase 6) ---------------------------------------------
 
 export type SourceType =
-  "own_upload" | "licensed_creator" | "partner" | "contract" | "other_licensed";
+  | "own_upload"
+  | "licensed_creator"
+  | "partner"
+  | "contract"
+  | "other_licensed";
 export type LicenseStatus = "pending" | "approved" | "rejected" | "expired" | "revoked";
 export type PolicyStatus = "permitted" | "license_required" | "forbidden";
 export type MaterialStatus =
-  "DISCOVERED" | "RIGHTS_PENDING" | "RIGHTS_APPROVED" | "RIGHTS_REJECTED" | "ANALYZED" | "FAILED";
+  | "DISCOVERED"
+  | "RIGHTS_PENDING"
+  | "RIGHTS_APPROVED"
+  | "RIGHTS_REJECTED"
+  | "ANALYZED"
+  | "FAILED";
 export type CheckOutcome = "ok" | "denied" | "missing";
 
 export interface Creator {
@@ -461,4 +470,67 @@ export interface RenderCapacity {
   parallel_slots: number;
   clips_per_hour: number | null;
   waiting_for_render: number;
+}
+
+/** Publishing strategy of a channel (Phase 11). */
+export interface StrategyVersion {
+  version: number;
+  created_at: string;
+  planned_for: string;
+  posts_per_day: number;
+  reasons: string[];
+  inputs: {
+    assessment?: {
+      judged: number;
+      waiting: number;
+      recent: number[];
+      recent_median: number | null;
+      above_share: number | null;
+    };
+    supply?: { ready: number; approved_per_day: number; quality_recent: number | null };
+    days_since_change?: number | null;
+    rolled_back_from?: number;
+  };
+  params: { preferred_hours?: number[] | null; window?: number[]; interval_minutes?: number };
+  created_by: string;
+  rolled_back_to: number | null;
+}
+
+export type PublishingJobStatus =
+  | "pending"
+  | "scheduled"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "blocked";
+
+export interface PlannedJob {
+  id: number;
+  variant_id: number;
+  label: string;
+  language: Language;
+  title: string | null;
+  status: PublishingJobStatus;
+  mode: "mock" | "live";
+  scheduled_for: string | null;
+  note: string | null;
+}
+
+export interface ChannelPlan {
+  channel_id: number;
+  name: string;
+  platform: string;
+  language: Language;
+  is_paused: boolean;
+  auth_status: string;
+  min_posts_per_day: number;
+  max_posts_per_day: number;
+  min_interval_minutes: number;
+  timezone: string;
+  window: number[];
+  ready: number;
+  current: StrategyVersion | null;
+  history: StrategyVersion[];
+  jobs: PlannedJob[];
 }
