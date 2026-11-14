@@ -105,8 +105,7 @@ def technical_issues(settings: Settings, p: Probe) -> list[str]:
         issues.append(f"Zu lang ({p.duration_s / 60:.0f} min)")
     if min(p.width, p.height) < settings.min_source_height:
         issues.append(
-            f"Auflösung zu gering ({p.width}×{p.height}, "
-            f"mindestens {settings.min_source_height}p)"
+            f"Auflösung zu gering ({p.width}×{p.height}, mindestens {settings.min_source_height}p)"
         )
     if p.fps < 20:
         issues.append(f"Bildrate zu niedrig ({p.fps:.1f} fps)")

@@ -64,13 +64,11 @@ class Candidate:
 # --- signal extraction ----------------------------------------------------------
 
 
-def _video_signals(
-    settings: Settings, path: Path, probe: Probe
-) -> tuple[FArray, FArray]:
+def _video_signals(settings: Settings, path: Path, probe: Probe) -> tuple[FArray, FArray]:
     """Motion and motion centre per second, from frames sampled by FFmpeg."""
     fps = settings.analysis_sample_fps
     w = FEATURE_WIDTH
-    h = max(2, int(round(w * probe.height / max(probe.width, 1) / 2)) * 2)
+    h = max(2, round(w * probe.height / max(probe.width, 1) / 2) * 2)
     raw = media.run(
         [
             settings.ffmpeg_bin,
@@ -87,9 +85,9 @@ def _video_signals(
         timeout=settings.production_job_timeout_s,
         binary=True,
     )
-    frames = np.frombuffer(raw, dtype=np.uint8)
-    n = frames.size // (w * h)
-    frames = frames[: n * w * h].reshape(n, h, w)
+    flat = np.frombuffer(raw, dtype=np.uint8)
+    n = flat.size // (w * h)
+    frames = flat[: n * w * h].reshape(n, h, w)
     seconds = max(1, math.ceil(probe.duration_s))
     motion_sum = np.zeros(seconds)
     focus_sum = np.zeros(seconds)
@@ -108,9 +106,7 @@ def _video_signals(
             focus_sum[sec] += float((col * columns).sum() / total) * level
             weight_sum[sec] += level
     motion = np.divide(motion_sum, counts, out=np.zeros(seconds), where=counts > 0)
-    focus = np.divide(
-        focus_sum, weight_sum, out=np.full(seconds, np.nan), where=weight_sum > 0
-    )
+    focus = np.divide(focus_sum, weight_sum, out=np.full(seconds, np.nan), where=weight_sum > 0)
     return motion, focus
 
 
@@ -190,10 +186,9 @@ def rate_window(f: Features, a: int, b: int) -> tuple[float, dict[str, float], l
     db = f.audio_db[a:b]
     lo, hi = (float(np.percentile(f.audio_db, p)) for p in (5, 95))
     audible = f.has_audio and hi > SILENCE_DB + 1
-    if audible and hi - lo >= 3:
-        s_audio = _clip01((float(db.mean()) - lo) / (hi - lo))
-    else:
-        s_audio = 0.5  # unknown: no audio or flat level counts neutral
+    level_known = audible and hi - lo >= 3
+    # unknown (no audio or a flat level) counts neutral
+    s_audio = _clip01((float(db.mean()) - lo) / (hi - lo)) if level_known else 0.5
 
     # surprise: sudden jump in loudness or motion compared with the 3 s before
     jump = 0.0
@@ -212,7 +207,7 @@ def rate_window(f: Features, a: int, b: int) -> tuple[float, dict[str, float], l
 
     third = max(1, length // 3)
     level = motion / ref_motion if ref_motion > 0 else np.zeros(length)
-    if audible and hi - lo >= 3:
+    if level_known:
         level = (level + np.clip((db - lo) / (hi - lo), 0, 1)) / 2
     s_buildup = _clip01((float(level[-third:].mean()) - float(level[:third].mean())) * 2)
 
@@ -258,7 +253,7 @@ def find_scenes(settings: Settings, f: Features, limit: int = 10) -> list[Candid
     length = int(min(settings.clip_target_s, settings.clip_max_s, math.floor(duration)))
     if length < 1:
         return []
-    starts = range(0, max(1, int(math.floor(duration)) - length + 1))
+    starts = range(0, max(1, math.floor(duration) - length + 1))
     rated = sorted(
         ((rate_window(f, a, a + length), a) for a in starts),
         key=lambda item: (-item[0][0], item[1]),

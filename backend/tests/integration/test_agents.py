@@ -86,6 +86,8 @@ def test_registry_lists_all_18_agents() -> None:
         "game_intelligence",
         "material_scout",
         "rights_license",
+        "gameplay_analysis",
+        "clip_production",
     }
     stages = [s.stage.status for s in registry.stage_specs() if s.stage]
     assert stages[0] == "DISCOVERED" and "SCHEDULED" in stages
@@ -160,8 +162,8 @@ def spec(name: str) -> registry.AgentSpec:
 def test_gates_block_unimplemented_paused_and_emergency(db: Session) -> None:
     chain = ready_chain(db)
     settings = get_settings()
-    result = gates.check(db, settings, spec("clip_production"), payload_for(chain))
-    assert result.code == "not_implemented"
+    with registry.override("clip_production", None) as missing:
+        assert gates.check(db, settings, missing, payload_for(chain)).code == "not_implemented"
 
     with registry.override("clip_production", AdvanceAgent) as patched:
         assert gates.check(db, settings, patched, payload_for(chain)).allowed
@@ -288,7 +290,8 @@ def test_run_agent_failure_marks_entity_failed_and_master_retries(db: Session) -
 
 
 def test_run_agent_skips_when_gate_closed(db: Session) -> None:
-    run = orchestrator.run_agent(db, get_settings(), "clip_production", {})
+    with registry.override("clip_production", None):
+        run = orchestrator.run_agent(db, get_settings(), "clip_production", {})
     assert run.status == AgentRunStatus.SKIPPED and run.output["gate"] == "not_implemented"
 
 
@@ -316,7 +319,8 @@ def test_master_dispatches_ready_work_and_reports_waiting(db: Session) -> None:
     ctx = AgentContext(db, get_settings(), run, "master")
     master = MasterOrchestratorAgent(submit=lambda n, p: submitted.append((n, p)))
 
-    result = master.run(ctx, {})
+    with registry.override("clip_production", None):
+        result = master.run(ctx, {})
     assert submitted == []
     assert result.output["waiting"]["clip_production"]["reason"] == "waiting_for_phase_7"
 

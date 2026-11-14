@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -57,6 +58,10 @@ class Scene(IdMixin, TimestampMixin, Base):
     score: Mapped[float | None] = mapped_column(Float)
     tags: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
     scores: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
+    rank: Mapped[int | None] = mapped_column(Integer)  # 1 = best scene of the file
+    focus_x: Mapped[float | None] = mapped_column(Float)  # horizontal centre of the action 0..1
+    spread: Mapped[float | None] = mapped_column(Float)
+    selected: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     gameplay_file: Mapped[GameplayFile] = relationship(back_populates="scenes")
 
@@ -74,6 +79,16 @@ class Clip(IdMixin, TimestampMixin, Base):
     end_s: Mapped[float] = mapped_column(Float)
     width: Mapped[int | None] = mapped_column(Integer)
     height: Mapped[int | None] = mapped_column(Integer)
+    # Phase 7: technical data of the rendered file and how it was made
+    duration_s: Mapped[float | None] = mapped_column(Float)
+    fps: Mapped[float | None] = mapped_column(Float)
+    video_codec: Mapped[str | None] = mapped_column(String(32))
+    audio_codec: Mapped[str | None] = mapped_column(String(32))
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    layout: Mapped[str | None] = mapped_column(String(16))  # crop | blur_fit
+    render_params: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
+    render_seconds: Mapped[float | None] = mapped_column(Float)
+    rendered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     scene: Mapped[Scene] = relationship()
 

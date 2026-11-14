@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from typing import Annotated, Any
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 from sqlalchemy import func, select
@@ -39,7 +40,7 @@ from models.rights import (
     Source,
 )
 from models.trends import Game
-from services import audit, rights, storage
+from services import audit, media, rights, storage
 from services.trends import slugify
 
 router = APIRouter(tags=["rights"], dependencies=[Depends(csrf_protect)])
@@ -710,6 +711,89 @@ def register_material(body: MaterialIn, user: Operator, db: DbSession) -> Materi
         entity_type="gameplay_files",
         entity_id=material.id,
         after=body.model_dump(),
+    )
+    db.commit()
+    return _material_out(db, material)
+
+
+VIDEO_TYPES = {"video/mp4": ".mp4", "video/quicktime": ".mov", "video/x-matroska": ".mkv"}
+
+
+@router.post("/materials/upload", response_model=MaterialOut, status_code=201)
+def upload_material(
+    user: Operator,
+    db: DbSession,
+    settings: AppSettings,
+    file: Annotated[UploadFile, File()],
+    source_id: Annotated[int, Form()],
+    license_id: Annotated[int, Form()],
+    game_id: Annotated[int | None, Form()] = None,
+    title: Annotated[str | None, Form(max_length=300)] = None,
+) -> MaterialOut:
+    """Upload a licensed gameplay file. It is checked with ffprobe before it is stored."""
+    lic = _license(db, license_id)
+    if lic.source_id != source_id:
+        raise HTTPException(422, detail="License does not belong to this source")
+    if game_id is not None and db.get(Game, game_id) is None:
+        raise _404("Game")
+    suffix = VIDEO_TYPES.get(file.content_type or "")
+    if suffix is None:
+        raise HTTPException(422, detail="Only MP4, MOV or MKV video files are accepted")
+    tmp = storage.work_dir(settings) / f"upload-{uuid4().hex}{suffix}"
+    try:
+        size = 0
+        with tmp.open("wb") as out:
+            while chunk := file.file.read(1024 * 1024):
+                size += len(chunk)
+                if size > settings.max_upload_bytes:
+                    raise HTTPException(413, detail="File too large")
+                out.write(chunk)
+        try:
+            probe = media.probe(settings, tmp)
+        except media.MediaError as exc:
+            raise HTTPException(422, detail="Not a readable video file") from exc
+        issues = media.technical_issues(settings, probe)
+        if issues:
+            raise HTTPException(422, detail="Technische Prüfung: " + "; ".join(issues))
+        digest = storage.sha256_file(tmp)
+        if db.scalar(select(GameplayFile.id).where(GameplayFile.sha256 == digest)):
+            raise HTTPException(409, detail="This file is already registered")
+        stored = storage.store_path(settings, tmp, "materials", suffix)
+    finally:
+        tmp.unlink(missing_ok=True)
+    asset = Asset(
+        source_id=source_id,
+        license_id=license_id,
+        game_id=game_id,
+        kind=AssetKind.VIDEO,
+        title=title,
+        storage_uri=stored.uri,
+        sha256=stored.sha256,
+        duration_s=probe.duration_s,
+    )
+    db.add(asset)
+    db.flush()
+    material = GameplayFile(
+        asset_id=asset.id,
+        game_id=game_id,
+        storage_uri=stored.uri,
+        sha256=stored.sha256,
+        duration_s=probe.duration_s,
+        width=probe.width,
+        height=probe.height,
+        fps=probe.fps,
+        video_codec=probe.video_codec,
+        audio_codec=probe.audio_codec,
+    )
+    db.add(material)
+    db.flush()
+    audit.record(
+        db,
+        "material.upload",
+        user_id=user.id,
+        entity_type="gameplay_files",
+        entity_id=material.id,
+        after={"sha256": stored.sha256, "size": stored.size, "probe": probe.as_dict()},
     )
     db.commit()
     return _material_out(db, material)
