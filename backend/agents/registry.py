@@ -93,6 +93,24 @@ def _script_hook() -> Agent:
     return ScriptHookAgent()
 
 
+def _localization() -> Agent:
+    from agents.localization import LocalizationAgent
+
+    return LocalizationAgent()
+
+
+def _voice() -> Agent:
+    from agents.voice import VoiceAgent
+
+    return VoiceAgent()
+
+
+def _subtitle() -> Agent:
+    from agents.subtitle import SubtitleAgent
+
+    return SubtitleAgent()
+
+
 GF, V = "gameplay_files", "variants"
 
 _SPECS: tuple[AgentSpec, ...] = (
@@ -126,13 +144,13 @@ _SPECS: tuple[AgentSpec, ...] = (
               stage=Stage(V, "EDITING", step="script"), production=True, factory=_script_hook),
     AgentSpec("localization", 10, "Localization",
               "Erstellt eigenständige deutsche und englische Fassungen.", 9, CostKind.PAID,
-              stage=Stage(V, "LOCALIZATION"), production=True),
+              stage=Stage(V, "LOCALIZATION"), production=True, factory=_localization),
     AgentSpec("voice", 11, "Voice",
               "Erzeugt KI-Stimmen mit kommerziellen Nutzungsrechten.", 9, CostKind.PAID,
-              stage=Stage(V, "VOICEOVER"), production=True),
+              stage=Stage(V, "VOICEOVER"), production=True, factory=_voice),
     AgentSpec("subtitle", 12, "Subtitle",
               "Erstellt und synchronisiert Untertitel.", 9, CostKind.LOCAL,
-              stage=Stage(V, "SUBTITLES"), production=True),
+              stage=Stage(V, "SUBTITLES"), production=True, factory=_subtitle),
     AgentSpec("quality_control", 13, "Quality Control",
               "Prüft Technik, Rechte und Duplikate vor der Freigabe.", 10, CostKind.LOCAL,
               stage=Stage(V, "QUALITY_CHECK"), production=True),

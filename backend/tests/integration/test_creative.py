@@ -127,6 +127,16 @@ def test_short_clip_drops_lines_but_keeps_hook_and_payoff() -> None:
     assert kinds[0] == "hook" and "setup" not in kinds
 
 
+@pytest.mark.parametrize("duration", [8.0, 15.0, 30.0, 60.0])
+def test_every_beat_has_time_to_be_spoken(duration: float) -> None:
+    for language in Language:
+        d = draft(language, duration=duration, game="Counter-Strike 2 Ranked Premier")
+        for beat in d.beats:
+            needed = len(beat["text"].split()) / creative.WORDS_PER_SECOND[language]
+            assert beat["end_s"] - beat["start_s"] >= needed - 0.05, (duration, beat)
+        assert d.beats[-1]["end_s"] <= duration
+
+
 def test_wording_is_stable_per_seed() -> None:
     assert draft(Language.EN).hook == draft(Language.EN).hook
     hooks = {draft(Language.EN, seed=f"{i}:1:A").hook for i in range(12)}

@@ -75,7 +75,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 - Formatkatalog, Hook-Strukturen, Skripterzeugung
 - LLM-Adapter (Mock + Live, budgetgeprüft); Variantenlogik A–D mit echtem Unterschied
 
-### Phase 9 – Lokalisierung, Voiceover, Untertitel
+### Phase 9 – Lokalisierung, Voiceover, Untertitel ✅
 
 - Getrennte DE/EN-Fassungen mit eigener Hook-/Titellogik
 - TTS-Adapter (nur kommerziell lizenzierte Stimmen), lokale Option prüfen

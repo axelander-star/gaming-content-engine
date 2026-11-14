@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 
 from api.deps import AppSettings, DbSession, Viewer
 from core.enums import VideoStatus
-from models.production import Clip, GameplayFile, Scene, Script, Variant
+from models.production import Clip, GameplayFile, Scene, Script, Subtitle, Variant, Voiceover
 from models.rights import Asset
 from models.trends import Game
 from services import storage
@@ -55,6 +55,10 @@ class VariantBrief(BaseModel):
     hook_type: str | None
     concept: dict[str, Any]
     script: ScriptOut | None
+    final_video: bool
+    voice: dict[str, Any] | None
+    subtitle_formats: list[str]
+    subtitle_issues: list[Any]
 
 
 class ClipOut(BaseModel):
@@ -114,8 +118,17 @@ def list_clips(
         select(Script).where(Script.variant_id.in_([v.id for v in rows_v])).order_by(Script.version)
     ):
         scripts[sc.variant_id] = sc  # latest version wins
+    ids = [v.id for v in rows_v]
+    voices = {vo.variant_id: vo for vo in db.scalars(
+        select(Voiceover).where(Voiceover.variant_id.in_(ids)).order_by(Voiceover.id)
+    )}  # fmt: skip
+    subs: dict[int, list[Subtitle]] = {}
+    for sub in db.scalars(select(Subtitle).where(Subtitle.variant_id.in_(ids))):
+        subs.setdefault(sub.variant_id, []).append(sub)
+    clip_uris = {c.id: c.storage_uri for c, _, _ in rows}
     for v in rows_v:
         latest = scripts.get(v.id)
+        vo = voices.get(v.id)
         variants.setdefault(v.clip_id, []).append(
             VariantBrief(
                 id=v.id,
@@ -140,6 +153,17 @@ def list_clips(
                 )
                 if latest
                 else None,
+                final_video=bool(v.storage_uri) and v.storage_uri != clip_uris.get(v.clip_id),
+                voice={
+                    "provider": vo.provider,
+                    "voice_id": vo.voice_id,
+                    "max_tempo": max((sg["tempo"] for sg in vo.segments), default=1.0),
+                    "overflow": [sg["kind"] for sg in vo.segments if sg["overflow_s"] > 0],
+                }
+                if vo
+                else None,
+                subtitle_formats=sorted(x.format for x in subs.get(v.id, [])),
+                subtitle_issues=next((x.issues for x in subs.get(v.id, [])), []),
             )
         )
     games = {g.id: g.name for g in db.scalars(select(Game))} if rows else {}
@@ -237,3 +261,47 @@ def capacity(_: Viewer, db: DbSession) -> CapacityOut:
         clips_per_hour=round(per_slot * slots, 1) if per_slot else None,
         waiting_for_render=int(waiting or 0),
     )
+
+
+def _variant_path(db: DbSession, settings: AppSettings, variant_id: int) -> Variant:
+    variant = db.get(Variant, variant_id)
+    if variant is None or variant.storage_uri is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Variant has no video")
+    return variant
+
+
+@router.get("/variants/{variant_id}/file")
+def variant_file(variant_id: int, _: Viewer, db: DbSession, settings: AppSettings) -> FileResponse:
+    """Final video of a variant (captions and voice), for the dashboard preview."""
+    variant = _variant_path(db, settings, variant_id)
+    path = _resolve(settings, variant.storage_uri or "")
+    return FileResponse(path, media_type="video/mp4", filename=f"variant-{variant.id}.mp4")
+
+
+@router.get("/variants/{variant_id}/subtitles.{fmt}")
+def variant_subtitles(
+    variant_id: int, fmt: str, _: Viewer, db: DbSession, settings: AppSettings
+) -> FileResponse:
+    if fmt not in ("srt", "vtt"):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown subtitle format")
+    sub = db.scalar(
+        select(Subtitle)
+        .where(Subtitle.variant_id == variant_id, Subtitle.format == fmt)
+        .order_by(Subtitle.id.desc())
+        .limit(1)
+    )
+    if sub is None or sub.storage_uri is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No subtitles")
+    media_type = "text/vtt" if fmt == "vtt" else "application/x-subrip"
+    path = _resolve(settings, sub.storage_uri)
+    return FileResponse(path, media_type=media_type, filename=f"variant-{variant_id}.{fmt}")
+
+
+def _resolve(settings: AppSettings, uri: str) -> Any:
+    try:
+        path = storage.resolve(settings, uri)
+    except storage.StorageError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="File not found") from exc
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="File not found")
+    return path

@@ -25,6 +25,9 @@ const VARIANT_STATUS: Partial<Record<VideoStatus, [string, Tone]>> = {
   SCENE_SELECTED: ["Wartet auf Rendering", "warn"],
   EDITING: ["Gerendert, Konzept folgt", "ok"],
   LOCALIZATION: ["Skript fertig, Lokalisierung folgt", "ok"],
+  VOICEOVER: ["Lokalisiert, Stimme folgt", "ok"],
+  SUBTITLES: ["Stimme fertig, Untertitel folgen", "ok"],
+  QUALITY_CHECK: ["Fertig, Qualitätsprüfung folgt", "ok"],
   FAILED: ["Fehler", "danger"],
 };
 const LICENSE_LABELS: Record<LicenseStatus, string> = {
@@ -432,9 +435,33 @@ function VariantScriptCard({ variant: v }: { variant: VariantBrief }) {
               </li>
             ))}
           </ol>
+          {v.voice && (
+            <p className="muted">
+              Stimme: {v.voice.provider === "mock" ? "Test-Stimme (still)" : v.voice.provider} ·
+              Tempo bis {v.voice.max_tempo}×
+              {v.voice.overflow.length > 0 && ` · zu lang: ${v.voice.overflow.join(", ")}`}
+            </p>
+          )}
+          {v.subtitle_formats.length > 0 && (
+            <p className="muted">
+              Untertitel eingebrannt · <a href={api.variantSubtitlesUrl(v.id, "srt")}>SRT</a> ·{" "}
+              <a href={api.variantSubtitlesUrl(v.id, "vtt")}>VTT</a>
+              {v.subtitle_issues.length > 0 && ` · Hinweise: ${v.subtitle_issues.join("; ")}`}
+            </p>
+          )}
+          {v.final_video && (
+            <video
+              className="clip-preview"
+              controls
+              preload="metadata"
+              src={api.variantFileUrl(v.id)}
+              aria-label={`Fertiges Video ${v.language.toUpperCase()} ${v.label}`}
+            />
+          )}
           <p className="muted">
             Version {script.version} ·{" "}
-            {script.source === "template" ? "Vorlage (kostenlos)" : script.source}
+            {script.source.startsWith("template") ? "Vorlage (kostenlos)" : script.source}
+            {script.source.endsWith("+localized") && " · lokalisiert"}
           </p>
         </>
       ) : (

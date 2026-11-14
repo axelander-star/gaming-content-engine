@@ -406,6 +406,15 @@ export interface VariantBrief {
   hook_type: string | null;
   concept: VariantConcept;
   script: VariantScript | null;
+  final_video: boolean;
+  voice: {
+    provider: string;
+    voice_id: string | null;
+    max_tempo: number;
+    overflow: string[];
+  } | null;
+  subtitle_formats: string[];
+  subtitle_issues: string[];
 }
 
 export interface Clip {

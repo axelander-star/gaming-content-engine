@@ -81,6 +81,8 @@ API-Dokumentation (nur außerhalb von Production): http://127.0.0.1:8000/api/doc
 | GET | `/api/production/clips` | Clips mit Szene, technischen Werten, Renderzeit und Varianten (Konzept, neuestes Skript) |
 | GET | `/api/clips/{id}/file` | Gerenderten Clip abspielen (MP4) |
 | GET | `/api/production/capacity` | Gemessene Renderkapazität der letzten 7 Tage |
+| GET | `/api/variants/{id}/file` | Fertige Variante (Untertitel und Stimme) abspielen |
+| GET | `/api/variants/{id}/subtitles.srt`, `.vtt` | Untertitel-Dateien einer Variante |
 | GET | `/api/rights/criteria` | Die 12 Prüfkriterien |
 
 Alle Endpunkte außer Health und Login brauchen eine Sitzung. Schreibende Anfragen brauchen zusätzlich den Header `X-CSRF-Token` mit dem Wert des Cookies `gce_csrf`.

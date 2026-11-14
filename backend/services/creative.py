@@ -174,6 +174,7 @@ WORDS_PER_SECOND = {Language.DE: 2.2, Language.EN: 2.5}
 TITLE_MAX = 100
 HOOK_S = 2.5
 CTA_S = 3.0
+PAUSE_S = 0.4
 
 
 @dataclass
@@ -289,30 +290,48 @@ def write_script(
     hook = _pick(HOOKS[language][hook_type], f"{seed}:hook").format(g=g)
     setup, build, payoff = BEATS[language][video_format]
     cta = _pick(CTAS[language], f"{seed}:cta").format(g=g)
-    budget = int(duration_s * WORDS_PER_SECOND[language])
+    wps = WORDS_PER_SECOND[language]
+    budget = int(duration_s * wps)
 
     def words(*parts: str) -> int:
         return sum(len(p.split()) for p in parts)
 
+    def need(text: str) -> float:
+        """Seconds to say ``text`` calmly, with a short breath after it."""
+        return words(text) / wps + PAUSE_S if text else 0.0
+
     lines = [setup, build, payoff]
-    while lines and words(hook, *lines, cta) > budget:
+    kinds = ["setup", "buildup", "payoff"]
+
+    def total() -> float:
+        return max(HOOK_S, need(hook)) + sum(need(t) for t in lines) + max(CTA_S, need(cta))
+
+    while lines and (words(hook, *lines, cta) > budget or total() > duration_s):
         lines.pop(0)  # drop setup first, the payoff stays
-    if words(hook, *lines, cta) > budget:
+        kinds.pop(0)
+    if cta and (words(hook, *lines, cta) > budget or total() > duration_s):
         cta = ""
-    payoff_at = max(HOOK_S + 1, duration_s * 0.75)
-    beats: list[dict[str, Any]] = [{"kind": "hook", "start_s": 0.0, "end_s": HOOK_S, "text": hook}]
-    kinds = ["setup", "buildup", "payoff"][-len(lines) :] if lines else []
-    marks = {"setup": HOOK_S, "buildup": duration_s * 0.4, "payoff": payoff_at}
-    for i, (kind, text) in enumerate(zip(kinds, lines, strict=True)):
-        end = marks[kinds[i + 1]] if i + 1 < len(kinds) else duration_s - CTA_S
-        beats.append(
-            {"kind": kind, "start_s": round(marks[kind], 1), "end_s": round(end, 1), "text": text}
-        )
+    # Beats follow each other; every beat gets the time it needs to be said calmly
+    # and the remaining time is shared out as pauses, so the payoff lands late.
+    hook_end = max(HOOK_S, need(hook))
+    cta_start = duration_s - (max(CTA_S, need(cta)) if cta else 0.0)
+    slack = max(0.0, cta_start - hook_end - sum(need(t) for t in lines))
+    gap = slack / len(lines) if lines else 0.0
+    beats: list[dict[str, Any]] = [
+        {"kind": "hook", "start_s": 0.0, "end_s": round(hook_end, 1), "text": hook}
+    ]
+    t = hook_end
+    for kind, text in zip(kinds, lines, strict=True):
+        start = t + gap  # pause before each line builds tension
+        t = start + need(text)
+        beats.append({"kind": kind, "start_s": round(start, 1), "end_s": round(t, 1), "text": text})
+    if lines:
+        beats[-1]["end_s"] = round(cta_start, 1)
     if cta:
         beats.append(
             {
                 "kind": "cta",
-                "start_s": round(duration_s - CTA_S, 1),
+                "start_s": round(cta_start, 1),
                 "end_s": round(duration_s, 1),
                 "text": cta,
             }

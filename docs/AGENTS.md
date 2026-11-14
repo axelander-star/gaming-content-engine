@@ -121,6 +121,14 @@ Automatisch wählbar: Epische Szene, Überraschung, Unerwartete Wendung, Storyte
 
 **Script & Hook** (`agents/script_hook.py`): Hook, Sprechertext in Abschnitten mit Zeitmarken, Aufruf, Titel (≤ 100 Zeichen) und Beschreibung mit Quellenangabe, je Sprache eigene Formulierung. Wortbudget: 2,2 Wörter/s (DE), 2,5 Wörter/s (EN); zuerst entfällt der Einstieg, die Auflösung bleibt. Ein Sprachmodell (`ai_provider`) wird nur nach Budgetfreigabe aufgerufen und gebucht, sonst Vorlage.
 
+## Localization, Voice und Subtitle (umgesetzt in Phase 9)
+
+**Localization** (`LOCALIZATION` → `VOICEOVER`, `services/localization.py`): Sprachprüfung über häufige Funktionswörter der anderen Sprache (ab zwei Treffern, Spiel- und Quellennamen ausgenommen), Formkorrekturen, Zielgruppen-Hashtag, keine identischen Hooks oder Titel zwischen DE und EN. Korrekturen ergeben eine neue Skriptversion (`source` endet auf `+localized`); falsche Sprache ist ein dauerhafter Fehler.
+
+**Voice** (`VOICEOVER` → `SUBTITLES`, `services/voice.py`): Anbieter laut `tts_provider`; nur `commercial_use_cleared`. Je Abschnitt Tempo 1,0–1,15×, Überlänge wird in `voiceovers.segments` vermerkt. Kostenpflichtige Anbieter nur nach `authorize_cost`, Buchung als TTS-Kosten. Nicht angebunden: Lauf übersprungen (`provider`), Variante wartet.
+
+**Subtitle** (`SUBTITLES` → `QUALITY_CHECK`, `services/subtitles.py`): Untertitel aus den Sprachabschnitten (2 × 32 Zeichen, ≥ 0,8 s, ≤ 17 Zeichen/s), SRT, VTT und ASS; fertige Variante mit eingebrannten Untertiteln (unten mittig, 22 % Abstand zum unteren Rand, 8 % seitlich), Stimme gemischt, Gameplay beim Sprechen abgesenkt. Nutzt die Renderslots.
+
 ## Grenzen und Pflichten einzelner Agenten
 
 - **Rights & License:** Prüft alle Kriterien aus Spezifikation Abschnitt 5 (kommerziell, Bearbeitung, Kurzvideo, Plattformen, Sprachen, Gültigkeit, Monetarisierung, Musik/Bestandteile). Ein fehlendes Kriterium bedeutet Ablehnung, nicht Annahme. Publisher-Policies (z. B. GTA 6) werden als Regeln gepflegt; keine pauschale Freigabe.

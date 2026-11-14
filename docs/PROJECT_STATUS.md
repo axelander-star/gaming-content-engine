@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 8 abgeschlossen · **Nächste Phase:** 9 (Lokalisierung, Voiceover, Untertitel)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 9 abgeschlossen · **Nächste Phase:** 10 (Quality Control und Duplikaterkennung)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -16,7 +16,7 @@
 | 6 | Material Scout und Rights Agent | ✅ abgeschlossen |
 | 7 | Gameplay-Analyse und Videoproduktion | ✅ abgeschlossen |
 | 8 | Creative Director, Hooks, Skripte | ✅ abgeschlossen |
-| 9 | Lokalisierung, Voiceover, Untertitel | ⏳ offen |
+| 9 | Lokalisierung, Voiceover, Untertitel | ✅ abgeschlossen |
 | 10 | Quality Control und Duplikaterkennung | ⏳ offen |
 | 11 | Publishing Strategy Agent | ⏳ offen |
 | 12 | YouTube-Integration | ⏳ offen |
@@ -27,6 +27,48 @@
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
 Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 9 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Localization Agent** (Agent 10): prüft jede Sprachfassung für sich. Er erkennt Wörter der anderen Sprache (Spielnamen ausgenommen), behebt Formfehler (doppelte Leerzeichen und Wörter, Satzanfang, Satzzeichen), ergänzt den Zielgruppen-Hashtag (#GamingDeutsch, #GamingClips) und stellt sicher, dass Hook und Titel keine Kopie der anderen Sprachfassung sind. Jede Änderung ergibt eine neue Skriptversion. Text in falscher Sprache stoppt die Variante zur Prüfung
+- **Voice Agent** (Agent 11) mit Stimm-Adapter: spricht jeden Abschnitt im Zeitfenster des Skripts, beschleunigt höchstens auf 1,15× und meldet, was trotzdem zu lang ist; daraus entsteht eine Sprachspur in Cliplänge. Nur Anbieter mit kommerziellen Nutzungsrechten werden akzeptiert, ein kostenpflichtiger nur nach Budgetfreigabe. Wie entschieden läuft eine stille Test-Stimme (`tts_provider = mock`); ein unbekannter Anbieter lässt die Variante warten statt zu scheitern
+- **Subtitle Agent** (Agent 12): Untertitel aus den Sprachabschnitten, höchstens zwei Zeilen mit 32 Zeichen, mindestens 0,8 s sichtbar, Lesegeschwindigkeit geprüft (max. 17 Zeichen/s). Speichert SRT und WebVTT und rendert die fertige Variante: Untertitel eingebrannt (unten mittig, 22 % über dem Rand, frei von Plattform-Schaltflächen), Stimme über dem Gameplay, das beim Sprechen leiser wird. Ergebnis per ffprobe geprüft; danach `QUALITY_CHECK`
+- **Bessere Zeitplanung der Skripte:** Beim Test mit echtem Rendering zeigte sich, dass lange Hooks (lange Spielnamen) nicht ins feste 2,5-s-Fenster passten. Jetzt bekommt jeder Abschnitt die Zeit, die er zum ruhigen Sprechen braucht, und die Restzeit wird als Pausen verteilt
+- **Dashboard:** Status bis „Fertig, Qualitätsprüfung folgt“, je Variante Stimme, Tempo, Untertitel-Downloads (SRT/VTT), Hinweise und das fertige Video (Screenshots: `screenshots/phase9-produktion.png`, `screenshots/phase9-untertitel.png`)
+- **API:** `/api/variants/{id}/file`, `/api/variants/{id}/subtitles.{srt|vtt}`; die Clip-Liste enthält Stimme und Untertitel je Variante
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/{localization,voice,subtitles}.py`, `backend/agents/{localization,voice,subtitle}.py`, Migration `20261114_38edaa584e48_voice_subtitles.py`, `tests/integration/test_localization_voice.py`
+- Geändert: `backend/agents/{base,registry}.py`, `services/{creative,media}.py`, `models/production.py`, `api/production.py`, `app/main.py`, `Dockerfile` (Schrift DejaVu), Tests (`test_agents.py`, `test_agents_api.py`, `test_creative.py`), `frontend/dashboard/ProductionView.tsx`, `frontend/lib/{api,types}.ts`, `frontend/e2e/smoke.mjs`, Dokumentation
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest), Migration und `alembic check`
+- Sprachprüfung und Formkorrekturen, Tempo und Überlänge der Stimme, Untertitel-Aufteilung, Lesbarkeit, SRT/VTT/ASS-Format, Zeitplanung für Cliplängen 8 bis 60 s
+- Durchlauf mit echtem Rendering: Testvideo → Clip → Konzept → Skript → Lokalisierung → Stimme → Untertitel → fertige Variante; geprüft werden Auflösung, Codecs, Länge und dass die Untertitel sichtbar im Bild sind (Bildvergleich im Untertitelbereich)
+- Fehlerfälle: falsche Sprache, nicht angebundener Anbieter (wartet), Anbieter ohne kommerzielle Rechte (abgelehnt), kostenpflichtiger Anbieter ohne Budgetfreigabe (nicht aufgerufen)
+- Frontend `typecheck` und `build`; E2E vom Upload bis zur fertigen Variante mit abspielbarem Video
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 236 Backend-Tests bestanden; ruff, mypy und `alembic check` ohne Befund
+- **Abnahme Phase 9:** getrennte deutsche und englische Fassungen, Stimme nur von freigegebenen Anbietern, Untertitel als SRT/VTT und eingebrannt im Hochformat
+- 15 E2E-Schritte bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Die Stimme ist bis zur Anbieterwahl still; Aussprache und Klang lassen sich erst mit echter Stimme prüfen
+- Rechtschreibung wird regelbasiert geprüft, nicht mit einem Wörterbuch. Die Vorlagen sind geprüft, Spielnamen werden übernommen
+- Eine lokale Stimme (z. B. Piper) wäre kostenlos, braucht aber eine Prüfung der Stimmlizenzen; noch nicht eingebaut
+- Musik und Soundeffekte werden nicht hinzugefügt (nur mit Nutzungsrechten, Spezifikation Abschnitt 7)
+
+### 6. Nächster Schritt
+
+Phase 10: Quality Control und Duplikaterkennung (Bild, Ton, Untertitel, Rechte erneut, Duplikate über Hash und Bild-Fingerabdruck).
 
 ## Phase 8 – Bericht
 
@@ -419,6 +461,9 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Nur Formate, die die Messwerte stützen, werden automatisch gewählt | Kein Versprechen („lustig“, „knapp gescheitert“), das niemand geprüft hat |
 | 14.11.2026 | `EDITING` mit zwei Teilschritten (Konzept, Skript) statt neuem Status | Statusliste der Spezifikation bleibt unverändert |
 | 14.11.2026 | Varianten je Clip als Betreiber-Einstellung (Standard 2) | Jede Variante kostet später Stimme und Rendering; Menge bleibt steuerbar |
+| 14.11.2026 | Stimme zuerst als stille Test-Stimme, Anbieter später (Entscheidung des Betreibers) | Keine Kosten, Zeitplanung und Untertitel trotzdem echt getestet |
+| 14.11.2026 | Nicht angebundener Stimm-Anbieter lässt Varianten warten, Anbieter ohne kommerzielle Rechte führt zum Fehler | Warten ist behebbar, fehlende Rechte nicht |
+| 14.11.2026 | Untertitel eingebrannt plus SRT/VTT | Eingebrannt wirkt auf allen Plattformen gleich; Dateien für Plattformen mit eigener Untertitelfunktion |
 
 ## Offene Punkte
 

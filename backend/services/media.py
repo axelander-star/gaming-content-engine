@@ -61,6 +61,19 @@ def _fps(rate: str | None) -> float:
     return round(value, 3)
 
 
+def duration(settings: Settings, path: Path) -> float:
+    """Length in seconds of any media file (also audio-only)."""
+    out = run(
+        [settings.ffprobe_bin, "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        timeout=60,
+    )  # fmt: skip
+    try:
+        return float(str(out).strip())
+    except ValueError as exc:
+        raise MediaError(f"Keine Länge lesbar: {out!r}") from exc
+
+
 def probe(settings: Settings, path: Path) -> Probe:
     out = run(
         [
