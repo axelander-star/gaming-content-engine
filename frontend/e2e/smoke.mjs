@@ -442,6 +442,21 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kosten.png`, fullPage: true });
   });
 
+  await step("System: Prüfungen, Datensicherung und Skalierung", async () => {
+    await page.getByRole("link", { name: "System", exact: true }).click();
+    await page.getByRole("heading", { name: "System", level: 1 }).waitFor();
+    await page.getByText("Gesamtzustand:").waitFor();
+    const checks = page.getByRole("table", { name: "Prüfungen" });
+    for (const label of ["Datenbank", "Redis", "Worker", "Zeitsteuerung", "Datensicherung"]) {
+      await checks.getByRole("cell", { name: label, exact: true }).waitFor();
+    }
+    await page.getByText("Wiederherstellungstest", { exact: true }).waitFor();
+    await page.getByRole("list", { name: "Skalierungsempfehlung" }).waitFor();
+    await page.getByRole("figure", { name: "CPU-Last je Kern (%)" }).waitFor();
+    await page.getByRole("button", { name: "Neu prüfen" }).click();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/system.png`, fullPage: true });
+  });
+
   await step("Trendquellen zeigen Modus, Zugangsdaten und Status", async () => {
     await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
     const sources = page.locator("section").filter({ hasText: "Trendquellen" });

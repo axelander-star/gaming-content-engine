@@ -17,8 +17,10 @@ from types import FrameType
 from core.config import Settings, get_settings
 from core.logging import configure_logging
 from database.session import get_sessionmaker
+from services import monitoring
 from services.controls import effective_controls
 from services.orchestrator import submit
+from services.queue import get_redis
 
 log = logging.getLogger("scheduler")
 
@@ -72,10 +74,37 @@ def tick(schedule: Schedule, now: float, settings: Settings) -> list[str]:
     return due
 
 
+@dataclass
+class Monitor:
+    """Heartbeat for the monitoring plus the periodic system check (Phase 15).
+
+    Runs in the scheduler process itself, not through the queue: a stuck worker
+    or a full queue is exactly what it has to notice.
+    """
+
+    interval_s: int
+    beat_every_s: float = 15.0
+    last_check: float = float("-inf")
+    last_beat: float = float("-inf")
+
+    def tick(self, now: float, settings: Settings) -> bool:
+        redis = get_redis()
+        if now - self.last_beat >= self.beat_every_s:
+            monitoring.beat(redis, "scheduler")
+            self.last_beat = now
+        if now - self.last_check < self.interval_s:
+            return False
+        self.last_check = now
+        with get_sessionmaker()() as session:
+            monitoring.run(session, settings, redis)
+        return True
+
+
 def main() -> int:
     settings = get_settings()
     configure_logging(settings.log_level)
     schedule = Schedule.from_settings(settings)
+    monitor = Monitor(settings.monitor_seconds)
     running = True
 
     def _stop(signum: int, frame: FrameType | None) -> None:
@@ -90,6 +119,10 @@ def main() -> int:
             tick(schedule, time.monotonic(), settings)
         except Exception:  # keep the scheduler alive, retry next loop
             log.exception("scheduler tick failed")
+        try:
+            monitor.tick(time.monotonic(), settings)
+        except Exception:  # monitoring must never stop the scheduler
+            log.exception("system check failed")
         time.sleep(1)
     return 0
 

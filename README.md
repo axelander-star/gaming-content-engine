@@ -23,6 +23,7 @@ Cloudbasiertes KI-System, das Gaming-Trends erkennt, rechtlich freigegebenes Gam
 | [docs/AGENTS.md](docs/AGENTS.md) | Die 18 Agenten: Aufgaben, Ein-/Ausgaben, Grenzen |
 | [docs/API_INTEGRATIONS.md](docs/API_INTEGRATIONS.md) | Externe Schnittstellen, Berechtigungen, offene Prüfpunkte |
 | [docs/SECURITY.md](docs/SECURITY.md) | Sicherheitskonzept, Secrets, Not-Aus |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Betrieb: Deployment, Überwachung, Datensicherung, Härtung, Skalierung |
 | [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Aktueller Stand, offene Punkte |
 
 ## Projektstruktur

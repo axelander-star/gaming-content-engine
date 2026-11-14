@@ -37,7 +37,8 @@ Die automatische Veröffentlichung wird erst eingeschaltet, wenn alle Tests best
 
 - PostgreSQL, Redis, n8n und Uptime Kuma sind nur auf `127.0.0.1` gebunden.
 - Öffentlich nur Caddy (80/443) mit automatischem TLS und Sicherheitsheadern.
-- Server: SSH nur mit Schlüssel, Firewall (ufw/Hetzner Firewall) nur 22/80/443, automatische Sicherheitsupdates (Phase 15).
+- Server: SSH nur mit Schlüssel, Firewall (ufw, zusätzlich Hetzner Firewall empfohlen) nur 22/80/443, fail2ban, automatische Sicherheitsupdates. Umgesetzt in Phase 15 als `infrastructure/server/harden.sh` (siehe [OPERATIONS.md](OPERATIONS.md)).
+- Zusätzliche Header in Caddy (Phase 15): `Content-Security-Policy` mit `frame-ancestors 'none'`, `base-uri 'self'`, `object-src 'none'` und `form-action 'self'`; dazu `Permissions-Policy` ohne Kamera, Mikrofon, Standort, Zahlung und USB sowie `Cross-Origin-Opener-Policy: same-origin`.
 
 ## 5. Steuerung und Eingriff
 
@@ -54,11 +55,13 @@ Die automatische Veröffentlichung wird erst eingeschaltet, wenn alle Tests best
 - **Umsetzung Phase 7:** Gameplay-Upload (`POST /api/materials/upload`, Operator) nur als MP4, MOV oder MKV bis `MAX_UPLOAD_BYTES` (Standard 4 GiB). Die Datei wird in ein Arbeitsverzeichnis gestreamt, mit ffprobe geprüft und nur bei bestandener Prüfung inhaltsadressiert gespeichert; abgelehnte Dateien werden sofort gelöscht. FFmpeg läuft ohne Shell mit festen Argumentlisten und Zeitlimit. Clips werden nur an angemeldete Benutzer ausgeliefert.
 - Rollen: Operatoren legen Creator, Quellen, Lizenzen und Material an, laden Nachweise hoch, sperren und widerrufen. Nur Admins geben Lizenzen frei (erst nach hochgeladenem Nachweis), heben Sperren auf und legen Publisher-Richtlinien fest. Jede Änderung steht im Audit-Log; jede Rechteprüfung mit allen Kriterien in `rights_checks`.
 
-## 7. Backups und Wiederherstellung (Phase 15)
+## 7. Backups und Wiederherstellung (umgesetzt in Phase 15)
 
-- Tägliches `pg_dump`, verschlüsselt, Ablage in R2 mit Aufbewahrungsregel.
-- Regelmäßiger Restore-Test auf einer leeren Instanz.
-- Medien in R2 werden nicht doppelt gesichert, sind aber über DB-Referenzen wiederauffindbar.
+- Täglich `pg_dump`, mit GnuPG verschlüsselt (AES-256, Schlüssel `BACKUP_PASSPHRASE` nur aus der Umgebung). Die Sicherung wird direkt verschlüsselt geschrieben, unverschlüsselt landet nichts auf der Platte. Die Dateirechte sind 0600.
+- Nach jeder Sicherung folgt ein Wiederherstellungstest in eine leere Datenbank. Prüfsumme, Schema-Version, Tabellen und jede Zeilenzahl müssen stimmen. Ein Fehlschlag löst einen Alarm aus.
+- Aufbewahrung 14 Tage, mindestens die drei neuesten Sicherungen. Kopie außerhalb des Servers: siehe [OPERATIONS.md](OPERATIONS.md).
+- Wiederhergestellt wird immer in eine neue Datenbank; die laufende wird nie überschrieben.
+- Medien werden nicht doppelt gesichert, sind aber über DB-Referenzen wiederauffindbar (später in R2).
 
 ## 8. Plattformregeln
 
@@ -66,8 +69,21 @@ Die automatische Veröffentlichung wird erst eingeschaltet, wenn alle Tests best
 - Keine unberechtigte Stream-Aufzeichnung oder Video-Übernahme.
 - API-Quoten und Rate-Limits werden pro Plattform in Redis gezählt und respektiert.
 
-## 9. Offene Sicherheitspunkte
+## 9. Sicherheitsprüfung Phase 15
 
-- Auswahl des Fehlerüberwachungsdienstes (selbst gehostet vs. SaaS) – Phase 15.
-- Schlüsselrotation für `CREDENTIALS_ENCRYPTION_KEY` – Konzept in Phase 12.
-- Zwei-Faktor-Anmeldung für Admins – verschoben auf Phase 15 (Härtung), da das Dashboard bis dahin nur von einem Betreiber genutzt wird.
+| Bereich | Ergebnis | Maßnahme |
+|---|---|---|
+| Python-Abhängigkeiten (`pip-audit`) | `cryptography` 46.0.7 mit 4 bekannten Schwachstellen (Fix ab 48.0.1 bzw. 50.0.0) | auf `cryptography>=50,<51` angehoben, danach ohne Befund |
+| Dashboard-Abhängigkeiten (`npm audit --omit=dev`) | 0 Schwachstellen | – |
+| Schlüsselwechsel `CREDENTIALS_ENCRYPTION_KEY` | war nicht möglich, ohne alle Kanäle neu zu verbinden | `CREDENTIALS_ENCRYPTION_KEY_OLD` plus `python -m app.rotate_credentials` (MultiFernet) |
+| Fehlerüberwachung | Entscheidung offen (selbst gehostet oder SaaS) | selbst gehostet: Systemprüfung, Benachrichtigungen, Uptime Kuma; kein externer Dienst, keine Kosten |
+| Sicherheitsheader | ohne CSP und Permissions-Policy | ergänzt (Abschnitt 4) |
+| Server | keine Härtung festgelegt | `harden.sh` (Abschnitt 4) |
+| Sicherungen | nicht vorhanden | Abschnitt 7 |
+| Geheimnisse in Protokollen | maskiert; die Uptime-Kuma-Push-URL enthält ein Token und wird nie protokolliert | – |
+| Schreibende API-Zugriffe | Rollenprüfung serverseitig, CSRF-Schutz, Login-Sperre (Phase 3) | unverändert, durch Tests abgedeckt |
+
+## 10. Offene Sicherheitspunkte
+
+- Zwei-Faktor-Anmeldung (TOTP) für Admins: noch nicht umgesetzt. Bis dahin gelten eine starke Passwortrichtlinie, die Login-Sperre, kurze Sitzungen (30 min) und ein Dashboard, das nur über HTTPS erreichbar ist. Bevor weitere Personen Zugang bekommen, sollte TOTP nachgezogen werden.
+- Kopie der Sicherungen außerhalb des Servers: Ziel (Storage Box oder R2) und Kosten müssen noch freigegeben werden.

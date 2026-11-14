@@ -34,6 +34,7 @@ import type {
   Source,
   SourceType,
   StrategyVersion,
+  SystemStatus,
   TrendHistoryPoint,
   TrendItem,
   TrendReport,
@@ -276,6 +277,7 @@ export const api = {
   rollbackLearning: (version: number) =>
     request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, { method: "POST" }),
   costSummary: () => request<CostSummary>("/costs/summary"),
+  systemStatus: () => request<SystemStatus>("/system/status"),
 
   users: () => request<User[]>("/users"),
   createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>

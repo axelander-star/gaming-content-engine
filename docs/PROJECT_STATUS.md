@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 14 abgeschlossen · **Nächste Phase:** 15 (Monitoring, Sicherheit, Backups, Skalierung)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 15 abgeschlossen (alle 15 Phasen) · **Nächster Schritt:** Abnahmetest nach Spezifikation Abschnitt 20 und Inbetriebnahme auf dem Server
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -22,11 +22,68 @@
 | 12 | YouTube-Integration | ✅ abgeschlossen |
 | 13 | TikTok, Instagram, Facebook | ✅ abgeschlossen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
-| 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
+| 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
 
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
 Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 15 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Systemprüfung und Alarme:** Die Zeitsteuerung prüft jede Minute Datenbank, Redis, Worker, Zeitsteuerung, Warteschlangen, Agentenfehler, Serverfehler der API, Datensicherung, Speicherplatz und Auslastung. Wird eine Prüfung schlechter oder erholt sie sich, entsteht eine Benachrichtigung, jeweils nur bei einer Änderung. Optional meldet sie den Zustand an einen Uptime-Kuma-Push-Monitor; Uptime Kuma alarmiert dann über seine eigenen Kanäle und merkt auch, wenn die Zeitsteuerung ausfällt
+- **Datensicherung:** neuer Dienst `backup`. Er sichert täglich mit `pg_dump`, verschlüsselt mit GnuPG (AES-256) und legt ein Manifest mit Prüfsumme und Zeilenzahlen aus demselben Schnappschuss an. Danach folgt ein Wiederherstellungstest in eine leere Datenbank mit exaktem Vergleich, dann das Aufräumen nach Aufbewahrungsregel. Die Wiederherstellung geht immer in eine neue Datenbank. Befehle: `python -m app.backup run|list|restore-test|restore|loop`
+- **Dashboard-Seite „System“:** Zustand aller Prüfungen, letzte Sicherung, Ergebnis des Wiederherstellungstests, Skalierungsempfehlung und Verläufe (Wartezeit, CPU-Last, wartende Aufträge)
+- **Skalierungskriterien:** Empfehlung erst bei einem dauerhaften Engpass (mind. 3 h Messwerte, Engpass in 75 % der Messungen der letzten 6 h); sie wird nie automatisch ausgeführt
+- **Sicherheit:**
+  - Abhängigkeiten geprüft, `cryptography` wegen bekannter Schwachstellen auf 50.x angehoben
+  - Schlüsselwechsel für gespeicherte Plattform-Tokens (`CREDENTIALS_ENCRYPTION_KEY_OLD`, `python -m app.rotate_credentials`)
+  - zusätzliche Sicherheitsheader in Caddy
+  - Zählung von Serverfehlern
+- **Betrieb:**
+  - `infrastructure/server/harden.sh`: Firewall, SSH nur mit Schlüssel, fail2ban, automatische Updates
+  - `scripts/deploy.sh`: Sicherung vor dem Update, Bereitschaftsprüfung, Rücksprung
+  - `scripts/load_test.py`
+  - neue Anleitung `docs/OPERATIONS.md`
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/{monitoring,backup}.py`, `backend/app/{backup,rotate_credentials}.py`, `backend/api/system.py`, `backend/tests/integration/test_operations.py`, `frontend/dashboard/SystemView.tsx`, `frontend/app/(dashboard)/system/page.tsx`, `infrastructure/server/harden.sh`, `scripts/{deploy.sh,load_test.py}`, `docs/OPERATIONS.md`
+- Geändert: `backend/app/{main,scheduler}.py`, `backend/core/{config,crypto}.py`, `backend/Dockerfile` (PostgreSQL-16-Client aus dem offiziellen PGDG-Repository, GnuPG), `backend/pyproject.toml`, `docker-compose.yml` (Dienst `backup`, Volume `backup_data`), `infrastructure/caddy/Caddyfile`, `.github/workflows/ci.yml`, `.env.example`, `frontend/{components/AppShell.tsx,lib/api.ts,lib/types.ts,e2e/smoke.mjs,package.json}`, README, SECURITY, DEVELOPMENT_PLAN, PROJECT_STATUS
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest)
+- Sicherung: echte Sicherung der Testdatenbank. Geprüft wird, dass die Datei verschlüsselt ist und die Rechte 0600 hat, dass der Wiederherstellungstest besteht und die Testdatenbank danach gelöscht ist. Erkannt werden muss: falscher Schlüssel, manipulierte Datei, abweichende Zeilenzahl, fehlender Schlüssel. Außerdem: Wiederherstellung nur in eine neue Datenbank, Aufbewahrungsregel, Kommandozeile, Zeitplan über die Zeitumstellung, Zeilenzahlen aus dem Schnappschuss
+- Überwachung: fehlender Worker und fehlende Zeitsteuerung, Wartezeit, Agentenfehler, 5xx-Zählung über die echte API, Speicher und Auslastung. Eine fehlerhafte Prüfung darf die anderen nicht verdecken. Alarme nur bei Änderung, Uptime-Kuma-Push gegen einen nachgebauten Server, Zeitsteuerung, API mit Rechteprüfung (der Sicherungsschlüssel erscheint nie in der Antwort)
+- Skalierung: zu wenig Daten, einzelne Spitze, Renderengpass, Worker-Engpass, Arbeitsspeicher, Speicher
+- Schlüsselwechsel der Plattform-Tokens
+- `pip-audit` und `npm audit`
+- Lasttest mit 20 gleichzeitigen Clients über 30 s
+- Frontend `typecheck` und `build`, E2E mit neuem Schritt „System“
+- Lokal echte Sicherung der Entwicklungsdatenbank mit Wiederherstellungstest (3.042 Zeilen)
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 358 Backend-Tests bestanden (95 % Abdeckung); ruff, mypy und `alembic check` ohne Befund
+- `verify_phase1.sh`: 68 bestanden, 0 fehlgeschlagen
+- `npm run typecheck` und `npm run build` fehlerfrei; Playwright-E2E: 19 Schritte bestanden
+- `pip-audit` nach dem Update und `npm audit` ohne Befund
+- Lasttest: 2.275 Anfragen, 0 Fehler, p95 757 ms
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Zwei-Faktor-Anmeldung für Admins ist noch nicht umgesetzt (siehe SECURITY.md, Abschnitt 10)
+- Die Sicherungen liegen bisher nur auf dem Server. Für die Kopie außerhalb (Hetzner Storage Box oder R2) müssen Ziel und Kosten noch freigegeben werden
+- Das Docker-Image mit dem PostgreSQL-16-Client wird erst in der CI gebaut; hier läuft kein Docker-Dienst
+- Härtungs- und Deployment-Skript sind nur als Probelauf geprüft (`--dry-run` bzw. Syntax), weil es noch keinen Server gibt
+- Der Abnahmetest des Gesamtablaufs nach Spezifikation Abschnitt 20 (Trend bis angepasste Strategie in einem Durchlauf) steht noch aus. Die einzelnen Stufen sind getestet, aber noch nicht als ein zusammenhängender Lauf
+
+### 6. Nächster Schritt
+
+Abnahmetest nach Abschnitt 20 als zusammenhängender Lauf mit Mock-Diensten. Danach Inbetriebnahme auf dem Server (Härtung, `.env`, `deploy.sh`, Uptime Kuma), sobald der Betreiber den Server bereitstellt.
 
 ## Phase 14 – Bericht
 
