@@ -95,21 +95,37 @@ Geprüft am 14.11.2026 gegen die offizielle Dokumentation (Seiten „videos.inse
 
 ### TikTok
 
-- **API:** TikTok Content Posting API (Direct Post bzw. Upload als Entwurf), OAuth mit Login Kit.
-- **Metriken:** TikTok Display API liefert Basiszahlen pro Video (z. B. Aufrufe, Likes, Kommentare, Shares) ⚠️; Zuschauerbindung ist voraussichtlich nicht verfügbar.
-- **Einschränkungen:** Nicht geprüfte (unaudited) Apps dürfen laut Spezifikation und TikTok-Doku nur eingeschränkt, typischerweise nicht öffentlich, posten ⚠️. Die Engine erkennt diesen Status und hält Videos in `READY_TO_PUBLISH`.
+Geprüft am 14.11.2026 gegen die offizielle Dokumentation (developers.tiktok.com: „Content Posting API – Get Started“, „Direct Post“, „Query Creator Info“, „Get Post Status“, „Media Transfer Guide“, „OAuth User Access Token Management“, „Login Kit for Web“, „Rate Limits“, „Error Handling“):
 
-### Instagram (Reels)
+- **OAuth:** `https://www.tiktok.com/v2/auth/authorize/` mit `client_key`, `scope=video.publish`, `response_type=code`, `redirect_uri` (nur https, exakt registriert), `state`. Token und Erneuerung: `POST https://open.tiktokapis.com/v2/oauth/token/` (Formular). Access-Token 24 h, Refresh-Token 365 Tage; der Refresh-Token kann sich bei jeder Erneuerung ändern, es wird immer der neueste gespeichert. Widerruf: `POST /v2/oauth/revoke/`.
+- **Ablauf Direct Post:** `POST /v2/post/publish/creator_info/query/` (erlaubte Sichtbarkeiten, Duett/Stitch/Kommentare) → `POST /v2/post/publish/video/init/` mit `post_info` (`privacy_level` muss aus `privacy_level_options` stammen, `title` ≤ 2200, `disable_*`, `brand_content_toggle`, `is_aigc`) und `source_info` (`FILE_UPLOAD`, `video_size`, `chunk_size`, `total_chunk_count`) → `PUT` der Datei an `upload_url` (1 h gültig) mit `Content-Range` → `POST /v2/post/publish/status/fetch/` bis `PUBLISH_COMPLETE` oder `FAILED`.
+- **Chunks:** Dateien bis 64 MB in einem Stück; größere in 10-MB-Stücken, das letzte Stück nimmt den Rest auf (je Stück 5–64 MB, das letzte bis 128 MB, höchstens 1000 Stücke, nacheinander).
+- **Post-ID:** `publicaly_available_post_id` (Schreibweise der API) gibt es nur für öffentliche Posts nach der Moderation. Für private Posts speichern wir die `publish_id`.
+- **Nicht geprüfte Apps:** „All content posted by unaudited clients will be restricted to private viewing mode.“ `init` liefert sonst `unaudited_client_can_only_post_to_private_accounts`. Kanäle bleiben deshalb `connected_restricted`, bis `TIKTOK_APP_AUDITED=true` gesetzt ist; die Sichtbarkeit ist standardmäßig `SELF_ONLY`.
+- **Limits:** `init` 6/min, `creator_info` 20/min, `status/fetch` 30/min je Token. Eine feste Tageszahl nennt TikTok nicht (`spam_risk_too_many_posts` je Nutzer, `reached_active_user_cap` je App; beide werden als „später erneut“ behandelt). Eigene Obergrenze: `TIKTOK_DAILY_POST_LIMIT` (Standard 5 je Kanal und Tag).
+- **Fehler:** `access_token_invalid`/`scope_not_authorized` → neu verbinden; `rate_limit_exceeded`, Spam-Grenzen, 5xx → später; manche Fehler kommen mit HTTP 200, entscheidend ist `error.code`.
+- **Metriken:** Display API (Phase 14) ⚠️.
 
-- **API:** Instagram Graph API (Content Publishing) für Professional-Konten, die mit einer Facebook-Seite verknüpft sind. Ablauf: Medien-Container mit Typ Reels anlegen, Verarbeitung abwarten, veröffentlichen ⚠️.
-- **Metriken:** Insights-Endpunkte (Reichweite, Wiedergaben, Interaktionen) ⚠️.
-- **Einschränkungen:** Tageslimit für per API veröffentlichte Beiträge ⚠️; Video muss über eine öffentlich erreichbare URL bereitgestellt werden (R2 mit signierter URL) ⚠️; App-Review für Berechtigungen erforderlich.
+### Instagram (Reels) und Facebook (Reels)
 
-### Facebook (Reels)
+Geprüft am 14.11.2026 gegen die offizielle Meta-Dokumentation (Graph API **v25.0**: „Content Publishing“, „IG User Media“, „IG User Media Publish“, „IG Container“, „Content Publishing Limit“, „Reels Publishing“, „Long-Lived Access Tokens“, „Pages API Overview“, „Manual Login Flow“). Die Seite „Business Login for Instagram“ war nicht abrufbar; wir verwenden deshalb **Facebook Login for Business** für beide Plattformen.
 
-- **API:** Facebook Graph API, Reels-Veröffentlichung auf Seiten (mehrstufiger Upload: Start, Upload, Abschluss) mit Page-Access-Token ⚠️.
-- **Metriken:** Video-/Reels-Insights der Seite ⚠️.
-- **Einschränkungen:** App-Review und Seitenberechtigungen erforderlich.
+- **Anmeldung:** `https://www.facebook.com/v25.0/dialog/oauth` (`client_id`, `redirect_uri`, `state`, `scope`). Code → Token: `GET /v25.0/oauth/access_token`; Langzeit-Token (ca. 60 Tage): `grant_type=fb_exchange_token`; Seiten mit Seiten-Token: `GET /{user-id}/accounts` (nur Seiten mit Aufgabe `CREATE_CONTENT`). Seiten-Tokens aus einem Langzeit-Token laufen laut Doku nicht regulär ab (die Pages-Übersicht spricht dagegen von einer Ablaufzeit ⚠️); Fehlercode 190 setzt den Kanal auf „abgelaufen“.
+- **Berechtigungen:** Facebook `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`; Instagram zusätzlich `instagram_basic`, `instagram_content_publish` (Instagram-Profikonto, mit einer Facebook-Seite verknüpft). Erteilte Rechte werden über `GET /me/permissions` gelesen.
+- **Eine Seite je Kanal:** Gibt der Betreiber beim Anmelden mehrere passende Seiten frei, wird nicht geraten, sondern abgebrochen („bitte nur die Seite dieses Kanals auswählen“).
+- **Instagram:** `GET /{ig-user-id}/content_publishing_limit` (aktuell 50 Posts je 24 h; ein Abschnitt der Doku nennt noch 100 ⚠️) → `POST /{ig-user-id}/media` mit `media_type=REELS`, `upload_type=resumable`, `caption` (≤ 2200 Zeichen) → Upload an `rupload.facebook.com/ig-api-upload/v25.0/{container}` mit `Authorization: OAuth …`, `offset`, `file_size` → `GET /{container}?fields=status_code` bis `FINISHED` (`ERROR`/`EXPIRED` = Fehler; Container verfallen nach 24 h) → `POST /{ig-user-id}/media_publish?creation_id=…`. Spezifikation: MP4/MOV, H.264/HEVC, 3 s–15 min, ≤ 300 MB.
+- **Facebook:** `POST /{page-id}/video_reels` `upload_phase=start` → `video_id` → Upload an `rupload.facebook.com/video-upload/v25.0/{video-id}` (Fortsetzung über `status.uploading_phase.bytes_transfered`) → `upload_phase=finish`, `video_state=PUBLISHED`, `description`, `title` → `GET /{video-id}?fields=status`. Spezifikation: 9:16, mind. 540×960, 24–60 fps, **3–90 s**. Limit: 30 Reels je Seite in 24 h.
+- **Sichtbarkeit:** Reels auf Seiten und Instagram sind immer öffentlich, es gibt keinen privaten Testmodus. Echte Tests deshalb nur mit einer Testseite bzw. einem Testkonto und nach ausdrücklicher Freigabe.
+- **Trennen:** Der gespeicherte Seiten-Token wird gelöscht. Einen Widerrufsaufruf verwenden wir nicht, weil er auf den geprüften Seiten nicht dokumentiert ist; die App kann der Betreiber in den Facebook-Einstellungen entfernen.
+- **Fehler:** Code 190 → neu verbinden; 4, 17, 32, 613 (Drosselung) und 5xx → später ⚠️ (Codes aus der allgemeinen Graph-Fehlerdoku, nicht erneut geprüft).
+- **Metriken:** Insights-Endpunkte (Phase 14) ⚠️.
+
+#### Umsetzung in Phase 13 und Einrichtung
+
+- **Code:** `services/tiktok.py`, `services/meta.py`, `services/platform.py` (gemeinsame Fehlerklassen und Anmeldestatus), `services/publishers.py`; Rückleitung `GET /api/oauth/{youtube|tiktok|meta}/callback`.
+- **TikTok einrichten:** App unter developers.tiktok.com anlegen, Produkte „Login Kit“ und „Content Posting API“ (Direct Post) hinzufügen, Scope `video.publish`, Weiterleitungs-URI `https://<Dashboard-Domain>/api/oauth/tiktok/callback` (TikTok verlangt https). `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_OAUTH_REDIRECT_URI` als Umgebungsvariablen setzen. `TIKTOK_APP_AUDITED=true` erst nach bestandenem TikTok-Audit.
+- **Meta einrichten:** App vom Typ „Business“ unter developers.facebook.com mit „Facebook Login for Business“, gültige OAuth-Weiterleitungs-URI `https://<Dashboard-Domain>/api/oauth/meta/callback`, die genannten Berechtigungen (für fremde Konten ist App-Review nötig). `META_APP_ID`, `META_APP_SECRET`, `META_OAUTH_REDIRECT_URI` als Umgebungsvariablen setzen.
+- Danach im Dashboard je Kanal „Mit TikTok/Instagram/Facebook verbinden“ (nur Admin). Veröffentlicht wird erst mit `PUBLISHING_MODE=live`, `AUTO_PUBLISH_ENABLED=true`, Dashboard-Freigabe, autorisiertem Kanal und ausdrücklicher Freigabe des Betreibers.
 
 ## Verfügbarkeit der Kennzahlen je Plattform (vorläufig)
 

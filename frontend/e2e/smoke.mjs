@@ -369,12 +369,17 @@ try {
     if (SHOTS) await sources.screenshot({ path: `${SHOTS}/trend-sources.png` });
   });
 
-  await step("YouTube-Verbindung: ohne OAuth-Client keine Anmeldung, nichts verbunden", async () => {
+  await step("Plattform-Verbindungen: ohne App-Zugang keine Anmeldung, nichts verbunden", async () => {
     const channels = page.locator("section").filter({ hasText: "Kanäle und Sicherheitsgrenzen" });
     await channels.getByRole("columnheader", { name: "Verbindung" }).waitFor();
     const connect = channels.getByRole("button", { name: "Mit YouTube verbinden" }).first();
     await connect.click();
     await channels.getByText("YouTube-OAuth-Client ist nicht eingerichtet").waitFor();
+    await channels.getByRole("button", { name: "Mit TikTok verbinden" }).first().click();
+    await channels.getByText("TikTok-App ist nicht eingerichtet").waitFor();
+    await channels.getByRole("button", { name: "Mit Instagram verbinden" }).first().click();
+    await channels.getByText("Meta-App ist nicht eingerichtet").waitFor();
+    assert.equal(await channels.getByText("Verbunden", { exact: true }).count(), 0);
     assert.ok(page.url().includes("/einstellungen"), "must not leave the dashboard");
   });
 

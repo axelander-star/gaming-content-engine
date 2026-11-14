@@ -29,13 +29,13 @@ from typing import Any
 from urllib.parse import urlencode
 
 import httpx
-import jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core import crypto
 from core.config import Settings
 from models.channels import Channel, ChannelCredential
+from services import platform
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105 - endpoint, not a secret
@@ -49,31 +49,25 @@ SCOPES = (
 UPLOAD_SCOPE = SCOPES[0]
 PROVIDER = "youtube"
 GAMING_CATEGORY = "20"
-STATE_TTL = timedelta(minutes=10)
 RETRY_STATUSES = {500, 502, 503, 504}
 
 #: Replaced by tests with ``httpx.MockTransport``; ``None`` = real network.
 TRANSPORT: httpx.BaseTransport | None = None
 
 
-class YouTubeError(RuntimeError):
+class YouTubeError(platform.PlatformError):
     """Permanent error from YouTube (bad request, forbidden, …)."""
 
-    def __init__(self, message: str, status: int | None = None, reason: str | None = None):
-        super().__init__(message)
-        self.status = status
-        self.reason = reason
 
-
-class AuthExpiredError(YouTubeError):
+class AuthExpiredError(YouTubeError, platform.AuthExpiredError):
     """The refresh token is no longer valid; the channel must be connected again."""
 
 
-class TransientError(YouTubeError):
+class TransientError(YouTubeError, platform.TransientError):
     """Temporary problem (5xx, network); the upload may be tried again later."""
 
 
-class NotConfiguredError(RuntimeError):
+class NotConfiguredError(platform.NotConfiguredError):
     """No OAuth client configured (``YOUTUBE_OAUTH_CLIENT_ID``)."""
 
 
@@ -91,20 +85,15 @@ def _client_id(settings: Settings) -> str:
 
 
 def make_state(settings: Settings, channel_id: int, user_id: int) -> str:
-    now = datetime.now(UTC)
-    payload = {"ch": channel_id, "u": user_id, "p": PROVIDER, "iat": now, "exp": now + STATE_TTL}
-    return jwt.encode(payload, settings.secret_key.get_secret_value(), algorithm="HS256")
+    return platform.make_state(settings, PROVIDER, channel_id, user_id)
 
 
 def read_state(settings: Settings, state: str) -> tuple[int, int]:
     """Channel and user id from a state issued by :func:`make_state` (signed, 10 min)."""
     try:
-        data = jwt.decode(state, settings.secret_key.get_secret_value(), algorithms=["HS256"])
-    except jwt.PyJWTError as exc:
-        raise YouTubeError("Ungültiger oder abgelaufener Anmeldevorgang") from exc
-    if data.get("p") != PROVIDER:
-        raise YouTubeError("Ungültiger Anmeldevorgang")
-    return int(data["ch"]), int(data["u"])
+        return platform.read_state(settings, PROVIDER, state)
+    except platform.PlatformError as exc:
+        raise YouTubeError(str(exc)) from exc
 
 
 def authorization_url(settings: Settings, state: str) -> str:

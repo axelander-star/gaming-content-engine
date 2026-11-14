@@ -12,10 +12,11 @@ from sqlalchemy.orm import joinedload
 
 from api.deps import Admin, AppSettings, DbSession, Operator, Viewer, csrf_protect
 from api.schemas import ChannelOut
+from core.config import Settings
 from core.enums import ChannelAuthStatus, PlatformCode, UserRole
 from models.access import User
 from models.channels import Channel, ChannelCredential
-from services import audit, youtube
+from services import audit, meta, platform, tiktok, youtube
 
 log = logging.getLogger(__name__)
 
@@ -122,11 +123,22 @@ def set_limits(channel_id: int, body: ChannelLimits, admin: Admin, db: DbSession
     return _out(channel)
 
 
-# --- platform connection (Phase 12) --------------------------------------------------
+# --- platform connection (Phase 12/13) -----------------------------------------------
 
 
 class ConnectOut(BaseModel):
     url: str
+
+
+def _authorization_url(settings: Settings, channel: Channel, user_id: int) -> str:
+    code = PlatformCode(channel.platform.code)
+    provider = platform.provider_for(code)
+    state = platform.make_state(settings, provider, channel.id, user_id)
+    if code == PlatformCode.YOUTUBE:
+        return youtube.authorization_url(settings, state)
+    if code == PlatformCode.TIKTOK:
+        return tiktok.authorization_url(settings, state)
+    return meta.authorization_url(settings, state, code)
 
 
 @router.post("/{channel_id}/connect", response_model=ConnectOut)
@@ -135,18 +147,24 @@ def connect_channel(
 ) -> ConnectOut:
     """Start the OAuth consent at the platform; the browser is sent to ``url``."""
     channel = _get(db, channel_id)
-    if channel.platform.code != PlatformCode.YOUTUBE:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Platform follows in phase 13")
     try:
-        url = youtube.authorization_url(
-            settings, youtube.make_state(settings, channel.id, admin.id)
-        )
-    except youtube.NotConfiguredError as exc:
+        url = _authorization_url(settings, channel, admin.id)
+    except platform.NotConfiguredError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     audit.record(db, "channel.connect_started", user_id=admin.id, entity_type="channels",
                  entity_id=channel.id)  # fmt: skip
     db.commit()
     return ConnectOut(url=url)
+
+
+def _revoke(settings: Settings, cred: ChannelCredential) -> bool:
+    """Best effort. Meta: no documented revoke call is used; access ends when the
+    stored Page token is deleted (the operator can remove the app in Facebook)."""
+    if cred.provider == youtube.PROVIDER:
+        return youtube.revoke(settings, cred)
+    if cred.provider == tiktok.PROVIDER:
+        return tiktok.revoke(settings, cred)
+    return False
 
 
 @router.post("/{channel_id}/disconnect", response_model=ChannelOut)
@@ -156,7 +174,7 @@ def disconnect_channel(
     """Revoke the access at the platform (best effort) and delete the stored tokens."""
     channel = _get(db, channel_id)
     cred = db.scalar(select(ChannelCredential).where(ChannelCredential.channel_id == channel.id))
-    revoked = youtube.revoke(settings, cred) if cred else False
+    revoked = _revoke(settings, cred) if cred else False
     if cred is not None:
         db.delete(cred)
     before = channel.auth_status.value
@@ -174,42 +192,68 @@ def disconnect_channel(
     return _out(channel)
 
 
+def _status_after_connect(
+    settings: Settings, code: PlatformCode, cred: ChannelCredential
+) -> ChannelAuthStatus:
+    scopes = cred.scopes or []
+    if code == PlatformCode.YOUTUBE:
+        ok = youtube.UPLOAD_SCOPE in scopes
+    elif code == PlatformCode.TIKTOK:
+        # Unaudited TikTok apps may only post privately: hold videos (PROJECT_SPEC 11).
+        ok = tiktok.PUBLISH_SCOPE in scopes and settings.tiktok_app_audited
+    else:
+        ok = meta.PUBLISH_SCOPE[code] in scopes
+    return ChannelAuthStatus.AUTHORIZED if ok else ChannelAuthStatus.CONNECTED_RESTRICTED
+
+
 oauth_router = APIRouter(prefix="/oauth", tags=["oauth"])
+PROVIDERS = ("youtube", "tiktok", "meta")
 
 
-@oauth_router.get("/youtube/callback")
-def youtube_callback(
+@oauth_router.get("/{provider}/callback")
+def oauth_callback(
+    provider: str,
     db: DbSession,
     settings: AppSettings,
     state: str = "",
     code: str | None = None,
     error: str | None = None,
 ) -> RedirectResponse:
-    """Google redirects here after the consent; the signed ``state`` names channel and user."""
+    """The platform redirects here after the consent; the signed ``state`` names
+    channel, user and provider. The dashboard shows the result (``?<provider>=…``)."""
+    if provider not in PROVIDERS:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown provider")
     target = "/einstellungen"
+
+    def back(result: str) -> RedirectResponse:
+        return RedirectResponse(f"{target}?{provider}={result}", status_code=303)
+
     try:
-        channel_id, user_id = youtube.read_state(settings, state)
-    except youtube.YouTubeError:
-        return RedirectResponse(f"{target}?youtube=invalid", status_code=303)
+        channel_id, user_id = platform.read_state(settings, provider, state)
+    except platform.PlatformError:
+        return back("invalid")
     if error or not code:
-        return RedirectResponse(f"{target}?youtube=denied", status_code=303)
+        return back("denied")
     channel = db.get(Channel, channel_id)
     user = db.get(User, user_id)
     if channel is None or user is None or user.role != UserRole.ADMIN or not user.is_active:
-        return RedirectResponse(f"{target}?youtube=invalid", status_code=303)
+        return back("invalid")
+    platform_code = PlatformCode(channel.platform.code)
+    if platform.provider_for(platform_code) != provider:
+        return back("invalid")
+    connect = {"youtube": youtube.connect, "tiktok": tiktok.connect, "meta": meta.connect}
     try:
-        cred = youtube.connect(db, settings, channel, code, user_id)
-    except (youtube.YouTubeError, youtube.NotConfiguredError) as exc:
+        cred = connect[provider](db, settings, channel, code, user_id)
+    except (platform.PlatformError, platform.NotConfiguredError) as exc:
         db.rollback()
-        log.warning("youtube connect failed", extra={"channel": channel_id, "error": str(exc)})
-        return RedirectResponse(f"{target}?youtube=failed", status_code=303)
+        log.warning(
+            "platform connect failed",
+            extra={"provider": provider, "channel": channel_id, "error": str(exc)},
+        )
+        return back("failed")
     before = channel.auth_status.value
     channel.external_channel_id = cred.external_account_id
-    channel.auth_status = (
-        ChannelAuthStatus.AUTHORIZED
-        if youtube.UPLOAD_SCOPE in (cred.scopes or [])
-        else ChannelAuthStatus.CONNECTED_RESTRICTED
-    )
+    channel.auth_status = _status_after_connect(settings, platform_code, cred)
     audit.record(
         db,
         "channel.connected",
@@ -224,4 +268,6 @@ def youtube_callback(
         },
     )
     db.commit()
-    return RedirectResponse(f"{target}?youtube=connected", status_code=303)
+    return back(
+        "connected" if channel.auth_status == ChannelAuthStatus.AUTHORIZED else "restricted"
+    )
