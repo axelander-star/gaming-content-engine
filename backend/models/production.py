@@ -157,6 +157,8 @@ class Voiceover(IdMixin, TimestampMixin, Base):
     storage_uri: Mapped[str | None] = mapped_column(String(1000))
     duration_s: Mapped[float | None] = mapped_column(Float)
     commercial_use_cleared: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: Timed voice segments (start, end, tempo, overflow) used for subtitles and QC.
+    segments: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
 
 
 class Subtitle(IdMixin, TimestampMixin, Base):
@@ -168,6 +170,9 @@ class Subtitle(IdMixin, TimestampMixin, Base):
     language: Mapped[Language] = mapped_column(str_enum(Language, "language"))
     format: Mapped[str] = mapped_column(String(8))  # srt | vtt
     storage_uri: Mapped[str | None] = mapped_column(String(1000))
+    cues: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    #: Readability findings (reading speed, too short, line length) for the quality check.
+    issues: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
     burned_in: Mapped[bool] = mapped_column(Boolean, default=False)
 
 

@@ -65,6 +65,12 @@ class CapacityError(AgentSkipError):
     gate = "capacity"
 
 
+class ProviderUnavailableError(AgentSkipError):
+    """The configured external provider (e.g. a voice service) is not connected."""
+
+    gate = "provider"
+
+
 class PermanentError(RuntimeError):
     """The entity can never succeed as it is (e.g. a broken file). It is marked FAILED
     without automatic retries; the operator has to fix the input."""

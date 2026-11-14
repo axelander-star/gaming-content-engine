@@ -241,6 +241,9 @@ export const api = {
   productionClips: (limit = 50) => request<Clip[]>(`/production/clips?limit=${limit}`),
   materialScenes: (id: number) => request<Scene[]>(`/materials/${id}/scenes`),
   clipFileUrl: (id: number) => `/api/clips/${id}/file`,
+  variantFileUrl: (id: number) => `/api/variants/${id}/file`,
+  variantSubtitlesUrl: (id: number, format: "srt" | "vtt") =>
+    `/api/variants/${id}/subtitles.${format}`,
   renderCapacity: () => request<RenderCapacity>("/production/capacity"),
 
   users: () => request<User[]>("/users"),

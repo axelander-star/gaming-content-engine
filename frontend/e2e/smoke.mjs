@@ -72,7 +72,7 @@ try {
     const rows = page.locator("table").first().locator("tbody tr");
     await rows.nth(17).waitFor();
     assert.equal(await rows.count(), 18);
-    await page.getByText("Folgt in Phase 9").first().waitFor();
+    await page.getByText("Folgt in Phase 10").first().waitFor();
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -222,7 +222,7 @@ try {
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
   });
 
-  await step("Videoproduktion: Gameplay hochladen, Clip rendern, Konzept und Skript schreiben", async () => {
+  await step("Videoproduktion: Upload bis fertige Variante mit Skript, Stimme und Untertiteln", async () => {
     // Licence-free synthetic video: calm part, hard cut, loud action part, calm tail.
     const dir = mkdtempSync(join(tmpdir(), "gce-e2e-"));
     const video = join(dir, `gameplay-${rightsTag}.mp4`);
@@ -274,10 +274,11 @@ try {
     const materialId = (await status.textContent())?.match(/Material #(\d+)/)?.[1];
     assert.ok(materialId, "upload did not report a material id");
 
-    // Master dispatches scout, rights check, analysis, rendering, concept and script in turn.
+    // Master dispatches scout, rights, analysis, rendering, concept, script, localization,
+    // voice and subtitles in turn.
     const row = page.locator("tr").filter({ hasText: `#${materialId} ·` }).first();
     let scripted = false;
-    for (let i = 0; i < 24 && !scripted; i++) {
+    for (let i = 0; i < 36 && !scripted; i++) {
       await page.getByRole("link", { name: "Agenten", exact: true }).click();
       await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
       await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
@@ -285,13 +286,13 @@ try {
       await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
       await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
       scripted = await row
-        .getByText("Skript fertig, Lokalisierung folgt")
+        .getByText("Fertig, Qualitätsprüfung folgt")
         .first()
         .waitFor({ timeout: 2000 })
         .then(() => true)
         .catch(() => false);
     }
-    assert.ok(scripted, "no clip was rendered and scripted from the uploaded gameplay");
+    assert.ok(scripted, "the uploaded gameplay did not become a finished variant");
     await row.getByText(/×\d+, \d+(\.\d+)? fps/).waitFor();
     await row.getByRole("button", { name: /^Clip \d+$/ }).click();
     const preview = page.getByLabel(/^Vorschau Clip \d+$/);
@@ -300,7 +301,19 @@ try {
     const script = page.getByLabel(/^Skript (DE|EN) A$/).first();
     await script.getByText("Hauptvariante").waitFor();
     await script.getByText(/Hook:/).waitFor();
-    await script.getByText("Vorlage (kostenlos)").waitFor();
+    await script.getByText(/Vorlage \(kostenlos\)/).waitFor();
+    await page.getByText(/Untertitel eingebrannt/).first().waitFor();
+    const final = page.getByLabel(/^Fertiges Video (DE|EN) [A-D]$/).first();
+    const finalSize = await final.evaluate(
+      (el) =>
+        new Promise((resolve) => {
+          const v = /** @type {HTMLVideoElement} */ (el);
+          if (v.readyState >= 1) return resolve(v.videoWidth + "x" + v.videoHeight);
+          v.addEventListener("loadedmetadata", () => resolve(v.videoWidth + "x" + v.videoHeight));
+          v.addEventListener("error", () => resolve("error"));
+        }),
+    );
+    assert.match(String(finalSize), /^(720x1280|1080x1920)$/);
     const playable = await preview.evaluate(
       (el) =>
         new Promise((resolve) => {
