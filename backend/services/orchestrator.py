@@ -18,7 +18,7 @@ from redis import Redis
 from rq.job import Job
 from sqlalchemy.orm import Session
 
-from agents.base import AgentContext, BudgetExceededError
+from agents.base import AgentContext, AgentSkipError, PermanentError
 from agents.registry import AgentSpec, get_spec
 from core.config import Settings, get_settings
 from core.enums import AgentRunStatus
@@ -65,6 +65,9 @@ def submit(
     connection: Redis | None = None,
 ) -> Job:
     spec = _spec(agent_name)
+    options: dict[str, Any] = {}
+    if spec.production:  # analysis and rendering take longer than a normal job
+        options["job_timeout"] = get_settings().production_job_timeout_s
     return enqueue_unique(
         run_agent_job,
         job_key(agent_name, payload),
@@ -73,6 +76,7 @@ def submit(
         priority,
         queue=queue_for(spec, priority),
         connection=connection,
+        **options,
     )
 
 
@@ -136,16 +140,18 @@ def run_agent(
         session.rollback()
         error = f"{type(exc).__name__}: {exc}"
         log.warning("agent failed", extra={"agent": agent_name, "error": error})
-        status = AgentRunStatus.SKIPPED if isinstance(exc, BudgetExceededError) else None
-        if status is None:
-            _fail_entity(session, spec, payload, error)
-        return _finish(
+        if isinstance(exc, AgentSkipError):
+            return _finish(
+                session, run, AgentRunStatus.SKIPPED, error=error[:4000], output={"gate": exc.gate}
+            )
+        _fail_entity(
             session,
-            run,
-            status or AgentRunStatus.FAILED,
-            error=error[:4000],
-            output={"gate": "budget"} if status else {},
+            spec,
+            payload,
+            error,
+            permanent_after=settings.agent_max_retries if isinstance(exc, PermanentError) else None,
         )
+        return _finish(session, run, AgentRunStatus.FAILED, error=error[:4000], output={})
     if not result.ok:
         _fail_entity(session, spec, payload, result.message or "agent reported failure")
         return _finish(
@@ -154,8 +160,17 @@ def run_agent(
     return _finish(session, run, AgentRunStatus.SUCCEEDED, output=result.output)
 
 
-def _fail_entity(session: Session, spec: AgentSpec, payload: dict[str, Any], error: str) -> None:
-    """Move the stage entity to FAILED if it is still in the agent's status."""
+def _fail_entity(
+    session: Session,
+    spec: AgentSpec,
+    payload: dict[str, Any],
+    error: str,
+    permanent_after: int | None = None,
+) -> None:
+    """Move the stage entity to FAILED if it is still in the agent's status.
+
+    ``permanent_after`` marks the retry budget as used up, so the master does not
+    retry an input that can never succeed."""
     if spec.stage is None:
         return
     entity_id = payload.get("entity_id")
@@ -164,3 +179,5 @@ def _fail_entity(session: Session, spec: AgentSpec, payload: dict[str, Any], err
     entity = gates.load_entity(session, spec.stage.entity_type, entity_id)
     if entity is not None and entity.status.value == spec.stage.status:
         workflow.mark_failed(session, entity, spec.name, error, actor=spec.name)
+        if permanent_after is not None:
+            entity.retry_count = max(entity.retry_count, permanent_after)

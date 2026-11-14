@@ -77,6 +77,28 @@ class Settings(BaseSettings):
     media_root: str = "./data/media"
     max_document_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
 
+    # --- Gameplay analysis and clip production (Phase 7) ---
+    ffmpeg_bin: str = "ffmpeg"
+    ffprobe_bin: str = "ffprobe"
+    production_job_timeout_s: int = Field(default=3600, ge=60)
+    max_upload_bytes: int = Field(default=4 * 1024**3, gt=0)  # one gameplay file
+    min_material_s: float = Field(default=10.0, gt=0)
+    max_material_s: float = Field(default=4 * 3600.0, gt=0)
+    min_source_height: int = Field(default=720, ge=144)  # shorter side of the source
+    analysis_sample_fps: float = Field(default=2.0, gt=0, le=10)
+    clip_target_s: float = Field(default=30.0, gt=0)
+    clip_min_s: float = Field(default=15.0, gt=0)
+    clip_max_s: float = Field(default=60.0, gt=0)
+    max_clips_per_material: int = Field(default=3, ge=0, le=20)
+    min_scene_score: float = Field(default=0.35, ge=0, le=1)
+    render_preset: Literal[
+        "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow"
+    ] = "medium"
+    render_crf: int = Field(default=20, ge=14, le=30)
+    render_max_fps: float = Field(default=60.0, gt=0)
+    render_slot_ttl_s: int = Field(default=2 * 3600, ge=60)  # stale slot after a crash
+    max_clip_bytes: int = Field(default=250 * 1024**2, gt=0)  # conservative own limit
+
     # --- Trend sources (Phase 5). "mock" needs no keys and makes no network calls. ---
     trend_sources_mode: Literal["mock", "live"] = "mock"
     youtube_api_key: SecretStr = SecretStr("")
