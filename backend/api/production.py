@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from api.deps import AppSettings, DbSession, Viewer
 from core.enums import VideoStatus
 from models.production import Clip, GameplayFile, Scene, Variant
+from models.rights import Asset
 from models.trends import Game
 from services import storage
 from services.controls import get_operations
@@ -101,14 +102,15 @@ def list_clips(
             )
         )
     games = {g.id: g.name for g in db.scalars(select(Game))} if rows else {}
+    asset_ids = {m.asset_id for _, _, m in rows}
+    titles = {a.id: a.title for a in db.scalars(select(Asset).where(Asset.id.in_(asset_ids)))}
     out = []
     for clip, scene, material in rows:
-        asset_title = material.storage_uri.rsplit("/", 1)[-1]
         out.append(
             ClipOut(
                 id=clip.id,
                 material_id=material.id,
-                material_title=asset_title,
+                material_title=titles.get(material.asset_id),
                 game=games.get(material.game_id) if material.game_id else None,
                 scene=_scene_out(scene),
                 start_s=clip.start_s,

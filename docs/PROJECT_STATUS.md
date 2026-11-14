@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 6 abgeschlossen · **Nächste Phase:** 7 (Gameplay-Analyse und Videoproduktion)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 7 abgeschlossen · **Nächste Phase:** 8 (Creative Director, Hooks und Skripte)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -14,7 +14,7 @@
 | 4 | Master Agent und Agentenverwaltung | ✅ abgeschlossen |
 | 5 | Trend Research und Game Intelligence | ✅ abgeschlossen |
 | 6 | Material Scout und Rights Agent | ✅ abgeschlossen |
-| 7 | Gameplay-Analyse und Videoproduktion | ⏳ offen |
+| 7 | Gameplay-Analyse und Videoproduktion | ✅ abgeschlossen |
 | 8 | Creative Director, Hooks, Skripte | ⏳ offen |
 | 9 | Lokalisierung, Voiceover, Untertitel | ⏳ offen |
 | 10 | Quality Control und Duplikaterkennung | ⏳ offen |
@@ -26,7 +26,59 @@
 
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
-Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Der echte Verbindungstest steht aus, bis die Schlüssel hinterlegt sind.
+Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 7 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Gameplay-Upload** (`POST /api/materials/upload`, Dashboard-Seite „Videoproduktion“): MP4, MOV oder MKV bis 4 GiB, Datei wird gestreamt, mit ffprobe geprüft (Format, Länge 10 s bis 4 h, mindestens 720p, Bildrate) und erst danach inhaltsadressiert gespeichert. Doppelte Dateien werden abgelehnt (409). Danach läuft dieselbe Kette wie bei registriertem Material: Material Scout, Rechteprüfung, erst dann Analyse
+- **Gameplay Analysis Agent** (Agent 6): misst je Sekunde Bewegung und deren Bildposition (OpenCV), Lautstärke (RMS) und Schnitte (PySceneDetect), bewertet alle Fenster in Zielclip-Länge (Standard 30 s) und wählt die besten, sich nicht überschneidenden Szenen (Mindestwert 0,35, höchstens 3 je Material). Start und Ende rücken an einen nahen Schnitt. Die besten 10 Szenen werden mit Einzelwerten und Schlagworten gespeichert, für jede gewählte Szene entstehen ein Clip und eine Variante je Sprache (`SCENE_SELECTED`)
+- **Clip Production Agent** (Agent 7): rendert jeden Clip einmal (die zweite Sprachfassung nutzt dieselbe Datei): Schnitt, 0,3 s Ein- und Ausblendung, 9:16-Ausschnitt um die Action oder bei weit verteilter Action das ganze Bild auf unscharfem Hintergrund, H.264 High/AAC, 1080×1920 (bei 720p-Quellen 720×1280, kein Hochskalieren), höchstens 60 fps, `faststart`. Das Ergebnis wird erneut mit ffprobe geprüft; Abweichungen führen zu einem Fehler statt zu einem fehlerhaften Clip. Pro Sekunde wird ein Bild-Fingerabdruck (dHash) für die Duplikaterkennung in Phase 10 gespeichert
+- **Renderslots:** höchstens `max_parallel_render_jobs` (Betreiber-Einstellung) gleichzeitig; ist alles belegt, wird der Lauf übersprungen und später erneut verteilt
+- **Dauerhafte Fehler** (Datei unlesbar, technische Prüfung nicht bestanden) werden ohne automatische Wiederholung als Fehler markiert
+- **API:** `/api/production/clips`, `/api/materials/{id}/scenes`, `/api/clips/{id}/file` (Vorschau), `/api/production/capacity` (gemessene Kapazität der letzten 7 Tage)
+- **Dashboard „Videoproduktion“:** Kapazitätskacheln, Upload, Clip-Liste mit Szenenbewertung, Schlagworten, technischen Werten, Renderzeit, Status je Sprachfassung und Videovorschau (Screenshot: `screenshots/phase7-produktion.png`)
+
+**Kapazitätsmessung** (4 vCPU wie CX33, Standard-Einstellungen `medium`/CRF 20, 30-s-Clip aus synthetischem Testvideo):
+
+| Quelle | Bildaufbau | Ausgabe | Renderzeit | Echtzeitfaktor | Clips/Stunde je Slot |
+|---|---|---|---|---|---|
+| 720p | Ausschnitt | 720×1280 | 7,0 s | 4,3× | ca. 510 |
+| 720p | unscharfer Hintergrund | 720×1280 | 15,3 s | 2,0× | ca. 235 |
+| 1080p | Ausschnitt | 1080×1920 | 12,1 s | 2,5× | ca. 300 |
+| 1080p | unscharfer Hintergrund | 1080×1920 | 27,5 s | 1,1× | ca. 130 |
+
+Echtes Gameplay ist detailreicher als das Testbild und rendert langsamer; als vorsichtige Planungsgröße gilt ein Drittel dieser Werte. Die Analyse eines Materials kommt hinzu (ungefähr ein Zehntel der Materiallänge). Das Dashboard zeigt künftig die auf dem Server tatsächlich gemessenen Werte; der Publishing Strategy Agent (Phase 11) plant mit ihnen.
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/{media,analysis,render}.py`, `backend/agents/{gameplay_analysis,clip_production}.py`, `backend/api/production.py`, Migration `20261114_dc0f8da24d55_clip_production.py`, `tests/integration/test_production.py`, `frontend/dashboard/ProductionView.tsx`
+- Geändert: `backend/agents/{base,registry}.py`, `services/{orchestrator,storage}.py`, `models/production.py`, `api/rights.py`, `app/main.py`, `core/config.py`, `pyproject.toml` (numpy, OpenCV, PySceneDetect), `Dockerfile` (FFmpeg), CI (FFmpeg), `tests/integration/test_agents.py`, `frontend/app/(dashboard)/produktion/page.tsx`, `frontend/lib/{api,types}.ts`, `frontend/next.config.ts` (Upload-Grenze des Entwicklungs-Proxys), `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, Dokumentation
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest), Migration und `alembic check`
+- Mit selbst erzeugten, lizenzfreien Testvideos (FFmpeg-Testbild und Rauschen): ffprobe-Prüfung und Ablehnungsgründe, Szenenerkennung findet den lauten Action-Teil, Schnitt-Ausrichtung, Ausschnitt und unscharfer Hintergrund, Quelle ohne Ton, Prüfung der technischen Werte des fertigen Clips, Renderslots, Wiederverwendung für die zweite Sprache, Upload mit Ablehnung falscher Dateien und Duplikate, Produktions-API und Kapazität
+- Frontend `typecheck` und `build`; E2E mit echtem Worker: Video erzeugen, im Dashboard hochladen, Master startet Scout, Rechteprüfung, Analyse und Rendering, Clip erscheint mit 720×1280 und spielt in der Vorschau
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 208 Backend-Tests bestanden; ruff, mypy und `alembic check` ohne Befund
+- **Abnahme Phase 7:** Das selbst erzeugte Testvideo wird zu einem Clip mit korrekten technischen Parametern verarbeitet (9:16, H.264/AAC, erwartete Auflösung, Länge und Bildrate, per ffprobe geprüft)
+- 15 E2E-Schritte bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Humor und Spielinhalte (z. B. ein Sieg) sind aus Bewegung, Lautstärke und Schnitten nicht erkennbar; dafür wäre ein Bildmodell nötig (kostenpflichtig, nur mit Freigabe)
+- Material und Clips liegen lokal im Volume `media_data`. R2 braucht Zugangsdaten des Betreibers und kommt, sobald sie hinterlegt sind; bis dahin sind die Dateien nicht im Backup (Phase 15)
+- Neue Varianten starten auf dem ersten Kanal ihrer Sprache; die Verteilung auf Kanäle übernimmt der Publishing Strategy Agent (Phase 11)
+- Kapazitätswerte stammen aus einem synthetischen Testvideo, nicht vom Zielserver; die echte Messung entsteht automatisch im Betrieb
+
+### 6. Nächster Schritt
+
+Phase 8: Creative Director, Hooks und Skripte. Dafür wird ein Sprachmodell gebraucht; vor dem ersten kostenpflichtigen Aufruf frage ich nach Anbieter und Budget. Bis dahin arbeite ich mit regelbasierten Vorlagen und Mock.
 
 ## Phase 6 – Bericht
 
@@ -318,6 +370,11 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Lizenzfreigabe nur durch Admin und nur mit hochgeladenem Nachweis; jede spätere Änderung setzt sie zurück | Vier-Augen-Prinzip zwischen Erfassung und Freigabe |
 | 14.11.2026 | Testdaten-Lauf zeigt nie „Verbunden“; echter Status nur aus Live-Lauf oder Verbindungstest | Keine erfundenen Verbindungen (Projektregel) |
 | 14.11.2026 | Nachweise lokal (Volume) bis Phase 7, inhaltsadressiert und unveränderlich | R2 kommt mit den Mediendateien; Format bleibt gleich (`local://` → `r2://`) |
+| 14.11.2026 | Mediendateien bleiben lokal, bis R2-Zugangsdaten vorliegen | Keine Zugangsdaten ohne Betreiber; Speicherformat ist schon vorbereitet |
+| 14.11.2026 | Szenenbewertung regelbasiert (Bewegung 35 %, Lautstärke 25 %, Überraschung 20 %, Schnitte 10 %, Spannungsaufbau 10 %) | Kostenlos, nachvollziehbar, relativ zum jeweiligen Material |
+| 14.11.2026 | Ein Clip je Szene, beide Sprachfassungen nutzen dieselbe gerenderte Datei | Halbiert die Renderzeit; Sprache unterscheidet sich erst ab Phase 9 |
+| 14.11.2026 | Kein Hochskalieren: 720p-Quellen ergeben 720×1280 | Hochskalieren verschlechtert die Qualität sichtbar ohne Mehrwert |
+| 14.11.2026 | Dauerhafte Fehler (Datei, technische Prüfung) ohne automatische Wiederholung | Ein erneuter Versuch kann das Ergebnis nicht ändern; der Betreiber ersetzt die Datei |
 
 ## Offene Punkte
 
@@ -326,7 +383,8 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 - Live-Trends: Schlüssel sind angelegt; nach dem Hinterlegen Verbindungstest, dann `TREND_SOURCES_MODE=live`
 - LLM- und TTS-Anbieter nach aktueller Preisprüfung auswählen – vor Phase 8/9
 - Publisher-Richtlinien für die Spiele pflegen, für die Material beschafft werden soll (Betreiber)
-- Lizenznachweise nach R2 verschieben und ins Backup aufnehmen – Phase 7/15
+- Lizenznachweise, Material und Clips nach R2 verschieben und ins Backup aufnehmen – sobald R2-Zugangsdaten vorliegen, spätestens Phase 15
+- Neuen YouTube-API-Schlüssel erstellen und Twitch-Secret rotieren (Betreiber)
 - Zwei-Faktor-Anmeldung für Admins – Phase 15
 - Alle ⚠️-Angaben in API_INTEGRATIONS.md gegen aktuelle Anbieterdokumentation prüfen
 - Image-Versionen (n8n `stable`, Uptime Kuma `1`) vor Produktivbetrieb fest pinnen – Phase 15

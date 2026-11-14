@@ -582,3 +582,11 @@ td .badge {
   white-space: nowrap;
   box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
 }
+
+.clip-preview {
+  width: 100%;
+  max-width: 270px;
+  aspect-ratio: 9 / 16;
+  background: #000;
+  border-radius: 8px;
+}

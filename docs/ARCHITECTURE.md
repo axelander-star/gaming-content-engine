@@ -177,4 +177,4 @@ Jeder kostenpflichtige Adapter ruft vor dem Aufruf `ctx.authorize_cost(geschätz
 
 ## 9. Deployment-Ziel
 
-Hetzner Cloud CX33 (4 vCPU, 8 GB RAM, 80 GB, Ubuntu 24.04 LTS), Docker Compose, Caddy mit automatischem TLS. Renderjobs werden über `max_parallel_render_jobs` begrenzt, damit API und Datenbank reaktionsfähig bleiben. Die tatsächliche Kapazität wird in Phase 7 gemessen und in `PROJECT_STATUS.md` dokumentiert.
+Hetzner Cloud CX33 (4 vCPU, 8 GB RAM, 80 GB, Ubuntu 24.04 LTS), Docker Compose, Caddy mit automatischem TLS. Renderjobs werden über `max_parallel_render_jobs` begrenzt, damit API und Datenbank reaktionsfähig bleiben. Gemessene Renderzeiten stehen in `PROJECT_STATUS.md` (Phase 7); im Betrieb misst das System jede Renderzeit selbst (`GET /api/production/capacity`), und der Publishing Strategy Agent plant damit.

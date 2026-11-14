@@ -76,6 +76,11 @@ API-Dokumentation (nur außerhalb von Production): http://127.0.0.1:8000/api/doc
 | POST | `/api/games` | Spiel anlegen (Operator) |
 | GET · PUT | `/api/policies` · `/api/games/{id}/policy` | Publisher-Richtlinien (Festlegen: Admin) |
 | GET/POST | `/api/materials`, `/api/materials/{id}` | Material registrieren (`DISCOVERED`) und mit letzter Rechteprüfung anzeigen |
+| POST | `/api/materials/upload` | Gameplay hochladen (Formular: Datei, `source_id`, `license_id`, `game_id`, `title`); ffprobe-Prüfung vor dem Speichern (Operator) |
+| GET | `/api/materials/{id}/scenes` | Bewertete Szenen eines Materials |
+| GET | `/api/production/clips` | Clips mit Szene, technischen Werten, Renderzeit und Sprachfassungen |
+| GET | `/api/clips/{id}/file` | Gerenderten Clip abspielen (MP4) |
+| GET | `/api/production/capacity` | Gemessene Renderkapazität der letzten 7 Tage |
 | GET | `/api/rights/criteria` | Die 12 Prüfkriterien |
 
 Alle Endpunkte außer Health und Login brauchen eine Sitzung. Schreibende Anfragen brauchen zusätzlich den Header `X-CSRF-Token` mit dem Wert des Cookies `gce_csrf`.

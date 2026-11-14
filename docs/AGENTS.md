@@ -34,8 +34,8 @@ Code: `backend/agents/base.py`, Registry `backend/agents/registry.py`.
 | 3 | Game Intelligence | 5 | `games`, `trends`, Kanalperformance | Spielprofile, Videoideen | – | lokal / LLM optional |
 | 4 | Material Scout | 6 | registriertes Material (`DISCOVERED`), Trends | Herkunftsnachweis, Zuordnung zum Spiel, Materialbedarf | `DISCOVERED` → `RIGHTS_PENDING` | lokal |
 | 5 | Rights & License | 6 | `licenses`, Nachweise, Publisher-Richtlinien | `rights_checks` (12 Kriterien mit Begründung), Ablaufwarnungen | `RIGHTS_PENDING` → `RIGHTS_APPROVED` / `RIGHTS_REJECTED` | lokal |
-| 6 | Gameplay Analysis | 7 | freigegebenes Material | `scenes` mit Bewertung und Zeitmarken | → `ANALYZED` | lokal (CPU) |
-| 7 | Clip Production | 7 | Szenen | `clips` (9:16, H.264/AAC) | → `SCENE_SELECTED` → `EDITING` | lokal (CPU) |
+| 6 | Gameplay Analysis | 7 | freigegebenes Material (`RIGHTS_APPROVED`) | `scenes` mit Bewertung, Clips und Varianten je Sprache | Material → `ANALYZED`, Varianten neu in `SCENE_SELECTED` | lokal (CPU) |
+| 7 | Clip Production | 7 | Varianten in `SCENE_SELECTED` | gerenderte `clips` (9:16, H.264/AAC) | `SCENE_SELECTED` → `EDITING` | lokal (CPU) |
 | 8 | Creative Director | 8 | Clips, Learning-Erkenntnisse | Konzepte, Formatwahl, Varianten A–D | – | LLM optional |
 | 9 | Script & Hook | 8 | Konzepte | `scripts` (Hook, Voiceover, CTA, Titel) | – | LLM optional |
 | 10 | Localization | 9 | Skripte | DE- und EN-Fassungen (keine Wort-für-Wort-Übersetzung) | → `LOCALIZATION` | LLM optional |
@@ -88,6 +88,22 @@ Material kommt nur über registrierte, lizenzierte Quellen ins System (Dashboard
 
 - Täglich (`{"sweep": true}`): setzt abgelaufene Lizenzen auf `expired`, warnt 14 Tage vor Ablauf (einmal je Lizenz) und schickt betroffenes Material zurück in die Prüfung.
 - Jede Änderung an Nachweisen (Lizenz bearbeitet, freigegeben, widerrufen; Quelle oder Creator gesperrt; Richtlinie geändert) schickt Material in `RIGHTS_APPROVED`, `ANALYZED` oder `RIGHTS_REJECTED` zurück nach `RIGHTS_PENDING`. Die Gates prüfen dieselben Kriterien vor jedem späteren Produktionsschritt erneut.
+
+## Gameplay Analysis und Clip Production (umgesetzt in Phase 7)
+
+**Gameplay Analysis** (`agents/gameplay_analysis.py`, Logik in `services/analysis.py`): prüft das Material mit ffprobe, misst je Sekunde Bewegung (mittlere Bilddifferenz), wo im Bild sie stattfindet, Lautstärke und Schnitte und bewertet jedes Fenster in Zielclip-Länge (`CLIP_TARGET_S`, Standard 30 s). Alle Werte sind relativ zum selben Material, damit ein ruhiges Strategiespiel und ein lauter Shooter fair bewertet werden.
+
+| Anteil | Gewicht | Bedeutung |
+|---|---|---|
+| Bewegung | 35 % | mittlere Bewegung im Verhältnis zum 95. Perzentil des Materials |
+| Lautstärke | 25 % | Pegel zwischen 5. und 95. Perzentil; ohne Ton oder bei konstantem Pegel neutral 0,5 |
+| Überraschung | 20 % | plötzlicher Sprung von Lautstärke oder Bewegung gegenüber den 3 s davor |
+| Schnitte | 10 % | Schnittdichte im Fenster |
+| Spannungsaufbau | 10 % | letztes Drittel intensiver als das erste |
+
+Gewählt werden die besten Szenen ohne Überschneidung mit mindestens `MIN_SCENE_SCORE` (0,35), höchstens `MAX_CLIPS_PER_MATERIAL` (3). Start und Ende rücken an einen Schnitt innerhalb von 3 s. Schlagworte: Action, Überraschung, Spannung, Ruhig. Humor und Spielinhalte sind aus diesen Signalen nicht erkennbar. Gibt es keine geeignete Szene, erhält der Betreiber eine Benachrichtigung.
+
+**Clip Production** (`agents/clip_production.py`, Logik in `services/render.py`): rendert den Clip einer Variante einmalig (Sperre auf den Clip, die zweite Sprache übernimmt die Datei). Bildaufbau `crop` (9:16-Ausschnitt um den Bewegungsschwerpunkt) oder `blur_fit` (ganzes Bild über unscharfem Hintergrund), wenn die Action weit verteilt oder nicht messbar ist. Ausgabe H.264 High, yuv420p, AAC 48 kHz Stereo (ohne Quellton eine stille Spur), 1080×1920 bzw. 720×1280 bei 720p-Quellen. Der fertige Clip wird mit ffprobe geprüft (Auflösung, Codecs, Länge ±0,5 s, Größe). Höchstens `max_parallel_render_jobs` Renderjobs laufen gleichzeitig.
 
 ## Grenzen und Pflichten einzelner Agenten
 
