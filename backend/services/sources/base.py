@@ -43,6 +43,7 @@ class SourceResult:
     requests: int = 0
     errors: list[str] = field(default_factory=list)
     skipped: str | None = None  # reason if the source did not run at all
+    detail: str | None = None  # short human-readable outcome (connection test)
 
 
 class TrendSource(Protocol):

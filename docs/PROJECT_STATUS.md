@@ -24,6 +24,10 @@
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
 
+## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
+
+Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Der echte Verbindungstest steht aus, bis die Schlüssel hinterlegt sind.
+
 ## Phase 6 – Bericht
 
 ### 1. Was wurde erstellt?
@@ -312,13 +316,14 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Rechteprüfung unterscheidet „nicht erlaubt“ und „Nachweis fehlt“ | Betreiber sieht, ob er Unterlagen nachreichen kann oder die Nutzung ausgeschlossen ist |
 | 14.11.2026 | Ohne geprüfte Publisher-Richtlinie keine Freigabe; GTA VI vorbelegt mit „nur mit Erlaubnis“ | Spezifikation Abschnitt 5: keine pauschale Freigabe |
 | 14.11.2026 | Lizenzfreigabe nur durch Admin und nur mit hochgeladenem Nachweis; jede spätere Änderung setzt sie zurück | Vier-Augen-Prinzip zwischen Erfassung und Freigabe |
+| 14.11.2026 | Testdaten-Lauf zeigt nie „Verbunden“; echter Status nur aus Live-Lauf oder Verbindungstest | Keine erfundenen Verbindungen (Projektregel) |
 | 14.11.2026 | Nachweise lokal (Volume) bis Phase 7, inhaltsadressiert und unveränderlich | R2 kommt mit den Mediendateien; Format bleibt gleich (`local://` → `r2://`) |
 
 ## Offene Punkte
 
 - `docker compose up` des Gesamtsystems auf einem echten Docker-Host bestätigen (Image-Build ist in der CI grün)
 - Entwickler-Apps bei Google, TikTok und Meta anlegen (Betreiber); Audits können Wochen dauern
-- Für Live-Trends: YouTube-API-Schlüssel und Twitch-App (Client-ID/Secret) anlegen (Betreiber, kostenlos)
+- Live-Trends: Schlüssel sind angelegt; nach dem Hinterlegen Verbindungstest, dann `TREND_SOURCES_MODE=live`
 - LLM- und TTS-Anbieter nach aktueller Preisprüfung auswählen – vor Phase 8/9
 - Publisher-Richtlinien für die Spiele pflegen, für die Material beschafft werden soll (Betreiber)
 - Lizenznachweise nach R2 verschieben und ins Backup aufnehmen – Phase 7/15

@@ -119,6 +119,10 @@ try {
     await trends.getByText(/Top-Trend \(EN\)/).waitFor();
     await trends.locator("tbody tr").first().getByRole("button").first().click();
     await trends.getByText("Zielgruppe:").waitFor();
+    await trends
+      .getByText(/Trend-Score, letzte 30 Tage|Verlauf erscheint ab dem zweiten Trendlauf/)
+      .first()
+      .waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/trends.png`, fullPage: true });
     await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
@@ -209,6 +213,18 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/rights.png`, fullPage: true });
     await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
+  });
+
+  await step("Trendquellen zeigen Modus, Zugangsdaten und Status", async () => {
+    await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
+    const sources = page.locator("section").filter({ hasText: "Trendquellen" });
+    await sources.getByText("Testdaten (Mock)").waitFor();
+    for (const label of ["YouTube Data API v3", "Twitch Helix", "Steam Web API"]) {
+      await sources.getByRole("cell", { name: label }).waitFor();
+    }
+    await sources.getByText("Testdaten, keine Verbindung").first().waitFor(); // never "connected"
+    assert.equal(await sources.getByText("Verbunden", { exact: true }).count(), 0);
+    if (SHOTS) await sources.screenshot({ path: `${SHOTS}/trend-sources.png` });
   });
 
   await step("Automatische Veröffentlichung ist gesperrt", async () => {

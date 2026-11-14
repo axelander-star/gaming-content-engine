@@ -64,6 +64,9 @@ API-Dokumentation (nur außerhalb von Production): http://127.0.0.1:8000/api/doc
 | GET | `/api/trends?language=de` | Aktuelle Trends je Sprache (Score, Wachstum, Zielgruppe, Quellen) |
 | GET | `/api/trends/report?language=de` | Neuester Trendbericht |
 | GET | `/api/games`, `/api/games/{id}` | Spiele mit Profil (Zielgruppe, Modi, Videoideen) |
+| GET | `/api/games/{id}/history?language=de&days=30` | Trendverlauf eines Spiels (Score, Aufrufe, Zuschauer, Spieler) |
+| GET | `/api/trends/sources` | Verbindungsstatus, Quote und letzte Fehler je Trendquelle (ohne Schlüssel) |
+| POST | `/api/trends/sources/{name}/test` | Verbindungstest mit einer lesenden Anfrage (Admin) |
 | GET/POST | `/api/creators`, `/api/sources` | Creator und Quellen (Anlegen: Operator) |
 | POST | `/api/creators/{id}/block`, `/api/sources/{id}/block` | Sperren (Operator), `/unblock` nur Admin; betroffenes Material wird neu geprüft |
 | GET/POST/PATCH | `/api/licenses`, `/api/licenses/{id}` | Lizenzen; alle Rechte standardmäßig aus; Änderung einer freigegebenen Lizenz setzt sie auf `pending` |
