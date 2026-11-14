@@ -26,7 +26,7 @@ Für lokale Entwicklung über HTTP muss das Backend mit `SESSION_COOKIE_SECURE=f
 ```bash
 npm run typecheck
 npm run build
-E2E_PASSWORD=<admin-passwort> npm run e2e           # Dashboard auf :3000, Admin admin@example.com
+E2E_PASSWORD=<admin-passwort> npm run e2e           # Dashboard auf :3000, Admin admin@example.com, Worker läuft
 ```
 
 ## Sicherheit

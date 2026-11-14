@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 3 abgeschlossen · **Nächste Phase:** 4 (Master Agent und Agentenverwaltung)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 4 abgeschlossen · **Nächste Phase:** 5 (Trend Research und Game Intelligence)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -11,7 +11,7 @@
 | 1 | Repository, Dokumentation, Architektur, Projektgrundlage | ✅ abgeschlossen |
 | 2 | Docker, PostgreSQL, Redis, Backend | ✅ abgeschlossen |
 | 3 | Anmeldung, Benutzerverwaltung, Dashboard-Grundgerüst | ✅ abgeschlossen |
-| 4 | Master Agent und Agentenverwaltung | ⏳ offen |
+| 4 | Master Agent und Agentenverwaltung | ✅ abgeschlossen |
 | 5 | Trend Research und Game Intelligence | ⏳ offen |
 | 6 | Material Scout und Rights Agent | ⏳ offen |
 | 7 | Gameplay-Analyse und Videoproduktion | ⏳ offen |
@@ -23,6 +23,52 @@
 | 13 | TikTok, Instagram, Facebook | ⏳ offen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
+
+## Phase 4 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Agenten-Grundgerüst:** Basisklasse mit Protokoll (`agent_runs`), Entscheidungen mit Begründung (`agent_decisions`), Kostenfreigabe vor jedem kostenpflichtigen Aufruf und Kostenbuchung; Registry aller 18 Agenten mit Phase, Kostenart und Pipeline-Stufe
+- **Master Orchestrator:** verteilt wartende Materialien und Videos an die zuständigen Agenten, setzt fehlgeschlagene Einträge mit Wartezeit (exponentiell) bis zu 3-mal zurück, beachtet das tägliche Produktionslimit und protokolliert jede Verteilung mit Begründung
+- **Zentrale Gates** vor jedem Job und nochmals direkt vor der Ausführung: Not-Aus, Agent pausiert, Budgetstufe, Tageslimit, richtiger Status, gültige Rechte (Lizenz, Zeitraum, gesperrte Quelle), Qualitätsfreigabe vor dem Veröffentlichen, Kanal/Plattform pausiert, im Live-Modus Auto-Publish und autorisierter Kanal
+- **Budget & Cost Agent:** Budgetstufen 50/70/85/95 %, Monatsbudget aus dem Dashboard, Benachrichtigung einmal pro Monat und Stufe; 0 € Budget sperrt kostenpflichtige Aufrufe
+- **Fehlerbehandlung:** ein Agentenfehler stoppt den Worker nie; Lauf `failed`, Eintrag `FAILED` mit Schritt und Meldung; Budget-Ablehnung zählt als `skipped`
+- **Zeitsteuerung:** neuer Dienst `scheduler` (Master alle 5 Min., Budget stündlich, bei Not-Aus nichts)
+- **Agenten pausieren/fortsetzen** (neue Tabelle `agent_states`, Migration `cfe08a41f655`), im Audit-Log festgehalten
+- **API** `/api/agents` (Status, Läufe, Entscheidungen, Budget, Pausieren, manueller Start) und **Dashboard-Seite „Agenten“** mit Echtdaten (Screenshot: `screenshots/phase4-agenten.png` im Projektordner)
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/agents/{base,registry,master,budget_cost}.py`, `backend/services/{budget,gates,orchestrator,agent_control}.py`, `backend/api/agents.py`, `backend/app/scheduler.py`, Migration `20261114_cfe08a41f655_agent_states.py`, Tests `tests/integration/test_agents.py`, `test_agents_api.py`, `test_pipeline.py`, `frontend/dashboard/AgentsView.tsx`
+- Geändert: `backend/models/control.py`, `models/__init__.py`, `core/config.py`, `app/main.py`, `app/worker.py`, `workflows/jobs.py`, `docker-compose.yml`, `.env.example`, `.github/workflows/ci.yml` (Worker im E2E-Lauf), `frontend/lib/{api,types,labels}.ts`, `frontend/app/(dashboard)/agenten/page.tsx`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, Dokumentation (`AGENTS.md`, `ARCHITECTURE.md`, `DEVELOPMENT_PLAN.md`, READMEs)
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh`: ruff, ruff format, mypy --strict, pytest mit Abdeckung gegen PostgreSQL 16 und Redis
+- `alembic upgrade head` und `alembic check` auf frischer Datenbank
+- Frontend: `npm run typecheck`, `npm run build`
+- E2E (Playwright) gegen echtes Backend, echten Worker und Dashboard, inklusive manuellem Start des Master Orchestrators
+- Scheduler-Probelauf gegen die lokale Entwicklungsumgebung (Master und Budget-Agent liefen über den Worker)
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 128 Backend-Tests bestanden, Abdeckung 96 %; ruff und mypy ohne Befund
+- **Abnahme Phase 4:** Pipeline-Durchlauf mit Dummy-Agenten von `DISCOVERED` bis `READY_TO_PUBLISH` (jede Stufe genau einmal, in der richtigen Reihenfolge); pausierter Agent hält die Pipeline an und sie läuft nach dem Fortsetzen weiter; Not-Aus stoppt alles
+- Gates einzeln getestet (Rechte abgelaufen/widerrufen, Qualität unter Mindestwert, Kanal pausiert, Live ohne Freigabe, Tageslimit, Budget)
+- Idempotenz: doppeltes Einreihen ergibt einen Job; zweite Ausführung wird übersprungen
+- 11 E2E-Schritte bestanden; Frontend-Build ohne Typfehler; 68 Projektprüfungen bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Nur Master und Budget-Agent sind echt umgesetzt; die übrigen 16 Agenten erscheinen als „Folgt in Phase X“ und ihre Stufen warten
+- Läuft ein Agent sehr lange (z. B. Rendering), sperrt nur der feste Job-Schlüssel parallele Doppelarbeit; eine Zeilensperre pro Eintrag folgt bei Bedarf in Phase 7
+- `max_parallel_render_jobs` wird erst mit dem Render-Worker in Phase 7 durchgesetzt
+- Der Budget-Agent protokolliert seine stündliche Prüfung auch im Normalzustand (24 Einträge am Tag); bei Bedarf in Phase 14 verdichten
+
+### 6. Nächster Schritt
+
+Phase 5: Trend Research und Game Intelligence mit Mock-Adaptern für YouTube, Twitch und Steam, Trend-Scoring und Trendberichten. Echte API-Schlüssel werden dafür nicht benötigt, solange Mocks laufen.
 
 ## Phase 3 – Bericht
 
@@ -172,6 +218,10 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Steuerung in zwei Ebenen (Serverkonfiguration als Obergrenze, Dashboard darunter) | Auto-Publish kann nicht allein per Dashboard-Klick scharf geschaltet werden |
 | 14.11.2026 | Not-Aus: Operator darf auslösen, nur Admin lösen | Im Zweifel schnell stoppen, Wiederanlauf bewusst |
 | 14.11.2026 | Zwei-Faktor-Anmeldung auf Phase 15 verschoben | Bis dahin ein Betreiber; Härtung gebündelt in Phase 15 |
+| 14.11.2026 | Gates werden beim Verteilen **und** direkt vor der Ausführung geprüft | Lage kann sich ändern, während ein Job wartet (Not-Aus, Pause, Budget) |
+| 14.11.2026 | Wiederholungen steuert der Master, nicht die Queue | Wartezeit und Höchstzahl sind im Dashboard sichtbar und protokolliert |
+| 14.11.2026 | Budget-Gate für kostenpflichtige Agenten nur, wenn kostenpflichtige Aufrufe erlaubt sind | Mit `PAID_API_CALLS_ENABLED=false` laufen diese Agenten gegen Mocks; jeder echte Aufruf wird trotzdem einzeln geprüft |
+| 14.11.2026 | Eigener Dienst `scheduler` statt n8n für den Master-Takt | Kern-Ablauf ohne Zusatzdienst testbar; n8n bleibt optional |
 
 ## Offene Punkte
 

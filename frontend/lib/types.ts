@@ -70,3 +70,61 @@ export interface Readiness {
   database: boolean;
   redis: boolean;
 }
+
+// --- Agents (Phase 4) ---------------------------------------------------------
+
+export type AgentStatus = "not_available" | "stopped" | "paused" | "running" | "error" | "ready";
+export type AgentRunStatus = "running" | "succeeded" | "failed" | "skipped";
+export type BudgetLevel = "normal" | "warn" | "reduced" | "priority_only" | "stop_paid";
+
+export interface Agent {
+  name: string;
+  number: number;
+  title: string;
+  description: string;
+  phase: number;
+  cost_kind: "local" | "free_api" | "paid";
+  stage: string | null;
+  implemented: boolean;
+  enabled: boolean;
+  status: AgentStatus;
+  can_run_manually: boolean;
+  last_run_at: string | null;
+  last_run_status: AgentRunStatus | null;
+  last_error: string | null;
+  current_task: Record<string, unknown> | null;
+  runs_today: number;
+  cost_month_eur: string;
+}
+
+export interface AgentRun {
+  id: number;
+  agent_name: string;
+  status: AgentRunStatus;
+  started_at: string;
+  finished_at: string | null;
+  input: Record<string, unknown>;
+  output: Record<string, unknown>;
+  error: string | null;
+  cost_eur: string;
+}
+
+export interface AgentDecision {
+  id: number;
+  agent_run_id: number | null;
+  agent_name: string;
+  decision_type: string;
+  entity_type: string | null;
+  entity_id: number | null;
+  decision: Record<string, unknown>;
+  reasoning: string | null;
+  created_at: string;
+}
+
+export interface Budget {
+  budget_eur: string;
+  spent_eur: string;
+  used_pct: number;
+  level: BudgetLevel;
+  paid_api_calls_enabled: boolean;
+}

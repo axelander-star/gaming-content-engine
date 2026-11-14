@@ -36,7 +36,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** Login/Logout, Rollenprüfung serverseitig getestet; Frontend baut ohne Typfehler; E2E-Smoke-Test (Playwright).
 
-### Phase 4 – Master Agent und Agentenverwaltung
+### Phase 4 – Master Agent und Agentenverwaltung ✅
 
 - Basisklasse `Agent` (Name, Aufgabe, Status, `run()`, Kostenerfassung, Protokollierung)
 - Registry aller 18 Agenten; Aktivieren/Pausieren je Agent

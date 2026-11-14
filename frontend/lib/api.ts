@@ -3,6 +3,10 @@
 // CSRF token from the readable `gce_csrf` cookie as `X-CSRF-Token` header.
 
 import type {
+  Agent,
+  AgentDecision,
+  AgentRun,
+  Budget,
   Channel,
   EffectiveControls,
   OperationsSettings,
@@ -89,6 +93,23 @@ export const api = {
     id: number,
     limits: Pick<Channel, "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes">,
   ) => request<Channel>(`/channels/${id}/limits`, { method: "PUT", body: json(limits) }),
+
+  agents: () => request<Agent[]>("/agents"),
+  agentRuns: (name: string, limit = 20) =>
+    request<AgentRun[]>(`/agents/${encodeURIComponent(name)}/runs?limit=${limit}`),
+  agentDecisions: (agent?: string, limit = 50) =>
+    request<AgentDecision[]>(
+      `/agents/decisions?limit=${limit}${agent ? `&agent=${encodeURIComponent(agent)}` : ""}`,
+    ),
+  budget: () => request<Budget>("/agents/budget"),
+  pauseAgent: (name: string) =>
+    request<void>(`/agents/${encodeURIComponent(name)}/pause`, { method: "POST" }),
+  resumeAgent: (name: string) =>
+    request<void>(`/agents/${encodeURIComponent(name)}/resume`, { method: "POST" }),
+  runAgent: (name: string) =>
+    request<{ agent: string; job_id: string }>(`/agents/${encodeURIComponent(name)}/run`, {
+      method: "POST",
+    }),
 
   users: () => request<User[]>("/users"),
   createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>

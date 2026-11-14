@@ -6,14 +6,14 @@ FastAPI-API, RQ-Worker und Datenmodell der Gaming Content Engine. Python 3.12+, 
 
 | Ordner | Inhalt |
 |---|---|
-| `app/` | Einstiegspunkte: `main.py` (API), `worker.py` (Queue-Worker), `seed.py` (Basisdaten) |
-| `api/` | HTTP-Router: Health, Auth, Benutzer, Einstellungen, Kanäle, Übersicht |
+| `app/` | Einstiegspunkte: `main.py` (API), `worker.py` (Queue-Worker), `scheduler.py` (Zeitsteuerung), `seed.py` (Basisdaten) |
+| `api/` | HTTP-Router: Health, Auth, Benutzer, Einstellungen, Kanäle, Übersicht, Agenten |
 | `core/` | Konfiguration, Logging, Enums, Statusabläufe (`states.py`) |
 | `database/` | Engine/Session, Basisklassen, Alembic-Migrationen |
 | `models/` | SQLAlchemy-Modelle aller 27 Tabellen, nach Bereich gruppiert |
-| `services/` | Geschäftslogik: Statuswechsel (`workflow.py`), Queue, Health, Seed |
-| `workflows/` | Queue-Jobs (ab Phase 4 die Agenten-Jobs) |
-| `agents/` | Agenten (ab Phase 4) |
+| `services/` | Geschäftslogik: Statuswechsel (`workflow.py`), Gates, Orchestrator, Budget, Queue, Health, Seed |
+| `workflows/` | Queue-Jobs (Heartbeat); Agenten-Jobs: `services/orchestrator.run_agent_job` |
+| `agents/` | Basisklasse, Registry aller 18 Agenten, Master Orchestrator, Budget & Cost |
 | `tests/` | `unit/` ohne Abhängigkeiten, `integration/` gegen PostgreSQL + Redis |
 
 ## Lokal entwickeln
@@ -33,6 +33,7 @@ python -m app.seed          # 4 Plattformen + 8 Kanäle (idempotent)
 python -m app.create_admin --email du@example.com   # erster Admin (Passwort-Abfrage)
 uvicorn app.main:app --reload
 python -m app.worker        # in zweitem Terminal
+python -m app.scheduler     # in drittem Terminal (Master-Takt, Budgetprüfung)
 ```
 
 API-Dokumentation (nur außerhalb von Production): http://127.0.0.1:8000/api/docs
@@ -54,6 +55,12 @@ API-Dokumentation (nur außerhalb von Production): http://127.0.0.1:8000/api/doc
 | POST | `/api/channels/{id}/pause`, `/resume` | Pausieren (Operator) / Fortsetzen (Admin) |
 | PUT | `/api/channels/{id}/limits` | Sicherheitsgrenzen pro Kanal (Admin) |
 | GET | `/api/overview` | Kennzahlen für die Übersichtsseite |
+| GET | `/api/agents` | Status aller 18 Agenten (letzter Lauf, Aufgabe, Fehler, Kosten) |
+| POST | `/api/agents/{name}/pause`, `/resume` | Agent pausieren (Operator) / fortsetzen (Admin) |
+| POST | `/api/agents/{name}/run` | Master oder Budget-Agent sofort einreihen (Admin) |
+| GET | `/api/agents/{name}/runs` | Letzte Läufe eines Agenten |
+| GET | `/api/agents/decisions` | Letzte Entscheidungen (optional `?agent=`) |
+| GET | `/api/agents/budget` | Budgetstand und -stufe des laufenden Monats |
 
 Alle Endpunkte außer Health und Login brauchen eine Sitzung. Schreibende Anfragen brauchen zusätzlich den Header `X-CSRF-Token` mit dem Wert des Cookies `gce_csrf`.
 

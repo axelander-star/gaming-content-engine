@@ -1,4 +1,4 @@
-"""Queue jobs. Agents are added as jobs in Phase 4; Phase 2 only has a heartbeat."""
+"""Queue jobs. Agent jobs live in ``services.orchestrator.run_agent_job``."""
 
 from __future__ import annotations
 

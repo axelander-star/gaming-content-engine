@@ -4,17 +4,26 @@
 
 ## Gemeinsamer Vertrag (umgesetzt in Phase 4)
 
-Jeder Agent implementiert:
+Code: `backend/agents/base.py`, Registry `backend/agents/registry.py`.
 
 | Element | Beschreibung |
 |---|---|
-| `name`, `description` | Anzeige im Dashboard |
-| `status` | `idle`, `running`, `paused`, `error` |
-| `run(job) -> AgentResult` | Ein Arbeitsschritt; idempotent bezogen auf den Job-Schlüssel |
-| `estimate_cost(job)` | Geschätzte externe Kosten; 0 bei lokaler Verarbeitung |
-| Ergebnis | Daten in PostgreSQL, Rückmeldung an Master, Kosten in `costs` |
+| `AgentSpec` (Registry) | Name, Nummer, Titel, Beschreibung, Phase, Kostenart (`local`, `free_api`, `paid`), Pipeline-Stufe (Entität + Status), Produktionsagent ja/nein |
+| `Agent.run(ctx, payload) -> AgentResult` | Ein Arbeitsschritt; idempotent bezogen auf den Job-Schlüssel |
+| `ctx.decide(...)` | Entscheidung mit Eingaben und Begründung in `agent_decisions` |
+| `ctx.authorize_cost(eur)` | Vor jedem kostenpflichtigen Aufruf; wirft `BudgetExceededError`, wenn das Budget oder `PAID_API_CALLS_ENABLED` es verbietet |
+| `ctx.add_cost(eur, kategorie)` | Tatsächliche Kosten in `costs`, verknüpft mit dem Lauf |
+| Statuswechsel | nur über `services/workflow.py` |
 
-Vor jedem Lauf prüft der Master: Not-Aus, Agent pausiert, Budgetstufe, fachliche Gates (Rechte, Qualität).
+**Ablauf eines Jobs** (`services/orchestrator.py`): Der Master reiht pro wartender Entität einen Job mit festem Schlüssel `agent-<agent>-<entität>-<id>-<status>` ein (kein doppeltes Einreihen). Der Worker prüft vor der Ausführung erneut alle Gates, legt einen `agent_run` an, führt den Agenten aus und bucht das Ergebnis. Ist ein Gate zu, wird der Lauf als `skipped` mit Grund gespeichert. Wirft der Agent einen Fehler, wird der Lauf `failed` und die Entität `FAILED` (mit Schritt und Meldung); eine Budget-Ablehnung zählt als `skipped`, nicht als Fehler.
+
+**Gates** (`services/gates.py`), in dieser Reihenfolge: Not-Aus → Agent in dieser Phase umgesetzt → Agent nicht pausiert → Budgetstufe (nur für kostenpflichtige Agenten und nur, wenn kostenpflichtige Aufrufe überhaupt erlaubt sind) → Tageslimit `max_daily_production_jobs` → Entität im richtigen Status → Rechte noch gültig (Lizenz freigegeben, im Gültigkeitszeitraum, Quelle/Creator nicht gesperrt; Videos erst, wenn das Ausgangsmaterial `ANALYZED` ist) → Qualitätsfreigabe ab `READY_TO_PUBLISH` (bestandene Prüfung, Wert ≥ Mindestqualität) → Kanal/Plattform nicht pausiert, im Live-Modus zusätzlich Auto-Publish-Freigabe und Kanalstatus `authorized`.
+
+**Master-Durchlauf** (`agents/master.py`): Fehlgeschlagene Entitäten werden bis `AGENT_MAX_RETRIES` mal in den Status zurückgesetzt, in dem sie scheiterten (Wartezeit `AGENT_RETRY_BASE_DELAY_S`, verdoppelt sich je Versuch). Danach werden alle wartenden Entitäten den zuständigen Agenten zugeteilt; Stufen ohne fertigen Agenten werden als „wartet auf Phase X“ gemeldet. Jeder Durchlauf mit Wirkung wird mit Begründung protokolliert.
+
+**Zeitsteuerung** (`app/scheduler.py`, Compose-Dienst `scheduler`): Master alle `MASTER_TICK_SECONDS` (Standard 300 s), Budget-Agent alle `BUDGET_CHECK_SECONDS` (Standard 3600 s); bei Not-Aus wird nichts eingereiht.
+
+**Steuerung im Dashboard** (Seite „Agenten“): Status aller 18 Agenten, letzter Lauf, aktuelle Aufgabe, Fehler, Läufe heute, Kosten im Monat, Pausieren (Operator) und Fortsetzen (Admin), Master und Budget-Agent manuell starten (Admin), letzte Läufe und Entscheidungen.
 
 ## Übersicht
 
@@ -37,7 +46,7 @@ Vor jedem Lauf prüft der Master: Not-Aus, Agent pausiert, Budgetstufe, fachlich
 | 15 | Publishing | 12/13 | geplante Jobs | `publishing_jobs`, `posts` | → `PUBLISHED` (nur `authorized`) | API (kostenlos) |
 | 16 | Analytics | 14 | Plattform-Metriken | `metrics`, `analytics_snapshots`, Berichte | → `ANALYTICS_PENDING` → `ANALYZED` | API (kostenlos) |
 | 17 | Learning | 14 | Snapshots, Experimente | Erkenntnisse, Strategievorschläge | – | lokal |
-| 18 | Budget & Cost | 14 (Basis ab 4) | `costs`, Settings | Budgetstufe, Freigabe/Ablehnung | – | lokal |
+| 18 | Budget & Cost | 4 (Ausbau 14) | `costs`, Settings | Budgetstufe, Freigabe/Ablehnung | – | lokal |
 
 ## Grenzen und Pflichten einzelner Agenten
 
