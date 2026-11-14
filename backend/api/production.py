@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 
 from api.deps import AppSettings, DbSession, Viewer
 from core.enums import VideoStatus
-from models.production import Clip, GameplayFile, Scene, Variant
+from models.production import Clip, GameplayFile, Scene, Script, Variant
 from models.rights import Asset
 from models.trends import Game
 from services import storage
@@ -32,6 +32,18 @@ class SceneOut(BaseModel):
     selected: bool
 
 
+class ScriptOut(BaseModel):
+    id: int
+    version: int
+    source: str
+    hook: str | None
+    voiceover_text: str | None
+    call_to_action: str | None
+    title: str | None
+    description: str | None
+    beats: list[Any]
+
+
 class VariantBrief(BaseModel):
     id: int
     language: str
@@ -39,6 +51,10 @@ class VariantBrief(BaseModel):
     status: VideoStatus
     channel_id: int
     error_message: str | None
+    video_format: str | None
+    hook_type: str | None
+    concept: dict[str, Any]
+    script: ScriptOut | None
 
 
 class ClipOut(BaseModel):
@@ -90,7 +106,16 @@ def list_clips(
     ).all()
     clip_ids = [c.id for c, _, _ in rows]
     variants: dict[int, list[VariantBrief]] = {}
-    for v in db.scalars(select(Variant).where(Variant.clip_id.in_(clip_ids)).order_by(Variant.id)):
+    rows_v = list(
+        db.scalars(select(Variant).where(Variant.clip_id.in_(clip_ids)).order_by(Variant.id))
+    )
+    scripts: dict[int, Script] = {}
+    for sc in db.scalars(
+        select(Script).where(Script.variant_id.in_([v.id for v in rows_v])).order_by(Script.version)
+    ):
+        scripts[sc.variant_id] = sc  # latest version wins
+    for v in rows_v:
+        latest = scripts.get(v.id)
         variants.setdefault(v.clip_id, []).append(
             VariantBrief(
                 id=v.id,
@@ -99,6 +124,22 @@ def list_clips(
                 status=v.status,
                 channel_id=v.channel_id,
                 error_message=v.error_message,
+                video_format=v.video_format,
+                hook_type=v.hook_type,
+                concept=v.concept or {},
+                script=ScriptOut(
+                    id=latest.id,
+                    version=latest.version,
+                    source=latest.source,
+                    hook=latest.hook,
+                    voiceover_text=latest.voiceover_text,
+                    call_to_action=latest.call_to_action,
+                    title=latest.title,
+                    description=latest.description,
+                    beats=latest.beats or [],
+                )
+                if latest
+                else None,
             )
         )
     games = {g.id: g.name for g in db.scalars(select(Game))} if rows else {}

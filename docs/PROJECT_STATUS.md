@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 7 abgeschlossen · **Nächste Phase:** 8 (Creative Director, Hooks und Skripte)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 8 abgeschlossen · **Nächste Phase:** 9 (Lokalisierung, Voiceover, Untertitel)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -15,7 +15,7 @@
 | 5 | Trend Research und Game Intelligence | ✅ abgeschlossen |
 | 6 | Material Scout und Rights Agent | ✅ abgeschlossen |
 | 7 | Gameplay-Analyse und Videoproduktion | ✅ abgeschlossen |
-| 8 | Creative Director, Hooks, Skripte | ⏳ offen |
+| 8 | Creative Director, Hooks, Skripte | ✅ abgeschlossen |
 | 9 | Lokalisierung, Voiceover, Untertitel | ⏳ offen |
 | 10 | Quality Control und Duplikaterkennung | ⏳ offen |
 | 11 | Publishing Strategy Agent | ⏳ offen |
@@ -27,6 +27,46 @@
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
 Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 8 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Creative Director Agent** (Agent 8): wählt für jeden gerenderten Clip Format und Hook-Struktur. Bewertet wird zu 60 % die Eignung der Szene laut Messwerten, zu 20 % das Spielprofil von Game Intelligence und zu 20 % die eigene Performance je Format (bis Phase 14 neutral). Automatisch gewählt werden nur Formate, deren Versprechen die Messwerte stützen (Epische Szene, Überraschung, Unerwartete Wendung, Storytelling). „Lustig“, „Knapp gescheitert“, Tipps, Challenge, Vergleich und Analyse bräuchten Bildverständnis und werden nicht behauptet
+- **Varianten A–D mit echtem Unterschied:** Anzahl je Clip ist eine Betreiber-Einstellung (Standard 2, höchstens 4). Jede Variante hat eine eigene Hook-Struktur, wenn möglich auch ein anderes Format. A ist die beste Einschätzung, die weiteren sind als Test markiert, damit der Learning Agent sie später auswerten kann
+- **Script & Hook Agent** (Agent 9): schreibt je Variante Hook, Sprechertext in Abschnitten mit Zeitmarken (Hook, Einstieg, Spannung, Auflösung, Aufruf), Titel und Beschreibung mit Quellenangabe. Deutsch und Englisch haben eigene Formulierungen, keine Übersetzung. Der Text wird gekürzt, bis er im ruhigen Sprechtempo in den Clip passt. Danach geht die Variante in `LOCALIZATION`
+- **Sprachmodell-Adapter** (`services/llm.py`): Standard „mock“ nutzt die kostenlosen Vorlagen. Ein echter Anbieter lässt sich später über die Einstellung „KI-Anbieter“ zuschalten; jeder Aufruf wird vorher vom Budget-Dienst freigegeben und danach als Kosten gebucht. Ohne Freigabe oder unbekannten Anbieter wird die Vorlage verwendet (Entscheidung des Betreibers vom 14.11.2026)
+- **Zwei Agenten in einem Status:** `EDITING` hat jetzt zwei Teilschritte (Konzept, Skript); Master und Gates verteilen danach
+- **Dashboard:** Varianten mit Format und Hook in der Clip-Liste, aufklappbar Konzepte und Skripte mit Zeitmarken; Einstellung „Kreative Varianten je Clip“ (Screenshot: `screenshots/phase8-skripte.png`)
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/{creative,llm}.py`, `backend/agents/{creative_director,script_hook}.py`, Migration `20261114_f0ba1b212370_creative_scripts.py`, `tests/integration/test_creative.py`, `frontend/lib/creative.ts`
+- Geändert: `backend/agents/{base,registry,master}.py`, `services/{gates,controls}.py`, `models/production.py`, `api/production.py`, `app/main.py`, `tests/integration/test_agents.py`, `frontend/dashboard/{ProductionView,OperationsForm}.tsx`, `frontend/lib/types.ts`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, Dokumentation
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest), Migration und `alembic check`
+- Formatwahl nur aus Messwerten, Einfluss von Spielprofil und Performance, Varianten mit unterschiedlicher Hook-Struktur und Format, Skript je Sprache mit Wortbudget, Zeitmarken, Titellänge und Quellenangabe, Kürzung bei kurzen Clips, Ablauf über den Orchestrator (Konzept, dann Skript, falscher Teilschritt wird abgelehnt), Variantenzahl laut Einstellung, ruhige Szene ohne erfundenes Format, Sprachmodell-Adapter (Mock ohne Kosten, unbekannter Anbieter, Aufruf gesperrt ohne Freigabe, mit Freigabe gebucht), API
+- Frontend `typecheck` und `build`; E2E: Upload bis fertiges Skript mit echtem Worker
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 223 Backend-Tests bestanden; ruff, mypy und `alembic check` ohne Befund
+- **Abnahme Phase 8:** Varianten A–D unterscheiden sich nachweisbar in Hook-Struktur und, wo die Szene es trägt, im Format; kein kostenpflichtiger Aufruf ohne Budgetfreigabe
+- 15 E2E-Schritte bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Texte stammen aus Vorlagen. Sie sind kurz und sicher, aber weniger abwechslungsreich als ein Sprachmodell; ein Anbieter ist noch nicht gewählt
+- Die Vorlagen kennen den Inhalt der Szene nicht (z. B. was genau passiert), nur Spiel, Format und Spannungsverlauf
+- Die Performance je Format ist bis Phase 14 neutral; bis dahin entscheidet das Signal der Szene
+- Der Sprechertext liegt vor, Stimme und Untertitel folgen in Phase 9
+
+### 6. Nächster Schritt
+
+Phase 9: Lokalisierung, Voiceover und Untertitel. Für Stimmen braucht es einen TTS-Dienst mit kommerziellen Nutzungsrechten; vor einem kostenpflichtigen Dienst frage ich nach. Bis dahin Mock und lokale Untertitel.
 
 ## Phase 7 – Bericht
 
@@ -375,6 +415,10 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Ein Clip je Szene, beide Sprachfassungen nutzen dieselbe gerenderte Datei | Halbiert die Renderzeit; Sprache unterscheidet sich erst ab Phase 9 |
 | 14.11.2026 | Kein Hochskalieren: 720p-Quellen ergeben 720×1280 | Hochskalieren verschlechtert die Qualität sichtbar ohne Mehrwert |
 | 14.11.2026 | Dauerhafte Fehler (Datei, technische Prüfung) ohne automatische Wiederholung | Ein erneuter Versuch kann das Ergebnis nicht ändern; der Betreiber ersetzt die Datei |
+| 14.11.2026 | Hooks und Skripte zuerst aus Vorlagen, Sprachmodell später (Entscheidung des Betreibers) | Keine Kosten, voll testbar; Adapter ist austauschbar |
+| 14.11.2026 | Nur Formate, die die Messwerte stützen, werden automatisch gewählt | Kein Versprechen („lustig“, „knapp gescheitert“), das niemand geprüft hat |
+| 14.11.2026 | `EDITING` mit zwei Teilschritten (Konzept, Skript) statt neuem Status | Statusliste der Spezifikation bleibt unverändert |
+| 14.11.2026 | Varianten je Clip als Betreiber-Einstellung (Standard 2) | Jede Variante kostet später Stimme und Rendering; Menge bleibt steuerbar |
 
 ## Offene Punkte
 

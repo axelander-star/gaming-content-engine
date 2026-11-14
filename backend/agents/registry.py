@@ -81,6 +81,18 @@ def _rights_license() -> Agent:
     return RightsLicenseAgent()
 
 
+def _creative_director() -> Agent:
+    from agents.creative_director import CreativeDirectorAgent
+
+    return CreativeDirectorAgent()
+
+
+def _script_hook() -> Agent:
+    from agents.script_hook import ScriptHookAgent
+
+    return ScriptHookAgent()
+
+
 GF, V = "gameplay_files", "variants"
 
 _SPECS: tuple[AgentSpec, ...] = (
@@ -107,9 +119,11 @@ _SPECS: tuple[AgentSpec, ...] = (
               stage=Stage(V, "SCENE_SELECTED"), production=True, factory=_clip_production),
     AgentSpec("creative_director", 8, "Creative Director",
               "Entwickelt Konzepte, Formate und Varianten.", 8, CostKind.PAID,
-              stage=Stage(V, "EDITING"), production=True),
+              stage=Stage(V, "EDITING", step="concept"), production=True,
+              factory=_creative_director),
     AgentSpec("script_hook", 9, "Script & Hook",
-              "Schreibt Hooks, Voiceover-Texte, Titel und Beschreibungen.", 8, CostKind.PAID),
+              "Schreibt Hooks, Voiceover-Texte, Titel und Beschreibungen.", 8, CostKind.PAID,
+              stage=Stage(V, "EDITING", step="script"), production=True, factory=_script_hook),
     AgentSpec("localization", 10, "Localization",
               "Erstellt eigenständige deutsche und englische Fassungen.", 9, CostKind.PAID,
               stage=Stage(V, "LOCALIZATION"), production=True),

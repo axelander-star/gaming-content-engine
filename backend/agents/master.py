@@ -116,9 +116,8 @@ class MasterOrchestratorAgent(Agent):
         for spec in stage_specs():
             assert spec.stage is not None
             model = gates.ENTITY_MODELS[spec.stage.entity_type]
-            count = session.scalar(
-                select(func.count(model.id)).where(model.status == spec.stage.status)
-            )
+            where = [model.status == spec.stage.status, *gates.step_filter(spec)]
+            count = session.scalar(select(func.count(model.id)).where(*where))
             if not count:
                 continue
             reason = self._stage_unavailable(ctx, spec)
@@ -127,7 +126,7 @@ class MasterOrchestratorAgent(Agent):
                 continue
             ids = session.scalars(
                 select(model.id)
-                .where(model.status == spec.stage.status)
+                .where(*where)
                 .order_by(model.updated_at, model.id)
                 .limit(settings.master_batch_size)
             ).all()

@@ -46,6 +46,8 @@ class OperationsSettings(BaseModel):
     languages: list[Language] = Field(default_factory=lambda: [Language.DE, Language.EN])
     platforms: list[PlatformCode] = Field(default_factory=lambda: list(PlatformCode))
     ai_provider: str = Field(default="mock", max_length=64)
+    #: Creative variants (A–D) per clip and channel; each one differs in hook or format.
+    creative_variants: int = Field(default=2, ge=1, le=4)
     tts_provider: str = Field(default="mock", max_length=64)
     notifications_enabled: bool = True
 

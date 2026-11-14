@@ -35,6 +35,8 @@ class Stage:
 
     entity_type: str  # "gameplay_files" | "variants"
     status: str
+    #: Optional sub-step when two agents share one status (see ``services.gates.STEPS``).
+    step: str | None = None
 
 
 @dataclass

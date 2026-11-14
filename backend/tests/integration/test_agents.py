@@ -88,6 +88,8 @@ def test_registry_lists_all_18_agents() -> None:
         "rights_license",
         "gameplay_analysis",
         "clip_production",
+        "creative_director",
+        "script_hook",
     }
     stages = [s.stage.status for s in registry.stage_specs() if s.stage]
     assert stages[0] == "DISCOVERED" and "SCHEDULED" in stages
