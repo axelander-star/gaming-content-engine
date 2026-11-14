@@ -8,11 +8,33 @@ import { AUTH_STATUS_LABELS, PLATFORM_LABELS } from "@/lib/labels";
 import { hasRole } from "@/lib/roles";
 import type { Channel, UserRole } from "@/lib/types";
 
-const CONNECT_RESULTS: Record<string, string> = {
-  connected: "YouTube-Kanal verbunden.",
-  denied: "Die Anmeldung bei Google wurde abgebrochen.",
-  failed: "Die Verbindung mit YouTube ist fehlgeschlagen. Details stehen im Protokoll.",
-  invalid: "Der Anmeldevorgang war ungültig oder abgelaufen. Bitte erneut verbinden.",
+const PROVIDER_NAMES: Record<string, string> = {
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  meta: "Facebook/Instagram",
+};
+
+function connectMessage(provider: string, result: string): string {
+  const name = PROVIDER_NAMES[provider] ?? provider;
+  switch (result) {
+    case "connected":
+      return `${name}: Kanal verbunden.`;
+    case "restricted":
+      return `${name}: verbunden, aber noch eingeschränkt (z. B. App nicht geprüft oder Recht zum Veröffentlichen fehlt). Es wird nichts veröffentlicht.`;
+    case "denied":
+      return `${name}: Die Anmeldung wurde abgebrochen.`;
+    case "invalid":
+      return `${name}: Der Anmeldevorgang war ungültig oder abgelaufen. Bitte erneut verbinden.`;
+    default:
+      return `${name}: Die Verbindung ist fehlgeschlagen. Details stehen im Protokoll.`;
+  }
+}
+
+const CONNECT_LABELS: Record<string, string> = {
+  youtube: "Mit YouTube verbinden",
+  tiktok: "Mit TikTok verbinden",
+  instagram: "Mit Instagram verbinden",
+  facebook: "Mit Facebook verbinden",
 };
 
 type Limits = Pick<Channel, "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes">;
@@ -65,7 +87,7 @@ function LimitsEditor({ channel, onSaved }: { channel: Channel; onSaved: (c: Cha
 export function ChannelsTable({ role }: { role: UserRole }) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{ provider: string; value: string } | null>(null);
   const isAdmin = hasRole(role, "admin");
   const isOperator = hasRole(role, "operator");
 
@@ -74,7 +96,9 @@ export function ChannelsTable({ role }: { role: UserRole }) {
       .channels()
       .then(setChannels)
       .catch((e: Error) => setError(e.message));
-    setResult(new URLSearchParams(window.location.search).get("youtube"));
+    const params = new URLSearchParams(window.location.search);
+    const provider = Object.keys(PROVIDER_NAMES).find((p) => params.has(p));
+    if (provider) setResult({ provider, value: params.get(provider) ?? "" });
   }, []);
 
   const replace = (c: Channel) => setChannels((all) => all.map((x) => (x.id === c.id ? c : x)));
@@ -107,8 +131,8 @@ export function ChannelsTable({ role }: { role: UserRole }) {
   return (
     <Section title="Kanäle und Sicherheitsgrenzen">
       {result && (
-        <p role="status" className={result === "connected" ? "muted" : "error"}>
-          {CONNECT_RESULTS[result] ?? result}
+        <p role="status" className={result.value === "connected" ? "muted" : "error"}>
+          {connectMessage(result.provider, result.value)}
         </p>
       )}
       <p className="muted small">
@@ -142,7 +166,7 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                   {c.connected_account && (
                     <span className="muted small"> {c.connected_account}</span>
                   )}
-                  {isAdmin && c.platform === "youtube" && (
+                  {isAdmin && CONNECT_LABELS[c.platform] && (
                     <>
                       {" "}
                       {c.auth_status === "not_connected" || c.auth_status === "expired" ? (
@@ -151,7 +175,7 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                           className="btn btn-ghost small"
                           onClick={() => void connect(c)}
                         >
-                          Mit YouTube verbinden
+                          {CONNECT_LABELS[c.platform]}
                         </button>
                       ) : (
                         <button

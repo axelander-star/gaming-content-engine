@@ -57,6 +57,31 @@ class Settings(BaseSettings):
     #: videos.insert has its own bucket of 100 calls per day (official quota calculator).
     youtube_daily_upload_limit: int = Field(default=100, ge=0, le=100_000)
     publish_upload_attempts: int = Field(default=5, ge=1, le=20)
+    #: Status checks after an upload until the platform reports the post (Phase 13).
+    publish_status_polls: int = Field(default=10, ge=1, le=60)
+    publish_status_interval_seconds: float = Field(default=30.0, ge=0, le=600)
+
+    # --- TikTok (Phase 13, Content Posting API) ---
+    tiktok_client_key: str = ""
+    tiktok_client_secret: SecretStr = SecretStr("")
+    #: TikTok only accepts https redirect URIs; on the server use the dashboard domain.
+    tiktok_oauth_redirect_uri: str = "http://localhost:3000/api/oauth/tiktok/callback"
+    #: Unaudited apps may only post privately; SELF_ONLY stays the default.
+    tiktok_privacy_level: Literal[
+        "SELF_ONLY", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "PUBLIC_TO_EVERYONE"
+    ] = "SELF_ONLY"
+    #: Set only once TikTok has audited the app; until then channels stay restricted.
+    tiktok_app_audited: bool = False
+    #: Own cap per channel and day (TikTok publishes no fixed number).
+    tiktok_daily_post_limit: int = Field(default=5, ge=0, le=1000)
+
+    # --- Meta: Instagram and Facebook Reels (Phase 13, Graph API) ---
+    meta_app_id: str = ""
+    meta_app_secret: SecretStr = SecretStr("")
+    meta_oauth_redirect_uri: str = "http://localhost:3000/api/oauth/meta/callback"
+    #: Instagram: 50 API posts per 24 h (content_publishing_limit); Facebook Pages: 30 Reels.
+    instagram_daily_post_limit: int = Field(default=50, ge=0, le=50)
+    facebook_daily_reels_limit: int = Field(default=30, ge=0, le=30)
 
     # --- Budget (PROJECT_SPEC section 13) ---
     monthly_budget_eur: float = Field(default=50.0, ge=0)

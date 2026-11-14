@@ -8,15 +8,16 @@ planned job it
 * in live mode only for an authorized channel with live publishing allowed
   (``AUTO_PUBLISH_ENABLED``, ``PUBLISHING_MODE=live``, dashboard switches, no
   emergency stop); otherwise the video waits,
-* uses the platform's official API (YouTube in Phase 12); platforms without a
-  live adapter wait for Phase 13,
+* uses the platform's official API (YouTube since Phase 12; TikTok, Instagram and
+  Facebook since Phase 13),
 * is idempotent: a job that already has a post is only completed, and a job is
   marked ``running`` (committed) before the upload starts, so a crash cannot lead
   to a second upload.
 
 Temporary problems (quota, 5xx, network) put the job back with a later time;
-an expired connection marks the channel ``expired``; a permanent error marks the
-job failed and notifies the operator.
+an expired connection marks the channel ``expired``; a restricted one (e.g. an
+unaudited TikTok app) ``connected_restricted``; a permanent error marks the job
+failed and notifies the operator.
 """
 
 from __future__ import annotations
@@ -47,7 +48,7 @@ from models.access import Notification
 from models.channels import Channel
 from models.production import Variant
 from models.publishing import Post, PublishingJob
-from services import publishers, workflow, youtube
+from services import platform, publishers, workflow
 from services.queue import get_redis
 from services.sources.base import QuotaExceededError
 
@@ -106,7 +107,7 @@ class PublishingAgent(Agent):
                 raise ChannelBlockedError(block)
             publisher = publishers.live_publisher(channel.platform.code, get_redis())
             if publisher is None:
-                job.last_error = f"{channel.platform.name}: Anbindung folgt in Phase 13"
+                job.last_error = f"{channel.platform.name}: keine Live-Anbindung"
                 s.commit()
                 raise ProviderUnavailableError(job.last_error)
         else:
@@ -120,20 +121,24 @@ class PublishingAgent(Agent):
         s.commit()  # durable before the upload: a crash can never cause a second post
         try:
             result = publisher.publish(s, settings, channel, variant, path)
-        except (QuotaExceededError, youtube.TransientError) as exc:
+        except (QuotaExceededError, platform.TransientError) as exc:
             job.status = PublishingJobStatus.SCHEDULED
             job.scheduled_for = now + RETRY_AFTER * job.attempts
             job.last_error = str(exc)[:1000]
             s.commit()
             raise PublishLaterError(str(exc)) from exc
-        except youtube.AuthExpiredError as exc:
+        except (platform.AuthExpiredError, platform.RestrictedError) as exc:
+            expired = isinstance(exc, platform.AuthExpiredError)
             job.status = PublishingJobStatus.SCHEDULED
             job.last_error = str(exc)[:1000]
-            channel.auth_status = ChannelAuthStatus.EXPIRED
-            self._notify(s, f"{channel.name}: Verbindung abgelaufen", str(exc))
+            channel.auth_status = (
+                ChannelAuthStatus.EXPIRED if expired else ChannelAuthStatus.CONNECTED_RESTRICTED
+            )
+            what = "Verbindung abgelaufen" if expired else "Veröffentlichung eingeschränkt"
+            self._notify(s, f"{channel.name}: {what}", str(exc))
             s.commit()
             raise ChannelBlockedError(str(exc)) from exc
-        except (youtube.YouTubeError, youtube.NotConfiguredError) as exc:
+        except (platform.PlatformError, platform.NotConfiguredError) as exc:
             job.status = PublishingJobStatus.FAILED
             job.last_error = str(exc)[:1000]
             self._notify(s, f"Veröffentlichung von Variante #{variant.id} fehlgeschlagen", str(exc))

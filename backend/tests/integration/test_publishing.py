@@ -414,7 +414,7 @@ def test_upload_quota_moves_the_job_later(
     assert google.sent("POST", youtube.UPLOAD_URL) == []
 
 
-def test_platform_without_live_adapter_waits(db: Session, live: Settings) -> None:
+def test_authorized_channel_without_stored_access_expires(db: Session, live: Settings) -> None:
     v, job = scheduled(db, live, PublishingMode.LIVE, PlatformCode.TIKTOK)
     channel = db.get(Channel, v.channel_id)
     assert channel is not None
@@ -422,8 +422,12 @@ def test_platform_without_live_adapter_waits(db: Session, live: Settings) -> Non
     channel.platform.is_paused = False
     db.flush()
     run = publish(db, live, v)
-    assert run.status == AgentRunStatus.SKIPPED and run.output["gate"] == "provider"
-    assert "Phase 13" in (job.last_error or "")
+    assert run.status == AgentRunStatus.SKIPPED and run.output["gate"] == "channel"
+    db.refresh(channel)
+    assert channel.auth_status == ChannelAuthStatus.EXPIRED
+    assert job.status == PublishingJobStatus.SCHEDULED and "nicht verbunden" in (
+        job.last_error or ""
+    )
 
 
 def test_mock_job_stays_mock_in_live_mode(db: Session, live: Settings, google: FakeGoogle) -> None:

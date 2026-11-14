@@ -100,7 +100,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 - OAuth 2.0, verschlüsselte Tokens, Upload über YouTube Data API, Quota-Verwaltung
 - Autorisierungsprüfung je Kanal; Tests nur mit Mock bzw. privatem Testkanal nach Freigabe
 
-### Phase 13 – TikTok, Instagram, Facebook
+### Phase 13 – TikTok, Instagram, Facebook ✅
 
 - TikTok Content Posting API (Audit-Status beachten), Instagram Graph API (Reels), Facebook Graph API (Reels)
 - Ohne Freigabe bleibt das Video `READY_TO_PUBLISH`

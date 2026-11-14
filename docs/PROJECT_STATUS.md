@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 12 abgeschlossen · **Nächste Phase:** 13 (TikTok, Instagram, Facebook)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 13 abgeschlossen · **Nächste Phase:** 14 (Analytics, Learning Agent, Budgetkontrolle)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -20,13 +20,56 @@
 | 10 | Quality Control und Duplikaterkennung | ✅ abgeschlossen |
 | 11 | Publishing Strategy Agent | ✅ abgeschlossen |
 | 12 | YouTube-Integration | ✅ abgeschlossen |
-| 13 | TikTok, Instagram, Facebook | ⏳ offen |
+| 13 | TikTok, Instagram, Facebook | ✅ abgeschlossen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
 
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
 Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 13 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **TikTok** (Content Posting API, Direct Post): Anmeldung über Login Kit, verschlüsselte Tokens mit automatischer Erneuerung (der neue Refresh-Token wird jedes Mal gespeichert). Vor jedem Post wird geprüft, welche Sichtbarkeit das Konto erlaubt; Standard ist **privat** (`SELF_ONLY`). Upload in Stücken nach der offiziellen Anleitung, danach Statusabfrage. KI-Kennzeichnung (`is_aigc`), wenn eine KI-Stimme verwendet wurde
+- **Nicht geprüfte TikTok-App:** Ein verbundener TikTok-Kanal bleibt „eingeschränkt“, bis TikTok die App geprüft hat (`TIKTOK_APP_AUDITED`). Meldet TikTok die Einschränkung beim Posten, wird der Kanal ebenfalls auf „eingeschränkt“ gesetzt und der Betreiber benachrichtigt; das Video wartet
+- **Instagram Reels und Facebook Reels** (Graph API v25.0, Facebook Login for Business): eine Meta-App für beide. Der Kanal wird genau einer freigegebenen Seite bzw. einem Instagram-Profikonto zugeordnet; bei mehreren wird nicht geraten. Instagram: Kontingent prüfen, Container, Upload, Verarbeitung abwarten, veröffentlichen, Link speichern. Facebook: Start, Upload mit Fortsetzung, Abschluss, Status
+- **Gemeinsame Fehlerbehandlung** für alle vier Plattformen (`services/platform.py`): abgelaufen → Kanal „abgelaufen“; eingeschränkt → „eingeschränkt“; Kontingent, Drosselung, Serverfehler → später erneut; sonst Auftrag fehlgeschlagen plus Benachrichtigung
+- **Tagesgrenzen:** TikTok eigene Grenze (5 je Kanal), Instagram 50, Facebook 30 Reels je Seite (Meta-Vorgaben)
+- **Dashboard:** Verbinden-Knopf für alle Plattformen (Admin), Rückmeldung nach der Anmeldung inkl. „eingeschränkt“
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/{platform,tiktok,meta}.py`, `tests/integration/test_social_publishing.py`
+- Geändert: `backend/services/{publishers,youtube}.py`, `agents/publishing.py`, `api/channels.py`, `core/config.py`, `app/main.py`, `tests/integration/test_publishing.py`, `frontend/dashboard/ChannelsTable.tsx`, `frontend/e2e/smoke.mjs`, `frontend/package.json`, `.env.example`, Dokumentation (`API_INTEGRATIONS.md`, `AGENTS.md`, `DEVELOPMENT_PLAN.md`)
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest), `alembic check`
+- **Gegen nachgebaute TikTok- und Meta-Server (keine echten Aufrufe):** Anmelde-URLs, Token-Erneuerung mit neuem Refresh-Token, Stückelung, Direct Post privat und öffentlich, Fehler (Sichtbarkeit nicht erlaubt, Spam-Grenze mit HTTP 200, ungültiger Token, nicht geprüfte App, abgelehnter Beitrag), Seitenauswahl, Instagram-Reel mit Kontingent und Verarbeitung, Facebook-Reel mit Fortsetzung nach Abbruch und abgelehntem Video
+- Publishing Agent: privater TikTok-Post, eingeschränkte App, Facebook-Reel, Tagesgrenze, fehlendes Veröffentlichungsrecht
+- API: TikTok- und Meta-Anmeldung, Status „eingeschränkt“ bis zum Audit, Anmeldestatus nur für den richtigen Anbieter, Trennen mit Widerruf
+- Frontend `typecheck` und `build`; E2E-Schritt „Plattform-Verbindungen“ (ohne App-Zugang wird nichts verbunden)
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 321 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund; `verify_phase1.sh`: 67 bestanden, 0 fehlgeschlagen
+- 17 E2E-Schritte bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- **Kein echter Post getestet.** Dafür braucht es eine TikTok-App, eine Meta-App sowie Testkonten bzw. eine Testseite. Hinweis: Reels auf Instagram und Facebook sind immer öffentlich; ein echter Test geht nur mit einem Testkonto und nach ausdrücklicher Freigabe
+- TikTok-Posts bleiben privat, bis TikTok die App geprüft hat; Meta verlangt für fremde Konten ein App-Review
+- Die Doku-Seite „Business Login for Instagram“ war nicht abrufbar; deshalb läuft Instagram über Facebook Login for Business (Instagram-Konto muss mit einer Facebook-Seite verknüpft sein)
+- Meta-Verbindungen werden beim Trennen nur lokal gelöscht (kein dokumentierter Widerruf auf den geprüften Seiten)
+- Kleinere Widersprüche in der Meta-Doku (Instagram-Limit 50 oder 100, Ablauf von Seiten-Tokens) sind in `API_INTEGRATIONS.md` markiert; wir verwenden jeweils den vorsichtigeren Wert
+- Die Videodauer wird vor dem Facebook-Upload nicht selbst geprüft (Facebook: 3–90 s); ein zu langes Video wird von Facebook abgelehnt und als Fehler gemeldet
+
+### 6. Nächster Schritt
+
+Phase 14: Analytics, Learning Agent und Budgetkontrolle (Kennzahlen je Plattform, Lernen aus den Ergebnissen, Kostenübersicht).
 
 ## Phase 12 – Bericht
 
