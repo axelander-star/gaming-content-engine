@@ -3,7 +3,7 @@
 from models.access import AuditLog, Notification, SystemSetting, User
 from models.analytics import AnalyticsSnapshot, Metric
 from models.channels import Channel, Platform
-from models.control import AgentDecision, AgentRun, Cost
+from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.production import (
     Clip,
     GameplayFile,
@@ -21,6 +21,7 @@ from models.trends import Game, Trend
 __all__ = [
     "AgentDecision",
     "AgentRun",
+    "AgentState",
     "AnalyticsSnapshot",
     "Asset",
     "AuditLog",

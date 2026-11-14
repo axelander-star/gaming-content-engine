@@ -139,6 +139,7 @@ jobs:
           python -m app.seed
           python -m app.create_admin --email admin@example.com
           nohup uvicorn app.main:app --port 8000 > /tmp/backend.log 2>&1 &
+          nohup python -m app.worker > /tmp/worker.log 2>&1 &
       - name: Build and start dashboard
         working-directory: frontend
         run: |
@@ -153,4 +154,4 @@ jobs:
         run: npm run e2e
       - name: Logs on failure
         if: failure()
-        run: tail -n 100 /tmp/backend.log /tmp/frontend.log
+        run: tail -n 100 /tmp/backend.log /tmp/worker.log /tmp/frontend.log

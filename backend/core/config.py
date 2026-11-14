@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     redis_db: int = 0
     queue_default_timeout_s: int = Field(default=600, gt=0)
 
+    # --- Agents / scheduler (Phase 4) ---
+    master_tick_seconds: int = Field(default=300, ge=10)
+    budget_check_seconds: int = Field(default=3600, ge=60)
+    master_batch_size: int = Field(default=25, ge=1, le=1000)
+    agent_max_retries: int = Field(default=3, ge=0, le=20)
+    agent_retry_base_delay_s: int = Field(default=300, ge=0)
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy URL for psycopg 3."""

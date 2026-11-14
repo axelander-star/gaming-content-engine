@@ -112,6 +112,24 @@ services:
         condition: service_healthy
     networks: [internal]
 
+  # --- Phase 4: scheduler (master tick, budget check) ------------------
+  scheduler:
+    image: gaming-content-engine/backend:local
+    <<: [*restart, *logging]
+    env_file:
+      - path: .env
+        required: false
+    environment: *backend-env
+    command: ["python", "-m", "app.scheduler"]
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks: [internal]
+
   # --- Phase 3: frontend (Next.js dashboard) ---------------------------
   frontend:
     build:

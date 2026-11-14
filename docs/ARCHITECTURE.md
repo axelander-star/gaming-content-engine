@@ -70,8 +70,10 @@ Agenten rufen sich **nie direkt** auf. Ablauf:
 
 1. Ein Agent schreibt sein Ergebnis in PostgreSQL und protokolliert einen `agent_run` (und ggf. `agent_decisions`).
 2. Er meldet dem Master Orchestrator das Ergebnis (Job-Ergebnis in Redis).
-3. Der Master prüft Gates (Not-Aus, Agent pausiert, Budget, Rechte, Qualität) und reiht den nächsten Job ein.
-4. Fehler führen zu Status `FAILED` mit Fehlerdetails; Wiederholung mit begrenztem Retry und exponentiellem Backoff.
+3. Der Master prüft Gates (Not-Aus, Agent pausiert, Budget, Rechte, Qualität) und reiht den nächsten Job ein. Der Worker prüft die Gates vor der Ausführung erneut (`services/gates.py`).
+4. Fehler führen zu Status `FAILED` mit Fehlerdetails; Wiederholung mit begrenztem Retry und exponentiellem Backoff durch den Master.
+
+Umgesetzt in Phase 4: `agents/master.py`, `services/orchestrator.py`, `services/gates.py`, Zeitsteuerung `app/scheduler.py`. Details in [AGENTS.md](AGENTS.md).
 
 Jeder Job ist **idempotent** (Job-Schlüssel aus Entität + Schritt), damit Wiederholungen keine Doppelarbeit oder Doppelveröffentlichung erzeugen.
 
@@ -163,7 +165,7 @@ Der Budget-Service berechnet den Monatsverbrauch aus `costs` und liefert eine St
 | ≥ 85 % | `priority_only` | nur priorisierte Jobs |
 | ≥ 95 % | `stop_paid` | keine kostenpflichtigen externen Aufrufe |
 
-Jeder kostenpflichtige Adapter ruft vor dem Aufruf `budget.authorize(estimated_cost)` auf. Zusätzlich gilt der globale Schalter `PAID_API_CALLS_ENABLED`.
+Jeder kostenpflichtige Adapter ruft vor dem Aufruf `ctx.authorize_cost(geschätzte_kosten)` auf (`services/budget.py`, `authorize_paid_call`). Zusätzlich gilt der globale Schalter `PAID_API_CALLS_ENABLED`. Das Monatsbudget kommt aus den Betriebseinstellungen im Dashboard; ein Budget von 0 € sperrt alle kostenpflichtigen Aufrufe. Der Budget-Agent prüft stündlich und benachrichtigt einmal pro Monat und Stufe.
 
 ## 8. Ausfallsicherheit
 

@@ -417,3 +417,35 @@ th {
     padding: 16px;
   }
 }
+
+/* --- Agents page (Phase 4) --- */
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.link-btn:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+tr.selected td {
+  background: var(--surface-2);
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+td .error.small {
+  margin-top: 4px;
+}
+.form-actions + .table-wrap {
+  margin-top: 12px;
+}
+td .badge {
+  white-space: nowrap;
+}

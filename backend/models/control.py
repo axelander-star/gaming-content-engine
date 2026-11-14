@@ -6,11 +6,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.enums import AgentRunStatus, CostCategory
-from database.base import Base, IdMixin, str_enum
+from database.base import Base, IdMixin, TimestampMixin, str_enum
 
 
 class AgentRun(IdMixin, Base):
@@ -66,3 +66,19 @@ class Cost(IdMixin, Base):
     incurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
+
+
+class AgentState(IdMixin, TimestampMixin, Base):
+    """Operator switch per agent (pause/resume from the dashboard).
+
+    A missing row means the agent is enabled.
+    """
+
+    __tablename__ = "agent_states"
+
+    agent_name: Mapped[str] = mapped_column(String(64), unique=True)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    updated_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    note: Mapped[str | None] = mapped_column(String(500))

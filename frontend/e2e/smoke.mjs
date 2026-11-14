@@ -1,6 +1,7 @@
-// End-to-end smoke test for the dashboard (Phase 3).
+// End-to-end smoke test for the dashboard (Phase 3, agents page since Phase 4).
 // Needs a running dashboard (BASE_URL, default http://127.0.0.1:3000) wired to a
-// backend with an admin account (E2E_EMAIL / E2E_PASSWORD).
+// backend with an admin account (E2E_EMAIL / E2E_PASSWORD) and a running queue
+// worker (`python -m app.worker`) so that a manually started agent really runs.
 // Optional: SCREENSHOT_DIR to save screenshots of the overview and settings pages.
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
@@ -54,6 +55,38 @@ try {
       await page.getByRole("link", { name: link, exact: true }).click();
       await page.getByRole("heading", { name: heading, level: 1 }).waitFor();
     }
+  });
+
+  await step("Agentenseite zeigt alle 18 Agenten", async () => {
+    await page.getByRole("link", { name: "Agenten", exact: true }).click();
+    await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
+    await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
+    const rows = page.locator("table").first().locator("tbody tr");
+    await rows.nth(17).waitFor();
+    assert.equal(await rows.count(), 18);
+    await page.getByText("Folgt in Phase 9").first().waitFor();
+  });
+
+  await step("Agent pausieren und fortsetzen", async () => {
+    await page.getByRole("button", { name: "Budget & Cost pausieren" }).click();
+    await page.getByRole("button", { name: "Budget & Cost fortsetzen" }).waitFor();
+    await page.getByRole("button", { name: "Budget & Cost fortsetzen" }).click();
+    await page.getByRole("button", { name: "Budget & Cost pausieren" }).waitFor();
+  });
+
+  await step("Master Orchestrator manuell starten und Lauf protokollieren", async () => {
+    await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
+    await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
+    const runs = page.locator("section").filter({ hasText: "Letzte Läufe: Master Orchestrator" });
+    for (let i = 0; i < 20; i++) {
+      if (await runs.getByText("Erfolgreich").count()) break;
+      await page.waitForTimeout(1000);
+      await page.reload();
+    }
+    await runs.getByText("Erfolgreich").first().waitFor({ timeout: 5000 });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/agents.png`, fullPage: true });
+    await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
+    await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
   });
 
   await step("Automatische Veröffentlichung ist gesperrt", async () => {
