@@ -127,20 +127,26 @@ Geprüft am 14.11.2026 gegen die offizielle Meta-Dokumentation (Graph API **v25.
 - **Meta einrichten:** App vom Typ „Business“ unter developers.facebook.com mit „Facebook Login for Business“, gültige OAuth-Weiterleitungs-URI `https://<Dashboard-Domain>/api/oauth/meta/callback`, die genannten Berechtigungen (für fremde Konten ist App-Review nötig). `META_APP_ID`, `META_APP_SECRET`, `META_OAUTH_REDIRECT_URI` als Umgebungsvariablen setzen.
 - Danach im Dashboard je Kanal „Mit TikTok/Instagram/Facebook verbinden“ (nur Admin). Veröffentlicht wird erst mit `PUBLISHING_MODE=live`, `AUTO_PUBLISH_ENABLED=true`, Dashboard-Freigabe, autorisiertem Kanal und ausdrücklicher Freigabe des Betreibers.
 
-## Verfügbarkeit der Kennzahlen je Plattform (vorläufig)
+## Kennzahlen je Plattform (Phase 14)
 
-Der Publishing Strategy Agent nutzt nur tatsächlich verfügbare Kennzahlen. Vorläufige Einschätzung, in Phase 12–14 zu bestätigen:
+Geprüft am 14.11.2026 gegen die offizielle Dokumentation („videos.list“, „YouTube Analytics reports.query“ und „Metrics“, TikTok „Query Videos“ und „Scopes“, Instagram „Media Insights“, Facebook „Video Insights“). Umsetzung: `services/metrics.py`, Agent `analytics`.
 
 | Kennzahl | YouTube | TikTok | Instagram | Facebook |
 |---|---|---|---|---|
-| Aufrufe | ✅ | ✅ | ✅ | ✅ |
-| Wiedergabezeit / Ø-Dauer | ✅ | ⚠️ | ⚠️ | ⚠️ |
-| Zuschauerbindung | ✅ | ❓ | ❓ | ⚠️ |
-| Likes / Kommentare / Shares | ✅ | ✅ | ✅ | ✅ |
-| Gespeichert | ❓ | ❓ | ⚠️ | ❓ |
-| Follower-Zuwachs | ✅ | ⚠️ | ⚠️ | ⚠️ |
+| Aufrufe | `viewCount` | `view_count` | `views` | `fb_reels_total_plays` |
+| Likes / Kommentare | `likeCount`, `commentCount` | `like_count`, `comment_count` | `likes`, `comments` | – (nur `post_video_social_actions`) |
+| Shares | `shares` (Analytics) | `share_count` | `shares` | – |
+| Gespeichert | – | – | `saved` | – |
+| Ø Wiedergabedauer | `averageViewDuration` (Analytics) | – | `ig_reels_avg_watch_time` (ms) | `post_video_avg_time_watched` (ms) |
+| Zuschauerbindung | `averageViewPercentage` (Analytics) | – | – | – |
+| Follower-Zuwachs | `subscribersGained` (Analytics) | – | – | `post_video_followers` |
 
-✅ wahrscheinlich verfügbar · ⚠️ teilweise/zu prüfen · ❓ vermutlich nicht verfügbar
+- **YouTube:** `GET /youtube/v3/videos?part=statistics&id=…` (1 Einheit). Zusätzlich `GET https://youtubeanalytics.googleapis.com/v2/reports` mit `ids=channel==MINE`, `filters=video==ID`; Scope `yt-analytics.readonly` (die Doku verlangt inzwischen zusätzlich `youtube.readonly`, beide werden angefragt). Analytics-Daten kommen mit Verzögerung; fehlen sie, bleiben die Felder leer. Bereits verbundene Kanäle müssen für die Analytics-Werte einmal neu verbunden werden.
+- **TikTok:** `POST /v2/video/query/?fields=id,view_count,like_count,comment_count,share_count` mit `filters.video_ids` (bis 20), Scope `video.list`. Nur öffentliche Posts haben eine Post-ID; private Testposts liefern deshalb keine Zahlen.
+- **Instagram:** `GET /{media-id}/insights?metric=views,reach,likes,comments,shares,saved,ig_reels_avg_watch_time`, Berechtigung `instagram_manage_insights`. Daten können bis zu 48 h verzögert sein; nicht verfügbare Werte fehlen statt 0. `plays` und `ig_reels_aggregated_all_plays_count` sind abgekündigt und werden nicht verwendet.
+- **Facebook:** `GET /{video-id}/video_insights` mit `fb_reels_total_plays`, `post_video_avg_time_watched`, `post_video_social_actions`, `post_video_followers`, `post_impressions_unique`; laut Doku `read_insights` und `pages_manage_engagement` sowie die Seitenaufgabe `ANALYZE`. Beide Berechtigungen werden beim Verbinden angefragt. Die genaue Antwortform je Kennzahl ist auf der Seite nicht gezeigt ⚠️; gelesen wird `data[].values[0].value`.
+- Fehlt eine Berechtigung, speichert der Agent **keine** Zahlen (nichts wird geschätzt) und vermerkt den Grund im Lauf.
+- **Testposts (Mock)** bekommen gleichbleibende synthetische Zahlen (`raw.mock`). Im Live-Modus werden sie von Strategie, Learning und Analytics nicht berücksichtigt.
 
 ## KI- und Medienverarbeitung (Phase 7–9)
 

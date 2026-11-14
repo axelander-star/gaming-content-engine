@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 13 abgeschlossen · **Nächste Phase:** 14 (Analytics, Learning Agent, Budgetkontrolle)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 14 abgeschlossen · **Nächste Phase:** 15 (Monitoring, Sicherheit, Backups, Skalierung)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -21,12 +21,54 @@
 | 11 | Publishing Strategy Agent | ✅ abgeschlossen |
 | 12 | YouTube-Integration | ✅ abgeschlossen |
 | 13 | TikTok, Instagram, Facebook | ✅ abgeschlossen |
-| 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
+| 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
 
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
 Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 14 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Analytics Agent** (Agent 16): misst jeden Post nach 1 h, 6 h, 24 h, 48 h und 7 Tagen und speichert die Zahlen je Zeitfenster. Ein verpasstes Fenster wird ausgelassen statt mit späteren Zahlen gefüllt, damit Videos immer im gleichen Alter verglichen werden. Einmal pro Tag und Kanal ein Bericht mit starken und schwachen Videos. Quellen: YouTube (Statistik und YouTube Analytics für Wiedergabedauer, Zuschauerbindung, Shares, Abonnenten), TikTok (Query Videos), Instagram (Media Insights), Facebook (Video Insights). Testposts bekommen gleichbleibende synthetische Zahlen, die im Live-Modus nirgends mitzählen
+- **Learning Agent** (Agent 17): erkennt Spiele, Formate und Hooks, die über viele Videos klar besser oder schlechter laufen (mind. 8 Videos an 3 Tagen, Mehrheit auf derselben Seite, ein einzelnes virales Video zählt nicht). Daraus werden Faktoren zwischen 0,8 und 1,2, die die Auswahl im Publishing Strategy Agent und die Formatwahl im Creative Director beeinflussen, aber nichts sperren. Jede Änderung läuft zuerst 7 Tage als Test und wird zurückgenommen, wenn sie schlechter abschneidet. Alle Versionen bleiben gespeichert; Admins können jede wiederherstellen
+- **Budget & Cost:** Fixkosten (Server, Backups, Domain) zählen von Monatsbeginn an voll gegen das Budget; Stufen 50/70/85/95 % wie bisher. Kosten pro produziertem und veröffentlichtem Video und pro 1.000 Aufrufe (nur echte Posts)
+- **Dashboard „Analytics“:** Filter nach Zeitraum, Plattform, Sprache, Spiel, Format, Hook und Veröffentlichungszeit; Diagramme für Aufrufe, Zuschauerbindung, Wiedergabedauer, Interaktionsrate und Follower-Zuwachs; Performance pro Spiel, Format und Kanal; stärkste und schwächste Videos; Lernstand mit Versionen (Screenshot: `screenshots/phase14-analytics.png`)
+- **Dashboard „Kosten“:** Gesamtkosten, Budgetstufe, Kosten nach Bereich, Speicher, API-Nutzung heute, Kosten pro Video (Screenshot: `screenshots/phase14-kosten.png`)
+- Damit sind alle 18 Agenten gebaut
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/{metrics,learning,costs}.py`, `backend/agents/{analytics,learning}.py`, `backend/api/analytics.py`, Migration `20261114_b4110411f3fb_learning_versions.py`, `tests/integration/test_analytics_learning.py`, `frontend/dashboard/{AnalyticsView,CostsView,charts}.tsx`
+- Geändert: `backend/models/{analytics,__init__}.py`, `agents/{registry,publishing_strategy,creative_director}.py`, `services/{strategy,budget,youtube,tiktok,meta}.py` (Statistik-Berechtigungen), `app/{main,scheduler}.py`, `core/config.py`, Tests (`test_agents.py`, `test_agents_api.py`, `test_social_publishing.py`), `frontend/app/(dashboard)/{analytics,kosten}/page.tsx`, `frontend/lib/{api,types}.ts`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, `.env.example`, Dokumentation
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest), Migration und `alembic check`
+- Messfenster und Toleranz, gleichbleibende Testzahlen, Analytics-Lauf mit Statuswechsel und Tagesbericht, YouTube-Statistik und -Analytics gegen nachgebauten Google-Server, Instagram- und Facebook-Insights, fehlende Berechtigung (keine Zahlen), abgelaufene Verbindung, Live-Modus ohne Testposts
+- Learning: zu wenige Daten, einzelnes virales Video, alles an einem Tag, klare Muster; Test übernommen, Test zurückgenommen, Test ohne genug Daten; Rücksetzen per API mit Rechteprüfung
+- Kosten: Fixkosten im Budget, Kosten pro Video und pro 1.000 Aufrufe, Speicher
+- Frontend `typecheck` und `build`; E2E mit neuem Schritt „Analytics und Kosten“
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 337 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund; `verify_phase1.sh`: 67 bestanden, 0 fehlgeschlagen; `npm run typecheck` und `npm run build` fehlerfrei; Playwright-E2E: 18 Schritte bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Es gibt noch keine echten Posts, also auch keine echten Kennzahlen; der Learning Agent hat entsprechend noch nichts gelernt
+- Server- und Speicherpreise stehen auf 0 €, bis die aktuellen Anbieterpreise geprüft und eingetragen sind (`SERVER_MONTHLY_EUR`, `OTHER_FIXED_MONTHLY_EUR`, `STORAGE_EUR_PER_GB_MONTH`)
+- Für die neuen Statistik-Berechtigungen müssen Kanäle, die vor Phase 14 verbunden wurden, einmal neu verbunden werden
+- TikTok liefert Zahlen nur für öffentliche Posts; private Testposts bleiben ohne Kennzahlen. Zuschauerbindung gibt es nur bei YouTube
+- Die Speicherkosten zählen in der Kostenübersicht, aber (noch) nicht in der Budgetstufe
+- Die Diagramme zeigen eine Reihe je Diagramm; Vergleiche mehrerer Kanäle in einem Diagramm folgen bei Bedarf
+
+### 6. Nächster Schritt
+
+Phase 15: Monitoring, Sicherheit, Backups und Skalierung (Uptime-Überwachung, Fehleralarme, tägliche verschlüsselte Backups mit Wiederherstellungstest).
 
 ## Phase 13 – Bericht
 

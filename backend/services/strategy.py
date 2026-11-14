@@ -506,12 +506,20 @@ _METRIC_FIELDS = {
 }
 
 
-def load_history(session: Session, channel_id: int, limit: int = 200) -> list[PostPerf]:
-    """Published posts of the channel with their delivered metrics."""
+def load_history(
+    session: Session, channel_id: int, limit: int = 200, include_mock: bool = True
+) -> list[PostPerf]:
+    """Published posts of the channel with their delivered metrics.
+
+    In live mode test posts (synthetic numbers) are left out, so they never
+    influence decisions about real posts."""
+    where = [Post.channel_id == channel_id, Post.published_at.is_not(None)]
+    if not include_mock:
+        where.append(Post.is_mock.is_(False))
     rows = session.execute(
         select(Post, Variant)
         .join(Variant, Variant.id == Post.variant_id)
-        .where(Post.channel_id == channel_id, Post.published_at.is_not(None))
+        .where(*where)
         .order_by(Post.published_at.desc())
         .limit(limit)
     ).all()

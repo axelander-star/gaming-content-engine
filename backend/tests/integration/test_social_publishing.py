@@ -126,7 +126,7 @@ def test_tiktok_authorization_url(settings: Settings) -> None:
     url = urlparse(tiktok.authorization_url(settings, "st"))
     q = parse_qs(url.query)
     assert url.netloc == "www.tiktok.com" and url.path == "/v2/auth/authorize/"
-    assert q["client_key"] == ["tt-key"] and q["scope"] == ["video.publish"]
+    assert q["client_key"] == ["tt-key"] and q["scope"] == ["video.publish,video.list"]
     assert q["response_type"] == ["code"] and q["state"] == ["st"]
 
 
@@ -264,7 +264,7 @@ def test_meta_authorization_url_asks_per_platform(settings: Settings) -> None:
     assert fb.netloc == "www.facebook.com" and fb.path == "/v25.0/dialog/oauth"
     assert "instagram_content_publish" in ig["scope"][0]
     assert parse_qs(fb.query)["scope"] == [
-        "pages_show_list,pages_read_engagement,pages_manage_posts"
+        "pages_show_list,pages_read_engagement,pages_manage_posts,read_insights,pages_manage_engagement"
     ]
 
 

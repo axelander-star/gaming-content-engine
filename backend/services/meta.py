@@ -45,10 +45,17 @@ DIALOG_URL = f"https://www.facebook.com/{VERSION}/dialog/oauth"
 RUPLOAD = "https://rupload.facebook.com"
 PROVIDER = "meta"
 
-FACEBOOK_SCOPES = ("pages_show_list", "pages_read_engagement", "pages_manage_posts")
+FACEBOOK_SCOPES = (
+    "pages_show_list",
+    "pages_read_engagement",
+    "pages_manage_posts",
+    "read_insights",  # statistics (Phase 14)
+    "pages_manage_engagement",  # required by video_insights (Phase 14)
+)
 INSTAGRAM_SCOPES = (
     "instagram_basic",
     "instagram_content_publish",
+    "instagram_manage_insights",  # statistics (Phase 14)
     "pages_show_list",
     "pages_read_engagement",
 )

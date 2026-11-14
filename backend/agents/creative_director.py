@@ -12,20 +12,21 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from agents.base import Agent, AgentContext, AgentResult, PermanentError
 from core.enums import VideoStatus
 from models.production import Clip, GameplayFile, Scene, Variant
 from models.trends import Game
-from services import creative, workflow
+from services import creative, learning, workflow
 from services.controls import get_operations
 
 LABELS = ("A", "B", "C", "D")
 
 
-def format_performance(_variant: Variant) -> dict[str, float]:
-    """Own performance per format (0..1). Empty until the Learning Agent (Phase 14)."""
-    return {}
+def format_performance(session: Session) -> dict[str, float]:
+    """Own performance per format (0..1) from the Learning Agent; empty = neutral."""
+    return learning.format_performance(learning.weights(session))
 
 
 class CreativeDirectorAgent(Agent):
@@ -42,7 +43,7 @@ class CreativeDirectorAgent(Agent):
         game = s.get(Game, material.game_id) if material.game_id else None
         ideas = (game.profile or {}).get("video_ideas", []) if game else []
         profile_formats = [i["format"] for i in ideas if isinstance(i, dict) and "format" in i]
-        performance = format_performance(variant)
+        performance = format_performance(s)
 
         ranked = creative.rank_concepts(scene.scores or {}, profile_formats, performance)
         if not ranked:

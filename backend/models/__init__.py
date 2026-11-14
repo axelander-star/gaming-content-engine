@@ -1,7 +1,7 @@
 """ORM models. Importing this package registers every table on ``Base.metadata``."""
 
 from models.access import AuditLog, Notification, SystemSetting, User
-from models.analytics import AnalyticsSnapshot, Metric
+from models.analytics import AnalyticsSnapshot, LearningVersion, Metric
 from models.channels import Channel, ChannelCredential, Platform
 from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.production import (
@@ -40,6 +40,7 @@ __all__ = [
     "Creator",
     "Game",
     "GameplayFile",
+    "LearningVersion",
     "License",
     "LicenseDocument",
     "Metric",

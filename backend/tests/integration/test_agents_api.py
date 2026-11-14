@@ -30,7 +30,7 @@ def test_list_agents_shows_all_18(api: TestClient, make_user: Callable[..., User
     agents = agents_by_name(api)
     assert len(agents) == 18
     assert agents["master"]["status"] == "ready" and agents["master"]["can_run_manually"]
-    assert agents["analytics"]["status"] == "not_available"
+    assert all(a["status"] != "not_available" for a in agents.values())  # all 18 built
     assert agents["analytics"]["phase"] == 14
 
 

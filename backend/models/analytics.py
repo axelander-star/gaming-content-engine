@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, String, func
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.enums import MetricWindow
@@ -54,3 +54,29 @@ class AnalyticsSnapshot(IdMixin, Base):
     period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     data: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
+
+
+class LearningVersion(IdMixin, Base):
+    """What the Learning Agent derived from the results; every change is a version.
+
+    ``weights`` holds factors per game, format and hook (1.0 = neutral, bounded to
+    0.8–1.2). A new version starts as ``trial`` and is only kept (``active``) if
+    the posts chosen with it do not perform worse; otherwise it is
+    ``rolled_back`` and the previous version applies again.
+    """
+
+    __tablename__ = "learning_versions"
+
+    version: Mapped[int] = mapped_column(Integer, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(
+        String(16), index=True
+    )  # trial|active|rolled_back|superseded
+    weights: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
+    reasons: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    #: Group statistics the weights are based on, and the baseline for the trial.
+    evidence: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
+    trial_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    evaluation: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
+    created_by: Mapped[str] = mapped_column(String(64))
+    rolled_back_to: Mapped[int | None] = mapped_column(Integer)

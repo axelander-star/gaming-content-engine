@@ -33,7 +33,7 @@ from core.enums import ChannelAuthStatus, PublishingJobStatus, PublishingMode, V
 from models.channels import Channel
 from models.production import Variant
 from models.publishing import PublishingJob, StrategyVersion
-from services import gates, strategy, workflow
+from services import gates, learning, strategy, workflow
 from services.controls import effective_controls, get_operations
 
 ACTIVE_JOBS = (
@@ -82,9 +82,13 @@ class PublishingStrategyAgent(Agent):
         today = now.astimezone(tz).date()
         bounds = bounds_for(s, channel)
 
-        posts = strategy.load_history(s, channel.id)
+        posts = strategy.load_history(
+            s, channel.id, include_mock=settings.publishing_mode != "live"
+        )
         assessment = strategy.assess(posts)
-        groups = strategy.group_scores(posts, assessment)
+        groups = learning.merge_groups(
+            strategy.group_scores(posts, assessment), learning.weights(s)
+        )
         version = self._version(ctx, channel, today, now, bounds, posts, assessment, groups)
         amount = 0 if bounds.paused else min(version.posts_per_day, bounds.upper)
 
