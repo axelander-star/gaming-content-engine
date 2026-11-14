@@ -18,7 +18,14 @@ PLACEHOLDER = "change-me"
 class Settings(BaseSettings):
     """Typed runtime configuration. Field names map to upper-case env vars."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
+    # ``.env`` in the repository root (docker compose) and in ``backend/`` (local run);
+    # empty values count as "not set", so a blank line never overrides a real value.
+    model_config = SettingsConfigDict(
+        env_file=("../.env", ".env"),
+        env_ignore_empty=True,
+        extra="ignore",
+        case_sensitive=False,
+    )
 
     app_env: Literal["development", "test", "staging", "production"] = "development"
     app_name: str = "gaming-content-engine"

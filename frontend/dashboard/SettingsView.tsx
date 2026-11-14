@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { ErrorText, PageHeader } from "@/components/ui";
+import { TrendSourcesPanel } from "@/dashboard/TrendSourcesPanel";
 import { ChannelsTable } from "@/dashboard/ChannelsTable";
 import { ControlsPanel } from "@/dashboard/ControlsPanel";
 import { OperationsForm } from "@/dashboard/OperationsForm";
@@ -41,6 +42,7 @@ export function SettingsView() {
           <OperationsForm initial={settings.operations} editable={isAdmin} />
         </>
       )}
+      <TrendSourcesPanel canTest={isAdmin} />
       <ChannelsTable role={user.role} />
       {isAdmin && <UsersPanel currentUserId={user.id} />}
     </>

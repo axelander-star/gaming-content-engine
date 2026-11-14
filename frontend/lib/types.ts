@@ -297,3 +297,36 @@ export interface Material {
     denied: string[];
   } | null;
 }
+
+// --- Trend sources and history (live integration) ----------------------------
+
+export interface TrendSourceStatus {
+  name: "youtube" | "twitch" | "steam";
+  label: string;
+  mode: "mock" | "live";
+  configured: boolean;
+  credentials: string[];
+  quota_used: number;
+  quota_limit: number;
+  quota_unit: string;
+  last: {
+    state: "ok" | "partial" | "error" | "skipped" | "mock";
+    mode: string;
+    kind: "run" | "test";
+    at: string;
+    requests: number;
+    observations: number;
+    errors: string[];
+    skipped: string | null;
+    detail: string | null;
+    last_ok_at: string | null;
+  } | null;
+}
+
+export interface TrendHistoryPoint {
+  detected_at: string;
+  score: number;
+  is_mock: boolean;
+  metrics: Record<string, number>;
+  growth_pct: Record<string, number>;
+}

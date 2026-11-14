@@ -25,8 +25,10 @@ import type {
   SettingsResponse,
   Source,
   SourceType,
+  TrendHistoryPoint,
   TrendItem,
   TrendReport,
+  TrendSourceStatus,
   User,
   UserRole,
 } from "./types";
@@ -150,6 +152,11 @@ export const api = {
     request<TrendReport | null>(`/trends/report?language=${language}`),
   games: () => request<Game[]>("/games"),
   game: (id: number) => request<Game>(`/games/${id}`),
+  gameHistory: (id: number, language: Language, days = 30) =>
+    request<TrendHistoryPoint[]>(`/games/${id}/history?language=${language}&days=${days}`),
+  trendSources: () => request<TrendSourceStatus[]>("/trends/sources"),
+  testTrendSource: (name: TrendSourceStatus["name"]) =>
+    request<TrendSourceStatus>(`/trends/sources/${name}/test`, { method: "POST" }),
 
   // rights management (Phase 6)
   creators: () => request<Creator[]>("/creators"),
