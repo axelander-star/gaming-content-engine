@@ -16,7 +16,8 @@ RUN pip install --upgrade pip \
 
 COPY . .
 
-RUN useradd --create-home --uid 10001 app && chown -R app /app
+RUN useradd --create-home --uid 10001 app && chown -R app /app \
+    && mkdir -p /data/media && chown app /data/media
 USER app
 
 EXPOSE 8000

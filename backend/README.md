@@ -57,13 +57,23 @@ API-Dokumentation (nur außerhalb von Production): http://127.0.0.1:8000/api/doc
 | GET | `/api/overview` | Kennzahlen für die Übersichtsseite |
 | GET | `/api/agents` | Status aller 18 Agenten (letzter Lauf, Aufgabe, Fehler, Kosten) |
 | POST | `/api/agents/{name}/pause`, `/resume` | Agent pausieren (Operator) / fortsetzen (Admin) |
-| POST | `/api/agents/{name}/run` | Master oder Budget-Agent sofort einreihen (Admin) |
+| POST | `/api/agents/{name}/run` | Agent sofort einreihen (Admin; Stufen-Agenten laufen als Sweep) |
 | GET | `/api/agents/{name}/runs` | Letzte Läufe eines Agenten |
 | GET | `/api/agents/decisions` | Letzte Entscheidungen (optional `?agent=`) |
 | GET | `/api/agents/budget` | Budgetstand und -stufe des laufenden Monats |
 | GET | `/api/trends?language=de` | Aktuelle Trends je Sprache (Score, Wachstum, Zielgruppe, Quellen) |
 | GET | `/api/trends/report?language=de` | Neuester Trendbericht |
 | GET | `/api/games`, `/api/games/{id}` | Spiele mit Profil (Zielgruppe, Modi, Videoideen) |
+| GET/POST | `/api/creators`, `/api/sources` | Creator und Quellen (Anlegen: Operator) |
+| POST | `/api/creators/{id}/block`, `/api/sources/{id}/block` | Sperren (Operator), `/unblock` nur Admin; betroffenes Material wird neu geprüft |
+| GET/POST/PATCH | `/api/licenses`, `/api/licenses/{id}` | Lizenzen; alle Rechte standardmäßig aus; Änderung einer freigegebenen Lizenz setzt sie auf `pending` |
+| POST | `/api/licenses/{id}/approve` · `reject` · `revoke` | Freigabe/Ablehnung (Admin, Freigabe nur mit Nachweis), Widerruf (Operator) |
+| GET/POST | `/api/licenses/{id}/documents` | Nachweise auflisten / hochladen (multipart, PDF/PNG/JPEG, versioniert) |
+| GET | `/api/licenses/{id}/documents/{doc}/file` | Nachweis herunterladen |
+| POST | `/api/games` | Spiel anlegen (Operator) |
+| GET · PUT | `/api/policies` · `/api/games/{id}/policy` | Publisher-Richtlinien (Festlegen: Admin) |
+| GET/POST | `/api/materials`, `/api/materials/{id}` | Material registrieren (`DISCOVERED`) und mit letzter Rechteprüfung anzeigen |
+| GET | `/api/rights/criteria` | Die 12 Prüfkriterien |
 
 Alle Endpunkte außer Health und Login brauchen eine Sitzung. Schreibende Anfragen brauchen zusätzlich den Header `X-CSRF-Token` mit dem Wert des Cookies `gce_csrf`.
 

@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.enums import AssetKind, Language, LicenseStatus, SourceType
+from core.enums import (
+    AssetKind,
+    Language,
+    LicenseStatus,
+    PlatformCode,
+    PolicyStatus,
+    SourceType,
+    UserRole,
+)
 from models import (
     Asset,
     Channel,
@@ -17,8 +27,10 @@ from models import (
     Game,
     GameplayFile,
     License,
+    PublisherPolicy,
     Scene,
     Source,
+    User,
     Variant,
 )
 from services.seed import seed_base_data
@@ -34,19 +46,44 @@ class Chain:
     variant: Variant
 
 
+def full_license(**overrides: Any) -> dict[str, Any]:
+    """License terms that pass every rights criterion (tests switch single ones off)."""
+    terms: dict[str, Any] = {
+        "status": LicenseStatus.APPROVED,
+        "allows_commercial_use": True,
+        "allows_editing": True,
+        "allows_short_form": True,
+        "allows_monetization": True,
+        "music_cleared": True,
+        "allowed_platforms": [p.value for p in PlatformCode],
+        "allowed_languages": [lang.value for lang in Language],
+        "document_uri": "local://licenses/test.pdf",
+        "verified_at": datetime.now(UTC),
+    }
+    terms.update(overrides)
+    return terms
+
+
 def build_chain(db: Session, language: Language = Language.DE) -> Chain:
     seed_base_data(db)
     channel = db.scalars(select(Channel).where(Channel.language == language)).first()
     assert channel is not None
     suffix = uuid4().hex[:8]
-    game = Game(name="Test Game", slug=f"test-game-{suffix}")
+    game = Game(name=f"Test Game {suffix}", slug=f"test-game-{suffix}", categories=["shooter"])
     creator = Creator(name="Test Creator")
-    db.add_all([game, creator])
+    verifier = User(email=f"verifier-{suffix}@example.com", password_hash="x", role=UserRole.ADMIN)
+    db.add_all([game, creator, verifier])
     db.flush()
-    source = Source(creator_id=creator.id, type=SourceType.LICENSED_CREATOR, name="Upload")
+    db.add(PublisherPolicy(game_id=game.id, status=PolicyStatus.PERMITTED, notes="test"))
+    source = Source(
+        creator_id=creator.id,
+        type=SourceType.LICENSED_CREATOR,
+        name="Upload",
+        provenance_notes="Creator agreement (test)",
+    )
     db.add(source)
     db.flush()
-    lic = License(source_id=source.id, status=LicenseStatus.APPROVED, allows_commercial_use=True)
+    lic = License(source_id=source.id, verified_by_user_id=verifier.id, **full_license())
     db.add(lic)
     db.flush()
     asset = Asset(

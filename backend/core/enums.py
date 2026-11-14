@@ -79,6 +79,14 @@ class LicenseStatus(StrEnum):
     REVOKED = "revoked"
 
 
+class PolicyStatus(StrEnum):
+    """Commercial-use policy of a game publisher (curated by the operator)."""
+
+    PERMITTED = "permitted"  # publisher allows commercial short-form use of licensed footage
+    LICENSE_REQUIRED = "license_required"  # only with explicit permission of the rights holder
+    FORBIDDEN = "forbidden"
+
+
 class AssetKind(StrEnum):
     VIDEO = "video"
     AUDIO = "audio"

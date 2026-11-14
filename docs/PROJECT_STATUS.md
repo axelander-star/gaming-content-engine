@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 5 abgeschlossen · **Nächste Phase:** 6 (Material Scout und Rights Agent)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 6 abgeschlossen · **Nächste Phase:** 7 (Gameplay-Analyse und Videoproduktion)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -13,7 +13,7 @@
 | 3 | Anmeldung, Benutzerverwaltung, Dashboard-Grundgerüst | ✅ abgeschlossen |
 | 4 | Master Agent und Agentenverwaltung | ✅ abgeschlossen |
 | 5 | Trend Research und Game Intelligence | ✅ abgeschlossen |
-| 6 | Material Scout und Rights Agent | ⏳ offen |
+| 6 | Material Scout und Rights Agent | ✅ abgeschlossen |
 | 7 | Gameplay-Analyse und Videoproduktion | ⏳ offen |
 | 8 | Creative Director, Hooks, Skripte | ⏳ offen |
 | 9 | Lokalisierung, Voiceover, Untertitel | ⏳ offen |
@@ -23,6 +23,48 @@
 | 13 | TikTok, Instagram, Facebook | ⏳ offen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ⏳ offen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ⏳ offen |
+
+## Phase 6 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Rechteprüfung mit 12 Kriterien** (`services/rights.py`): Lizenzstatus, geprüfter Nachweis, dokumentierte Herkunft ohne Sperre, kommerzielle Nutzung, Bearbeitung, Kurzvideos, alle Plattformen, Deutsch und Englisch, Gültigkeit, Monetarisierung, Musik/Bestandteile, Publisher-Richtlinie. Jedes Kriterium ist „erfüllt“, „nicht erlaubt“ oder „Nachweis fehlt“; freigegeben wird nur, wenn alle 12 erfüllt sind (deny by default). Die Gates nutzen dieselbe Prüfung vor jedem späteren Produktionsschritt
+- **Material Scout:** dokumentiert Herkunft und Spiel je Material, meldet fehlende Nachweise und übergibt an die Rechteprüfung; täglich Bericht, für welche Trend-Spiele lizenziertes Material fehlt. Lädt oder zeichnet nichts selbst auf
+- **Rights & License Agent:** prüft jedes Material, speichert das vollständige Ergebnis (`rights_checks`) und begründet jede Ablehnung; täglich Ablaufüberwachung (abgelaufene Lizenzen sperren, 14 Tage vorher warnen, Material neu prüfen)
+- **Automatische Neuprüfung**, sobald sich Nachweise ändern: Lizenz bearbeitet, freigegeben oder widerrufen, Quelle oder Creator gesperrt, Richtlinie geändert
+- **Nachweis-Upload:** PDF/PNG/JPEG bis 10 MB, Inhalt muss zum Typ passen, versioniert und unveränderlich (SHA-256), lokal im Volume `media_data` bis R2 kommt. Freigabe einer Lizenz nur durch einen Admin und nur mit Nachweis
+- **Publisher-Richtlinien** je Spiel (erlaubt, nur mit Erlaubnis, untersagt). Für **GTA VI** ist „nur mit ausdrücklicher Erlaubnis des Rechteinhabers“ vorbelegt
+- **API** für Creator, Quellen, Lizenzen, Nachweise, Spiele, Richtlinien und Material, alles im Audit-Log; **Dashboard-Seite „Rechte“** mit Material und aufklappbarer Prüfung aller Kriterien, Lizenzbearbeitung mit Upload und Freigabe, Quellen/Creator mit Sperren, Richtlinien (Screenshot: `screenshots/phase6-rechte.png`)
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/{rights,storage}.py`, `backend/agents/{material_scout,rights_license}.py`, `backend/api/rights.py`, Migration `20261114_ed4c879d1ea9_rights_management.py`, `tests/integration/test_rights.py`, `frontend/dashboard/RightsView.tsx`, `frontend/app/(dashboard)/rechte/page.tsx`
+- Geändert: `backend/models/rights.py`, `models/__init__.py`, `core/{enums,config}.py`, `services/{gates,orchestrator,seed}.py`, `agents/registry.py`, `api/agents.py`, `app/{main,scheduler}.py`, `pyproject.toml` (python-multipart), `Dockerfile`, `docker-compose.yml` (Volume `media_data`), `.env.example`, Tests (`factories.py`, `test_agents.py`, `test_pipeline.py`, `test_database.py`), `frontend/components/AppShell.tsx`, `frontend/lib/{api,types}.ts`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, Dokumentation
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest mit Abdeckung), Migration und `alembic check`
+- Für **jedes Kriterium** eigene Fälle (23 Varianten, z. B. Lizenz offen/widerrufen, Nachweis fehlt/ungeprüft, Creator gesperrt, eine Plattform fehlt, abgelaufen, Richtlinie fehlt/untersagt/ohne Erlaubnis), jeweils durch Material Scout und Rights Agent über den Orchestrator
+- Ablaufüberwachung, Materialbedarf, Upload-Prüfung, Pfadschutz, Rollen, Neuprüfung nach Sperre und Richtlinienänderung über die API
+- Frontend `typecheck` und `build`; E2E mit echtem Worker: Creator, Quelle, Spiel und Richtlinie anlegen, Lizenz bearbeiten, PDF hochladen, freigeben, Material registrieren, Master startet Scout und Rights Agent, Material wird mit 12 erfüllten Kriterien freigegeben
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 185 Backend-Tests bestanden, Abdeckung 96 % (`services/rights.py` und `services/storage.py` 100 %); ruff und mypy ohne Befund
+- **Abnahme Phase 6:** Material ohne vollständige Lizenz erreicht nie `RIGHTS_APPROVED`. Jeder der 23 Einzelfälle endet in `RIGHTS_REJECTED` mit genau dem verletzten Kriterium; nur vollständige Nachweise führen zur Freigabe
+- 13 E2E-Schritte bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Material wird in Phase 6 nur registriert (Speicherort und SHA-256); Datei-Upload und technische Prüfung (ffprobe) folgen in Phase 7
+- Nachweise liegen bis Phase 7 im lokalen Volume statt in R2; sie sind deshalb noch nicht im Backup enthalten (Phase 15)
+- Die Richtlinie für GTA VI ist eine vorsichtige Voreinstellung, keine Rechtsberatung. Richtlinien weiterer Spiele muss der Betreiber pflegen; ohne Richtlinie wird nichts freigegeben
+- Keine Virenprüfung hochgeladener Dokumente (nur Typ- und Inhaltsprüfung); Admin öffnet Nachweise über den Download
+
+### 6. Nächster Schritt
+
+Phase 7: Gameplay-Analyse und Videoproduktion (Upload und ffprobe-Prüfung, Szenenerkennung, Schnitt, 9:16-Reframing, Export MP4/H.264/AAC).
 
 ## Phase 5 – Bericht
 
@@ -266,6 +308,11 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Trend-Score mit festen, dokumentierten Gewichten; unbekannte Werte neutral | Nachvollziehbar; Anpassung später durch den Learning Agent (Phase 14) |
 | 14.11.2026 | Game Intelligence regelbasiert statt per KI | Keine Kosten ohne Freigabe; KI-Verfeinerung später optional hinter dem Budget-Gate |
 | 14.11.2026 | Keine inoffiziellen Steam-Store-Endpunkte | Nur dokumentierte, offizielle APIs (Projektregel) |
+| 14.11.2026 | Material Scout übergibt (`DISCOVERED` → `RIGHTS_PENDING`), nur der Rights Agent entscheidet | Klare Zuständigkeit; der Scout kann nie freigeben |
+| 14.11.2026 | Rechteprüfung unterscheidet „nicht erlaubt“ und „Nachweis fehlt“ | Betreiber sieht, ob er Unterlagen nachreichen kann oder die Nutzung ausgeschlossen ist |
+| 14.11.2026 | Ohne geprüfte Publisher-Richtlinie keine Freigabe; GTA VI vorbelegt mit „nur mit Erlaubnis“ | Spezifikation Abschnitt 5: keine pauschale Freigabe |
+| 14.11.2026 | Lizenzfreigabe nur durch Admin und nur mit hochgeladenem Nachweis; jede spätere Änderung setzt sie zurück | Vier-Augen-Prinzip zwischen Erfassung und Freigabe |
+| 14.11.2026 | Nachweise lokal (Volume) bis Phase 7, inhaltsadressiert und unveränderlich | R2 kommt mit den Mediendateien; Format bleibt gleich (`local://` → `r2://`) |
 
 ## Offene Punkte
 
@@ -273,6 +320,8 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 - Entwickler-Apps bei Google, TikTok und Meta anlegen (Betreiber); Audits können Wochen dauern
 - Für Live-Trends: YouTube-API-Schlüssel und Twitch-App (Client-ID/Secret) anlegen (Betreiber, kostenlos)
 - LLM- und TTS-Anbieter nach aktueller Preisprüfung auswählen – vor Phase 8/9
+- Publisher-Richtlinien für die Spiele pflegen, für die Material beschafft werden soll (Betreiber)
+- Lizenznachweise nach R2 verschieben und ins Backup aufnehmen – Phase 7/15
 - Zwei-Faktor-Anmeldung für Admins – Phase 15
 - Alle ⚠️-Angaben in API_INTEGRATIONS.md gegen aktuelle Anbieterdokumentation prüfen
 - Image-Versionen (n8n `stable`, Uptime Kuma `1`) vor Produktivbetrieb fest pinnen – Phase 15

@@ -22,6 +22,8 @@ from services.orchestrator import submit
 
 log = logging.getLogger("scheduler")
 
+SWEEP_AGENTS = {"rights_license", "material_scout"}
+
 
 @dataclass
 class Schedule:
@@ -38,6 +40,8 @@ class Schedule:
                 "budget_cost": settings.budget_check_seconds,
                 "trend_research": settings.trend_research_seconds,
                 "game_intelligence": settings.game_intelligence_seconds,
+                "rights_license": settings.rights_sweep_seconds,
+                "material_scout": settings.material_needs_seconds,
             }
         )
 
@@ -59,7 +63,8 @@ def tick(schedule: Schedule, now: float, settings: Settings) -> list[str]:
             log.warning("emergency stop active - nothing scheduled")
             return []
     for name in due:
-        submit(name, {})
+        # Stage agents run here only as sweeps; per-entity jobs come from the master.
+        submit(name, {"sweep": True} if name in SWEEP_AGENTS else {})
         schedule.last_run[name] = now
     log.info("scheduled", extra={"agents": due})
     return due

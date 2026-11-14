@@ -1,4 +1,5 @@
-// End-to-end smoke test for the dashboard (Phase 3, agents since Phase 4, trends since Phase 5).
+// End-to-end smoke test for the dashboard (Phase 3, agents since Phase 4, trends since Phase 5,
+// rights management since Phase 6).
 // Needs a running dashboard (BASE_URL, default http://127.0.0.1:3000) wired to a
 // backend with an admin account (E2E_EMAIL / E2E_PASSWORD) and a running queue
 // worker (`python -m app.worker`) so that a manually started agent really runs.
@@ -46,6 +47,7 @@ try {
   await step("Alle Navigationsseiten laden", async () => {
     for (const [link, heading] of [
       ["Agenten", "Agenten"],
+      ["Rechte", "Rechte und Lizenzen"],
       ["Videoproduktion", "Videoproduktion"],
       ["Publishing", "Publishing"],
       ["Analytics", "Analytics"],
@@ -118,6 +120,93 @@ try {
     await trends.locator("tbody tr").first().getByRole("button").first().click();
     await trends.getByText("Zielgruppe:").waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/trends.png`, fullPage: true });
+    await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
+    await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
+  });
+
+  await step("Rechte: Lizenz mit Nachweis freigeben, Material wird geprüft und freigegeben", async () => {
+    const tag = Date.now().toString(36);
+    const sha = Array.from({ length: 64 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+    await page.getByRole("link", { name: "Rechte", exact: true }).click();
+    await page.getByRole("heading", { name: "Rechte und Lizenzen", level: 1 }).waitFor();
+    await page.getByRole("cell", { name: /Grand Theft Auto VI/ }).waitFor(); // seeded policy
+
+    const sources = page.locator("section").filter({ hasText: "Quellen und Creator" });
+    await sources.getByPlaceholder("Name des Creators").fill(`E2E Creator ${tag}`);
+    await sources.getByRole("button", { name: "Creator anlegen" }).click();
+    await sources.getByRole("listitem").filter({ hasText: `E2E Creator ${tag}` }).waitFor();
+    await sources.getByPlaceholder("Name der Quelle").fill(`E2E Quelle ${tag}`);
+    await sources.getByLabel("Creator", { exact: true }).selectOption({ label: `E2E Creator ${tag}` });
+    await sources.getByPlaceholder("Herkunftsnotiz").fill("Lizenzvertrag E2E");
+    await sources.getByRole("button", { name: "Quelle anlegen" }).click();
+    await sources.getByRole("cell", { name: `E2E Quelle ${tag}` }).waitFor();
+
+    const policies = page.locator("section").filter({ hasText: "Publisher-Richtlinien" });
+    await policies.getByPlaceholder("Neues Spiel").fill(`E2E Spiel ${tag}`);
+    await policies.getByRole("button", { name: "Spiel anlegen" }).click();
+    await policies.getByLabel("Spiel der Richtlinie").selectOption({ label: `E2E Spiel ${tag}` });
+    await policies.getByLabel("Richtlinie", { exact: true }).selectOption("permitted");
+    await policies.getByPlaceholder("Begründung / Fundstelle").fill("Clips laut Richtlinie erlaubt");
+    await policies.getByRole("button", { name: "Richtlinie speichern" }).click();
+    await policies.getByRole("cell", { name: `E2E Spiel ${tag}` }).waitFor();
+
+    const licenses = page.locator("section").filter({ hasText: "Lizenzen" }).first();
+    await licenses.getByLabel("Quelle der Lizenz").selectOption({ label: `E2E Quelle ${tag}` });
+    await licenses.getByRole("button", { name: "Lizenz anlegen" }).click();
+    await licenses.getByText("Ohne Nachweis keine Freigabe.").waitFor();
+    for (const label of ["Kommerziell", "Bearbeitung", "Kurzvideos", "Monetarisierung", "Musik freigegeben"]) {
+      await licenses.getByLabel(label, { exact: true }).check();
+    }
+    for (const label of ["YouTube Shorts", "TikTok", "Instagram Reels", "Facebook Reels", "Deutsch", "Englisch"]) {
+      await licenses.getByLabel(label, { exact: true }).check();
+    }
+    await licenses.getByRole("button", { name: "Bedingungen speichern" }).click();
+    await licenses.getByLabel("Lizenzdokument").setInputFiles({
+      name: "lizenz.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from(`%PDF-1.4\n% E2E ${tag}\n`),
+    });
+    await licenses.getByRole("button", { name: "Dokument hochladen" }).click();
+    await licenses.getByText("Version 1: lizenz.pdf").waitFor();
+    await licenses.getByRole("button", { name: "Lizenz freigeben" }).click();
+    await licenses.getByText(/Geprüft am/).waitFor();
+
+    const material = page.locator("section").filter({ hasText: "Material" }).first();
+    const option = await page
+      .getByLabel("Lizenz", { exact: true })
+      .locator("option", { hasText: `E2E Quelle ${tag}` })
+      .getAttribute("value");
+    await material.getByLabel("Lizenz", { exact: true }).selectOption(option);
+    await material.getByLabel("Spiel", { exact: true }).selectOption({ label: `E2E Spiel ${tag}` });
+    await material.getByPlaceholder("Titel").fill(`E2E Material ${tag}`);
+    await material.getByPlaceholder("Speicherort (z. B. r2://…)").fill(`mock://e2e/${tag}.mp4`);
+    await material.getByPlaceholder("SHA-256 der Datei").fill(sha);
+    await material.getByRole("button", { name: "Material registrieren" }).click();
+    const row = material.locator("tr").filter({ hasText: `E2E Material ${tag}` });
+    await row.getByText("Neu erfasst").waitFor();
+
+    // Master dispatches the Material Scout, then the Rights & License Agent.
+    let approved = false;
+    for (let i = 0; i < 6 && !approved; i++) {
+      await page.getByRole("link", { name: "Agenten", exact: true }).click();
+      await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
+      await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
+      await page.waitForTimeout(2500);
+      await page.getByRole("link", { name: "Rechte", exact: true }).click();
+      approved = await page
+        .locator("tr")
+        .filter({ hasText: `E2E Material ${tag}` })
+        .getByText("Freigegeben")
+        .waitFor({ timeout: 2000 })
+        .then(() => true)
+        .catch(() => false);
+    }
+    assert.ok(approved, "material was not approved by the rights check");
+    await page.getByRole("button", { name: `E2E Material ${tag}` }).click();
+    const checks = page.getByRole("table", { name: /Rechteprüfung Material/ });
+    await checks.getByText("Publisher-Richtlinie geprüft und erfüllt").waitFor();
+    assert.equal(await checks.getByText("erfüllt", { exact: true }).count(), 12);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/rights.png`, fullPage: true });
     await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
   });

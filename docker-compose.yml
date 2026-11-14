@@ -70,6 +70,7 @@ services:
     environment: &backend-env
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
+      MEDIA_ROOT: /data/media  # license evidence (Phase 6), media until R2 (Phase 7)
     command: ["sh", "-c", "alembic upgrade head && python -m app.seed"]
     healthcheck:
       disable: true
@@ -86,6 +87,8 @@ services:
       - path: .env
         required: false  # in CI/validation; production always has .env
     environment: *backend-env
+    volumes:
+      - media_data:/data/media
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -102,6 +105,8 @@ services:
       - path: .env
         required: false  # in CI/validation; production always has .env
     environment: *backend-env
+    volumes:
+      - media_data:/data/media
     command: ["python", "-m", "app.worker"]
     healthcheck:
       disable: true
@@ -198,6 +203,7 @@ networks:
   web:
 
 volumes:
+  media_data:
   postgres_data:
   redis_data:
   caddy_data:

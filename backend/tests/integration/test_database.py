@@ -8,8 +8,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, StatementError
 from sqlalchemy.orm import Session
 
-from core.enums import Language, PublishingJobStatus
-from models import Channel, Platform, Post, PublishingJob
+from core.enums import Language, LicenseStatus, PublishingJobStatus
+from models import Channel, License, Platform, Post, PublishingJob
 from services.seed import seed_base_data
 from tests.factories import build_chain
 
@@ -54,8 +54,8 @@ def test_all_spec_tables_exist(engine: Engine) -> None:
 def test_seed_creates_eight_blocked_channels_idempotently(db: Session) -> None:
     first = seed_base_data(db)
     second = seed_base_data(db)
-    assert first == {"platforms": 4, "channels": 8}
-    assert second == {"platforms": 0, "channels": 0}
+    assert first == {"platforms": 4, "channels": 8, "policies": 1}
+    assert second == {"platforms": 0, "channels": 0, "policies": 0}
     channels = db.scalars(select(Channel)).all()
     assert len(channels) == 8
     assert {c.language for c in channels} == {Language.DE, Language.EN}
@@ -164,7 +164,13 @@ def test_post_traceable_to_license(db: Session) -> None:
 
 def test_license_permissions_default_to_deny(db: Session) -> None:
     chain = build_chain(db)
-    lic = chain.license
+    lic = License(source_id=chain.license.source_id)  # no terms given -> everything denied
+    db.add(lic)
+    db.flush()
+    db.refresh(lic)
+    assert lic.status == LicenseStatus.PENDING
+    assert lic.allows_commercial_use is False
+    assert lic.publisher_permission is False
     assert lic.allows_editing is False
     assert lic.allows_short_form is False
     assert lic.allows_monetization is False

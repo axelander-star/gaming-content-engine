@@ -13,6 +13,7 @@ import { ROLE_LABELS } from "@/lib/roles";
 const NAV = [
   { href: "/", label: "Übersicht" },
   { href: "/agenten", label: "Agenten" },
+  { href: "/rechte", label: "Rechte" },
   { href: "/produktion", label: "Videoproduktion" },
   { href: "/publishing", label: "Publishing" },
   { href: "/analytics", label: "Analytics" },

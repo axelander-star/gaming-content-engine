@@ -25,7 +25,8 @@ pytestmark = pytest.mark.integration
 
 #: Dummy behaviour per agent: the statuses it moves its entity through.
 STEPS: dict[str, list[Any]] = {
-    "rights_license": [M.RIGHTS_PENDING, M.RIGHTS_APPROVED],
+    "material_scout": [M.RIGHTS_PENDING],
+    "rights_license": [M.RIGHTS_APPROVED],
     "gameplay_analysis": [M.ANALYZED],
     "clip_production": [V.EDITING],
     "creative_director": [V.LOCALIZATION],

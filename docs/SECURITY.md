@@ -50,6 +50,8 @@ Die automatische Veröffentlichung wird erst eingeschaltet, wenn alle Tests best
 - `audit_logs`: alle Logins, Einstellungsänderungen, Statuswechsel, Veröffentlichungen, Not-Aus-Aktionen.
 - `agent_decisions`: jede Agentenentscheidung mit Eingaben und Begründung.
 - Lizenznachweise (Dokumente, Herkunft, Gültigkeit) sind mit jedem Asset verknüpft und unveränderlich versioniert.
+- **Umsetzung Phase 6:** Nachweise werden über `POST /api/licenses/{id}/documents` hochgeladen. Erlaubt sind nur PDF, PNG und JPEG bis `MAX_DOCUMENT_BYTES` (Standard 10 MB); der Dateiinhalt muss zum Typ passen (Magic Bytes). Dateien liegen inhaltsadressiert (SHA-256) unter `MEDIA_ROOT` (Docker-Volume `media_data`) und werden nie überschrieben; jede neue Datei ist eine neue Version in `license_documents`. Der Download prüft, dass der Pfad innerhalb von `MEDIA_ROOT` liegt. Ab Phase 7 wandern die Dateien nach R2.
+- Rollen: Operatoren legen Creator, Quellen, Lizenzen und Material an, laden Nachweise hoch, sperren und widerrufen. Nur Admins geben Lizenzen frei (erst nach hochgeladenem Nachweis), heben Sperren auf und legen Publisher-Richtlinien fest. Jede Änderung steht im Audit-Log; jede Rechteprüfung mit allen Kriterien in `rights_checks`.
 
 ## 7. Backups und Wiederherstellung (Phase 15)
 
