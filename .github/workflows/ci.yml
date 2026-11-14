@@ -147,7 +147,7 @@ jobs:
           BACKEND_URL=http://127.0.0.1:8000 npm run build
           cp -r .next/static .next/standalone/.next/static
           nohup env PORT=3000 node .next/standalone/server.js > /tmp/frontend.log 2>&1 &
-          npx --yes wait-on@8.0.3 -t 60000 http://127.0.0.1:3000/login http://127.0.0.1:8000/api/health
+          npx --yes wait-on@8.0.3 -t 60000 http-get://127.0.0.1:3000/login http-get://127.0.0.1:8000/api/health
       - name: E2E smoke test
         working-directory: frontend
         run: npm run e2e
