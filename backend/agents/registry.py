@@ -57,6 +57,18 @@ def _game_intelligence() -> Agent:
     return GameIntelligenceAgent()
 
 
+def _gameplay_analysis() -> Agent:
+    from agents.gameplay_analysis import GameplayAnalysisAgent
+
+    return GameplayAnalysisAgent()
+
+
+def _clip_production() -> Agent:
+    from agents.clip_production import ClipProductionAgent
+
+    return ClipProductionAgent()
+
+
 def _material_scout() -> Agent:
     from agents.material_scout import MaterialScoutAgent
 
@@ -89,10 +101,10 @@ _SPECS: tuple[AgentSpec, ...] = (
               stage=Stage(GF, "RIGHTS_PENDING"), factory=_rights_license),
     AgentSpec("gameplay_analysis", 6, "Gameplay Analysis",
               "Erkennt interessante Szenen und erzeugt Zeitmarken.", 7, CostKind.LOCAL,
-              stage=Stage(GF, "RIGHTS_APPROVED"), production=True),
+              stage=Stage(GF, "RIGHTS_APPROVED"), production=True, factory=_gameplay_analysis),
     AgentSpec("clip_production", 7, "Clip Production",
               "Schneidet Szenen und erzeugt das Hochformat.", 7, CostKind.LOCAL,
-              stage=Stage(V, "SCENE_SELECTED"), production=True),
+              stage=Stage(V, "SCENE_SELECTED"), production=True, factory=_clip_production),
     AgentSpec("creative_director", 8, "Creative Director",
               "Entwickelt Konzepte, Formate und Varianten.", 8, CostKind.PAID,
               stage=Stage(V, "EDITING"), production=True),
@@ -144,8 +156,13 @@ def stage_specs() -> list[AgentSpec]:
 
 
 @contextmanager
-def override(name: str, factory: Callable[[], Agent], **changes: object) -> Iterator[AgentSpec]:
-    """Temporarily replace an agent implementation (tests and simulations)."""
+def override(
+    name: str, factory: Callable[[], Agent] | None, **changes: object
+) -> Iterator[AgentSpec]:
+    """Temporarily replace an agent implementation (tests and simulations).
+
+    ``factory=None`` simulates an agent that is not implemented yet.
+    """
     original = _registry[name]
     patched = replace(original, factory=factory, **changes)  # type: ignore[arg-type]
     _registry[name] = patched

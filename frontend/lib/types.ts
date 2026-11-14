@@ -190,7 +190,12 @@ export interface Game {
 
 // --- Rights management (Phase 6) ---------------------------------------------
 
-export type SourceType = "own_upload" | "licensed_creator" | "partner" | "contract" | "other_licensed";
+export type SourceType =
+  | "own_upload"
+  | "licensed_creator"
+  | "partner"
+  | "contract"
+  | "other_licensed";
 export type LicenseStatus = "pending" | "approved" | "rejected" | "expired" | "revoked";
 export type PolicyStatus = "permitted" | "license_required" | "forbidden";
 export type MaterialStatus =
@@ -329,4 +334,77 @@ export interface TrendHistoryPoint {
   is_mock: boolean;
   metrics: Record<string, number>;
   growth_pct: Record<string, number>;
+}
+
+// --- Video production (Phase 7) ----------------------------------------------
+
+export type VideoStatus =
+  | "SCENE_SELECTED"
+  | "EDITING"
+  | "LOCALIZATION"
+  | "VOICEOVER"
+  | "SUBTITLES"
+  | "QUALITY_CHECK"
+  | "QUALITY_APPROVED"
+  | "QUALITY_REJECTED"
+  | "READY_TO_PUBLISH"
+  | "SCHEDULED"
+  | "PUBLISHED"
+  | "ANALYTICS_PENDING"
+  | "ANALYZED"
+  | "ARCHIVED"
+  | "FAILED";
+
+export interface Scene {
+  id: number;
+  rank: number | null;
+  start_s: number;
+  end_s: number;
+  score: number | null;
+  scores: Record<string, number>;
+  tags: string[];
+  selected: boolean;
+}
+
+export interface VariantBrief {
+  id: number;
+  language: Language;
+  label: string;
+  status: VideoStatus;
+  channel_id: number;
+  error_message: string | null;
+}
+
+export interface Clip {
+  id: number;
+  material_id: number;
+  material_title: string | null;
+  game: string | null;
+  scene: Scene;
+  start_s: number;
+  end_s: number;
+  rendered: boolean;
+  width: number | null;
+  height: number | null;
+  fps: number | null;
+  duration_s: number | null;
+  size_bytes: number | null;
+  video_codec: string | null;
+  audio_codec: string | null;
+  layout: string | null;
+  render_seconds: number | null;
+  realtime_factor: number | null;
+  rendered_at: string | null;
+  variants: VariantBrief[];
+}
+
+export interface RenderCapacity {
+  clips_rendered_7d: number;
+  render_seconds_7d: number;
+  clip_seconds_7d: number;
+  realtime_factor: number | null;
+  clips_per_hour_per_slot: number | null;
+  parallel_slots: number;
+  clips_per_hour: number | null;
+  waiting_for_render: number;
 }

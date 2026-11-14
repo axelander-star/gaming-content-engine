@@ -1,11 +1,16 @@
 // End-to-end smoke test for the dashboard (Phase 3, agents since Phase 4, trends since Phase 5,
-// rights management since Phase 6).
+// rights management since Phase 6, video production since Phase 7).
+// Phase 7 also needs FFmpeg on PATH to generate a synthetic test video.
 // Needs a running dashboard (BASE_URL, default http://127.0.0.1:3000) wired to a
 // backend with an admin account (E2E_EMAIL / E2E_PASSWORD) and a running queue
 // worker (`python -m app.worker`) so that a manually started agent really runs.
 // Optional: SCREENSHOT_DIR to save screenshots of the overview and settings pages.
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const EMAIL = process.env.E2E_EMAIL ?? "admin@example.com";
@@ -13,6 +18,7 @@ const PASSWORD = process.env.E2E_PASSWORD;
 const SHOTS = process.env.SCREENSHOT_DIR;
 assert.ok(PASSWORD, "E2E_PASSWORD must be set");
 
+let rightsTag = ""; // licence and game created in the rights step, reused for production
 const steps = [];
 const step = async (name, fn) => {
   await fn();
@@ -130,6 +136,7 @@ try {
 
   await step("Rechte: Lizenz mit Nachweis freigeben, Material wird geprüft und freigegeben", async () => {
     const tag = Date.now().toString(36);
+    rightsTag = tag;
     const sha = Array.from({ length: 64 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
     await page.getByRole("link", { name: "Rechte", exact: true }).click();
     await page.getByRole("heading", { name: "Rechte und Lizenzen", level: 1 }).waitFor();
@@ -213,6 +220,86 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/rights.png`, fullPage: true });
     await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
     await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
+  });
+
+  await step("Videoproduktion: Gameplay hochladen, Szene wird gewählt und als Clip gerendert", async () => {
+    // Licence-free synthetic video: calm part, hard cut, loud action part, calm tail.
+    const dir = mkdtempSync(join(tmpdir(), "gce-e2e-"));
+    const video = join(dir, `gameplay-${rightsTag}.mp4`);
+    const parts = [
+      ["color=c=0x303840:s=1280x720:r=30:d=20", "sine=f=220:d=20:sample_rate=48000", 0.03],
+      ["testsrc2=s=1280x720:r=30:d=15", "anoisesrc=c=pink:d=15:sample_rate=48000", 0.6],
+      ["color=c=0x203020:s=1280x720:r=30:d=10", "sine=f=330:d=10:sample_rate=48000", 0.03],
+    ];
+    const inputs = parts.flatMap(([v]) => ["-f", "lavfi", "-i", v]);
+    inputs.push(...parts.flatMap(([, a]) => ["-f", "lavfi", "-i", a]));
+    const graph =
+      parts.map(([, , vol], i) => `[${i + 3}:a]volume=${vol},aformat=channel_layouts=stereo[a${i}];`).join("") +
+      parts.map((_, i) => `[${i}:v][a${i}]`).join("") +
+      "concat=n=3:v=1:a=1[v][a]";
+    const ff = spawnSync("ffmpeg", [
+      "-v", "error", "-y", ...inputs, "-filter_complex", graph, "-map", "[v]", "-map", "[a]",
+      "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", video,
+    ]);
+    assert.equal(ff.status, 0, `ffmpeg failed: ${ff.stderr}`);
+
+    await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
+    await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
+    await page.getByLabel("Renderkapazität").waitFor();
+    const upload = page.getByRole("form", { name: "Gameplay hochladen" });
+    await upload.getByLabel("Videodatei").setInputFiles({
+      name: `gameplay-${rightsTag}.mp4`,
+      mimeType: "video/mp4",
+      buffer: readFileSync(video),
+    });
+    const approvedIds = await upload
+      .getByLabel("Lizenz", { exact: true })
+      .locator("option", { hasText: "freigegeben" })
+      .evaluateAll((opts) => opts.map((o) => Number(o.getAttribute("value"))));
+    const option = String(Math.max(...approvedIds)); // the licence approved in the rights step
+    await upload.getByLabel("Lizenz", { exact: true }).selectOption(option);
+    await upload.getByLabel("Spiel", { exact: true }).selectOption({ label: `E2E Spiel ${rightsTag}` });
+    await upload.getByPlaceholder("Titel").fill(`E2E Gameplay ${rightsTag}`);
+    await upload.getByRole("button", { name: "Hochladen" }).click();
+    const status = await page.getByRole("status").filter({ hasText: /Material #\d+ hochgeladen/ });
+    await status.waitFor({ timeout: 60000 });
+    const materialId = (await status.textContent())?.match(/Material #(\d+)/)?.[1];
+    assert.ok(materialId, "upload did not report a material id");
+
+    // Master dispatches scout, rights check, scene analysis and clip production in turn.
+    const row = page.locator("tr").filter({ hasText: `#${materialId} ·` }).first();
+    let rendered = false;
+    for (let i = 0; i < 20 && !rendered; i++) {
+      await page.getByRole("link", { name: "Agenten", exact: true }).click();
+      await page.getByRole("button", { name: "Master Orchestrator jetzt ausführen" }).click();
+      await page.getByText("Master Orchestrator wurde gestartet.").waitFor();
+      await page.waitForTimeout(4000);
+      await page.getByRole("link", { name: "Videoproduktion", exact: true }).click();
+      await page.getByRole("heading", { name: "Videoproduktion", level: 1 }).waitFor();
+      rendered = await row
+        .getByText("Gerendert, Schnitt folgt")
+        .first()
+        .waitFor({ timeout: 2000 })
+        .then(() => true)
+        .catch(() => false);
+    }
+    assert.ok(rendered, "no clip was rendered from the uploaded gameplay");
+    await row.getByText(/×\d+, \d+(\.\d+)? fps/).waitFor();
+    await row.getByRole("button", { name: /^Clip \d+$/ }).click();
+    const preview = page.getByLabel(/^Vorschau Clip \d+$/);
+    await preview.waitFor();
+    await page.getByText("Szenenbewertung").waitFor();
+    const playable = await preview.evaluate(
+      (el) =>
+        new Promise((resolve) => {
+          const v = /** @type {HTMLVideoElement} */ (el);
+          if (v.readyState >= 1) return resolve(v.videoWidth + "x" + v.videoHeight);
+          v.addEventListener("loadedmetadata", () => resolve(v.videoWidth + "x" + v.videoHeight));
+          v.addEventListener("error", () => resolve("error"));
+        }),
+    );
+    assert.match(String(playable), /^(720x1280|1080x1920)$/);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/production.png`, fullPage: true });
   });
 
   await step("Trendquellen zeigen Modus, Zugangsdaten und Status", async () => {

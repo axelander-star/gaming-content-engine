@@ -15,6 +15,11 @@ const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: {
+    // Gameplay uploads go through the /api proxy in development and E2E (production
+    // routes /api via Caddy). Matches MAX_UPLOAD_BYTES of the backend (4 GiB).
+    proxyClientMaxBodySize: "4gb",
+  },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
   },

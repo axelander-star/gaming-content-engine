@@ -44,8 +44,28 @@ class AgentResult:
     message: str | None = None
 
 
-class BudgetExceededError(RuntimeError):
+class AgentSkipError(RuntimeError):
+    """The agent cannot work right now (budget, capacity). The run is SKIPPED, the
+    entity stays where it is and the master dispatches it again later."""
+
+    gate = "skip"
+
+
+class BudgetExceededError(AgentSkipError):
     """Raised when a paid action is refused by the budget service."""
+
+    gate = "budget"
+
+
+class CapacityError(AgentSkipError):
+    """All render slots are busy (``max_parallel_render_jobs``)."""
+
+    gate = "capacity"
+
+
+class PermanentError(RuntimeError):
+    """The entity can never succeed as it is (e.g. a broken file). It is marked FAILED
+    without automatic retries; the operator has to fix the input."""
 
 
 @dataclass

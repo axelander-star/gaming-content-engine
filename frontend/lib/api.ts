@@ -8,6 +8,7 @@ import type {
   AgentRun,
   Budget,
   Channel,
+  Clip,
   Creator,
   EffectiveControls,
   Game,
@@ -22,6 +23,8 @@ import type {
   PolicyStatus,
   PublisherPolicy,
   Readiness,
+  RenderCapacity,
+  Scene,
   SettingsResponse,
   Source,
   SourceType,
@@ -88,8 +91,13 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 const json = (data: unknown): string => JSON.stringify(data);
 
 /** Multipart upload; the browser sets the Content-Type with the boundary itself. */
-async function upload<T>(path: string, file: File): Promise<T> {
+async function upload<T>(
+  path: string,
+  file: File,
+  fields: Record<string, string> = {},
+): Promise<T> {
   const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) form.append(key, value);
   form.append("file", file);
   const headers = new Headers();
   const csrf = readCookie("gce_csrf");
@@ -116,8 +124,9 @@ export const api = {
   overview: () => request<Overview>("/overview"),
 
   settings: () => request<SettingsResponse>("/settings"),
-  updateControls: (changes: Partial<Pick<EffectiveControls, "emergency_stop" | "auto_publish_enabled">>) =>
-    request<EffectiveControls>("/settings/controls", { method: "PATCH", body: json(changes) }),
+  updateControls: (
+    changes: Partial<Pick<EffectiveControls, "emergency_stop" | "auto_publish_enabled">>,
+  ) => request<EffectiveControls>("/settings/controls", { method: "PATCH", body: json(changes) }),
   updateOperations: (changes: Partial<OperationsSettings>) =>
     request<OperationsSettings>("/settings/operations", { method: "PATCH", body: json(changes) }),
 
@@ -214,7 +223,25 @@ export const api = {
     storage_uri: string;
     sha256: string;
   }) => request<Material>("/materials", { method: "POST", body: json(data) }),
+  uploadMaterial: (
+    file: File,
+    data: { source_id: number; license_id: number; game_id: number | null; title?: string },
+  ) => {
+    const fields: Record<string, string> = {
+      source_id: String(data.source_id),
+      license_id: String(data.license_id),
+    };
+    if (data.game_id !== null) fields.game_id = String(data.game_id);
+    if (data.title) fields.title = data.title;
+    return upload<Material>("/materials/upload", file, fields);
+  },
   rightsCriteria: () => request<{ key: string; label: string }[]>("/rights/criteria"),
+
+  // video production (Phase 7)
+  productionClips: (limit = 50) => request<Clip[]>(`/production/clips?limit=${limit}`),
+  materialScenes: (id: number) => request<Scene[]>(`/materials/${id}/scenes`),
+  clipFileUrl: (id: number) => `/api/clips/${id}/file`,
+  renderCapacity: () => request<RenderCapacity>("/production/capacity"),
 
   users: () => request<User[]>("/users"),
   createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>

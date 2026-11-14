@@ -61,7 +61,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** Material ohne vollständige Lizenz erreicht nie `RIGHTS_APPROVED` (Tests für jedes Kriterium).
 
-### Phase 7 – Gameplay-Analyse und Videoproduktion
+### Phase 7 – Gameplay-Analyse und Videoproduktion ✅
 
 - Upload, technische Prüfung (ffprobe), R2-Speicher (Mock: lokal)
 - Szenenerkennung (PySceneDetect), Bewertung (Bewegung, Audiopegel, Schnittdichte via OpenCV)
