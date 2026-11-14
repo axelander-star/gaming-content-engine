@@ -1,0 +1,136 @@
+# Gaming Content Engine – Docker-Compose-Grundgerüst (Phase 1)
+#
+# Enthält die Infrastrukturdienste, die ohne eigenen Code lauffähig sind.
+# Backend (FastAPI) und Frontend (Next.js) werden in Phase 2 bzw. Phase 3 ergänzt.
+#
+# Start (Kern):         docker compose up -d
+# Mit Reverse Proxy:    docker compose --profile proxy up -d
+# Mit n8n:              docker compose --profile workflow up -d
+# Mit Monitoring:       docker compose --profile monitoring up -d
+#
+# Datenbank, Redis, n8n und Uptime Kuma sind nur auf 127.0.0.1 erreichbar.
+
+name: gaming-content-engine
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    <<: [*restart, *logging]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB fehlt in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER fehlt in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    <<: [*restart, *logging]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD fehlt in .env}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [internal]
+
+  # --- Phase 2: backend (FastAPI) ---------------------------------------
+  # backend:
+  #   build: ./backend
+  #   env_file: .env
+  #   depends_on:
+  #     postgres: { condition: service_healthy }
+  #     redis: { condition: service_healthy }
+  #   networks: [internal, web]
+
+  # --- Phase 3: frontend (Next.js) --------------------------------------
+  # frontend:
+  #   build: ./frontend
+  #   networks: [web]
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["proxy"]
+    <<: [*restart, *logging]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [web]
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-stable}
+    profiles: ["workflow"]
+    <<: [*restart, *logging]
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_POSTGRESDB_SCHEMA: n8n
+      GENERIC_TIMEZONE: ${TZ:-Europe/Berlin}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    profiles: ["monitoring"]
+    <<: [*restart, *logging]
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks: [internal, web]
+
+networks:
+  internal:
+  web:
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+  n8n_data:
+  uptime_kuma_data:

@@ -1,0 +1,29 @@
+# Caddy Reverse Proxy – Grundgerüst (Phase 1)
+# Die Routen auf Backend und Frontend werden aktiviert, sobald diese Dienste
+# existieren (Phase 2 bzw. Phase 3). Bis dahin liefert Caddy nur einen Health-Endpunkt.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN:localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	# Phase 2: handle /api/* { reverse_proxy backend:8000 }
+	# Phase 3: handle { reverse_proxy frontend:3000 }
+
+	handle {
+		respond "Gaming Content Engine – Phase 1 (Backend/Frontend folgen in Phase 2/3)" 200
+	}
+}
