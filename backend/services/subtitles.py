@@ -144,7 +144,9 @@ def burn_command(settings: Settings, clip: Path, voice: Path, ass: Path, out: Pa
         f"[0:v]ass='{ass_arg}'[v];"
         "[1:a]asplit=2[vk][vm];"
         "[0:a][vk]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=300[g];"
-        "[g][vm]amix=inputs=2:normalize=0:duration=first[a]"
+        "[g][vm]amix=inputs=2:normalize=0:duration=first[mix];"
+        # platform loudness target (short-form apps play around -14 LUFS)
+        "[mix]loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[a]"
     )
     return [
         settings.ffmpeg_bin, "-v", "error", "-y", "-i", str(clip), "-i", str(voice),

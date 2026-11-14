@@ -28,7 +28,7 @@ def create_app() -> FastAPI:
     is_prod = settings.app_env == "production"
     app = FastAPI(
         title="Gaming Content Engine API",
-        version="0.9.0",
+        version="0.10.0",
         # Interactive docs only outside production.
         docs_url=None if is_prod else f"{API_PREFIX}/docs",
         redoc_url=None,

@@ -12,7 +12,16 @@ from sqlalchemy import func, select
 
 from api.deps import AppSettings, DbSession, Viewer
 from core.enums import VideoStatus
-from models.production import Clip, GameplayFile, Scene, Script, Subtitle, Variant, Voiceover
+from models.production import (
+    Clip,
+    GameplayFile,
+    QualityCheck,
+    Scene,
+    Script,
+    Subtitle,
+    Variant,
+    Voiceover,
+)
 from models.rights import Asset
 from models.trends import Game
 from services import storage
@@ -44,6 +53,18 @@ class ScriptOut(BaseModel):
     beats: list[Any]
 
 
+class QualityOut(BaseModel):
+    """Latest quality check of a variant (Phase 10)."""
+
+    passed: bool
+    score: float | None
+    min_score: float | None
+    reasons: list[str]
+    checks: list[dict[str, Any]]
+    measured: dict[str, Any]
+    checked_at: datetime
+
+
 class VariantBrief(BaseModel):
     id: int
     language: str
@@ -59,6 +80,7 @@ class VariantBrief(BaseModel):
     voice: dict[str, Any] | None
     subtitle_formats: list[str]
     subtitle_issues: list[Any]
+    quality: QualityOut | None
 
 
 class ClipOut(BaseModel):
@@ -97,6 +119,21 @@ def _scene_out(sc: Scene) -> SceneOut:
     )
 
 
+def _quality_out(qc: QualityCheck | None) -> QualityOut | None:
+    if qc is None:
+        return None
+    data = qc.checks or {}
+    return QualityOut(
+        passed=qc.passed,
+        score=qc.score,
+        min_score=data.get("min_score"),
+        reasons=[str(r) for r in qc.reasons or []],
+        checks=list(data.get("items", [])),
+        measured=dict(data.get("measured", {})),
+        checked_at=qc.checked_at,
+    )
+
+
 @router.get("/production/clips", response_model=list[ClipOut])
 def list_clips(
     _: Viewer, db: DbSession, limit: Annotated[int, Query(ge=1, le=200)] = 50
@@ -125,6 +162,11 @@ def list_clips(
     subs: dict[int, list[Subtitle]] = {}
     for sub in db.scalars(select(Subtitle).where(Subtitle.variant_id.in_(ids))):
         subs.setdefault(sub.variant_id, []).append(sub)
+    checks: dict[int, QualityCheck] = {}
+    for qc in db.scalars(
+        select(QualityCheck).where(QualityCheck.variant_id.in_(ids)).order_by(QualityCheck.id)
+    ):
+        checks[qc.variant_id] = qc  # latest check wins
     clip_uris = {c.id: c.storage_uri for c, _, _ in rows}
     for v in rows_v:
         latest = scripts.get(v.id)
@@ -164,6 +206,7 @@ def list_clips(
                 else None,
                 subtitle_formats=sorted(x.format for x in subs.get(v.id, [])),
                 subtitle_issues=next((x.issues for x in subs.get(v.id, [])), []),
+                quality=_quality_out(checks.get(v.id)),
             )
         )
     games = {g.id: g.name for g in db.scalars(select(Game))} if rows else {}

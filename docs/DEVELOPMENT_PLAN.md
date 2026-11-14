@@ -81,7 +81,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 - TTS-Adapter (nur kommerziell lizenzierte Stimmen), lokale Option prüfen
 - Untertitel (SRT/VTT + eingebrannt), Hochformat-Positionierung
 
-### Phase 10 – Quality Control und Duplikaterkennung
+### Phase 10 – Quality Control und Duplikaterkennung ✅
 
 - Technische Prüfungen (Auflösung, Codec, Lautheit, Dauer, Dateigröße je Plattform)
 - Rechte-Gate erneut, Untertitelprüfung, Hash + perzeptueller Fingerprint

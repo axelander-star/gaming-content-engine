@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 9 abgeschlossen · **Nächste Phase:** 10 (Quality Control und Duplikaterkennung)
+**Stand:** 14.11.2026 · **Aktuelle Phase:** 10 abgeschlossen · **Nächste Phase:** 11 (Publishing Strategy Agent)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -17,7 +17,7 @@
 | 7 | Gameplay-Analyse und Videoproduktion | ✅ abgeschlossen |
 | 8 | Creative Director, Hooks, Skripte | ✅ abgeschlossen |
 | 9 | Lokalisierung, Voiceover, Untertitel | ✅ abgeschlossen |
-| 10 | Quality Control und Duplikaterkennung | ⏳ offen |
+| 10 | Quality Control und Duplikaterkennung | ✅ abgeschlossen |
 | 11 | Publishing Strategy Agent | ⏳ offen |
 | 12 | YouTube-Integration | ⏳ offen |
 | 13 | TikTok, Instagram, Facebook | ⏳ offen |
@@ -27,6 +27,50 @@
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
 Der Betreiber hat einen YouTube-API-Schlüssel und eine Twitch-App angelegt. Vorbereitet wurde: Zugangsdaten nur über Umgebungsvariablen (Fehler behoben: die Variablen standen in `.env.example` doppelt, eine leere zweite Zeile hätte den Wert überschrieben; leere Werte zählen jetzt als „nicht gesetzt“), Verbindungsstatus mit Fehlern und Quote im Dashboard, Verbindungstest per Knopf (Admin), Wiederverwendung des Twitch-Tokens, Abbruch bei Rate Limit, Trendverlauf je Spiel. Details: `API_INTEGRATIONS.md`, Abschnitt „Live-Anbindung einrichten“. Verbindungstest nach Hinterlegung der Schlüssel (14.11.2026): Die Twitch-Zugangsdaten sind gültig (Token wird ausgestellt). Der YouTube-Schlüssel wird von Google als ungültig abgelehnt und muss neu erstellt werden. Steam ist aus der Entwicklungsumgebung nicht erreichbar und wird auf dem Server geprüft. Die versehentlich eingecheckte `.env` wurde aus dem Repository entfernt; die Schlüssel daraus müssen rotiert werden.
+
+## Phase 10 – Bericht
+
+### 1. Was wurde erstellt?
+
+- **Quality Control Agent** (Agent 13): prüft jede fertige Variante, bevor sie für eine Veröffentlichung eingeplant werden kann. Blockierende Prüfungen lehnen unabhängig vom Wert ab, alle anderen senken den Qualitätswert (Start 1,0), der das Minimum aus den Einstellungen erreichen muss (Standard 0,70). Freigegebene Varianten gehen auf `READY_TO_PUBLISH`, abgelehnte auf `QUALITY_REJECTED` mit Gründen und einer Benachrichtigung
+  - **Blockierend:** Datei fehlt oder wurde nach dem Rendern verändert (SHA-256), Datei nicht vollständig dekodierbar (fehlerhafter Export), nicht H.264/AAC/yuv420p, kein Hochformat 1080×1920 oder 720×1280, über 60 fps, Länge, Titel, Beschreibung oder Dateigröße über den Grenzen der Plattform des Kanals, Lizenz nicht mehr gültig, Stimme ohne kommerzielle Rechte, Untertitel fehlen, durchgehend schwarzes Bild, Duplikat
+  - **Abzüge:** kein Ton (−0,15), Lautheit außerhalb −18 bis −10 LUFS (−0,10), Spitzenpegel über −1 dBTP (−0,05), mehr als 1 s Schwarzbild (−0,10), mehr als 40 % Standbild (−0,10), Sprechtext zu lang für seine Szene (−0,05), Lesbarkeit der Untertitel (−0,05)
+- **Duplikaterkennung:** identische Datei (gleicher Hash) gegenüber allen bereits freigegebenen oder veröffentlichten Varianten; ähnliches Bild (Bild-Fingerabdruck je Sekunde, auch zeitlich verschoben, ab 60 % gleicher Sekunden) und gleiche Szene desselben Materials (mehr als 50 % Überschneidung) auf demselben Kanal. Varianten desselben Clips gelten als A/B-Test und sind erlaubt
+- **Lautheit:** Die fertige Variante wird jetzt auf −14 LUFS normalisiert (Spitze −1,5 dBTP), dem üblichen Wert der Kurzvideo-Apps
+- **Plattformgrenzen** (`services/quality.py`): YouTube Shorts bis 3 min, TikTok 10 min, Instagram Reels 3 min, Facebook Reels 90 s, Titel- und Beschreibungslängen. ⚠️ Vor Phase 12/13 gegen die offizielle API-Dokumentation prüfen
+- **Dashboard:** neue Status „Bereit zur Veröffentlichung“ und „Von Qualitätsprüfung abgelehnt“; je Variante Ergebnis, Qualitätswert, Gründe, Messwerte (Lautheit, Spitze) und bestandene Prüfungen (Screenshot: `screenshots/phase10-qualitaet.png`)
+- **API:** Die Clip-Liste enthält je Variante das letzte Prüfergebnis (`quality`)
+
+### 2. Geänderte Dateien
+
+- Neu: `backend/services/quality.py`, `backend/agents/quality_control.py`, `tests/integration/test_quality.py`
+- Geändert: `backend/agents/registry.py`, `services/subtitles.py` (Lautheitsnormalisierung), `api/production.py`, `app/main.py`, Tests (`test_agents.py`, `test_agents_api.py`), `frontend/dashboard/ProductionView.tsx`, `frontend/lib/types.ts`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, Dokumentation
+
+### 3. Durchgeführte Tests
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest), `alembic check` (keine Schemaänderung nötig)
+- Bewertung, Ähnlichkeit (auch verschoben), Überschneidung, Plattformregeln für alle Plattformen
+- Durchlauf mit echtem Rendering bis zur Freigabe; Lautheit der fertigen Variante im Zielbereich
+- Fehlerfälle: identische Datei, ähnliches Bild, gleiche Szene, abgeschnittene Datei (fehlerhafter Export), nachträglich veränderte Datei, fehlende Datei, zu langer Titel, Stimme ohne Rechte, Wert unter Minimum, abgelaufene Lizenz; Geschwistervariante als A/B-Test erlaubt
+- Frontend `typecheck` und `build`; E2E vom Upload bis zum Prüfergebnis
+- `scripts/verify_phase1.sh`
+
+### 4. Erfolgreiche Tests
+
+- 251 Backend-Tests bestanden; ruff, mypy und `alembic check` ohne Befund
+- **Abnahme Phase 10:** fehlerhafte Exporte und Duplikate werden zuverlässig blockiert
+- 15 E2E-Schritte bestanden
+
+### 5. Bestehende Fehler / Einschränkungen
+
+- Plattformgrenzen stammen aus öffentlichen Hilfeseiten; vor dem Live-Betrieb gegen die API-Dokumentation prüfen
+- Die Ähnlichkeit vergleicht das Gameplay-Bild. Material, das gespiegelt oder stark beschnitten wurde, wird nicht als Duplikat erkannt
+- Abgelehnte Varianten werden nicht automatisch neu bearbeitet; der Betreiber entscheidet (Rückweg nach `EDITING` ist vorbereitet)
+- Bildqualität (Unschärfe, Artefakte) wird nur über Dekodierbarkeit, Schwarz- und Standbild bewertet
+
+### 6. Nächster Schritt
+
+Phase 11: Publishing Strategy Agent (Menge, Auswahl und Zeitpunkt je Kanal dynamisch aus Leistung, Qualität, Kapazität und Plattformregeln; keine feste Menge).
 
 ## Phase 9 – Bericht
 
@@ -465,6 +509,10 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Nicht angebundener Stimm-Anbieter lässt Varianten warten, Anbieter ohne kommerzielle Rechte führt zum Fehler | Warten ist behebbar, fehlende Rechte nicht |
 | 14.11.2026 | Untertitel eingebrannt plus SRT/VTT | Eingebrannt wirkt auf allen Plattformen gleich; Dateien für Plattformen mit eigener Untertitelfunktion |
 
+| 14.11.2026 | Qualitätsprüfung: blockierende Prüfungen plus Qualitätswert mit Abzügen | Kaputte Exporte, Rechte und Duplikate dürfen nie durch einen guten Wert ausgeglichen werden |
+| 14.11.2026 | Duplikate je Kanal; Varianten desselben Clips gelten als A/B-Test | Dieselbe Szene auf DE- und EN-Kanal ist gewollt, auf demselben Kanal nicht |
+| 14.11.2026 | Fertige Varianten auf −14 LUFS normalisiert | Üblicher Wiedergabepegel der Kurzvideo-Apps, kein Lautstärkesprung |
+
 ## Offene Punkte
 
 - `docker compose up` des Gesamtsystems auf einem echten Docker-Host bestätigen (Image-Build ist in der CI grün)
@@ -475,5 +523,5 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 - Lizenznachweise, Material und Clips nach R2 verschieben und ins Backup aufnehmen – sobald R2-Zugangsdaten vorliegen, spätestens Phase 15
 - Neuen YouTube-API-Schlüssel erstellen und Twitch-Secret rotieren (Betreiber)
 - Zwei-Faktor-Anmeldung für Admins – Phase 15
-- Alle ⚠️-Angaben in API_INTEGRATIONS.md gegen aktuelle Anbieterdokumentation prüfen
+- Alle ⚠️-Angaben in API_INTEGRATIONS.md und die Plattformgrenzen in `services/quality.py` gegen aktuelle Anbieterdokumentation prüfen
 - Image-Versionen (n8n `stable`, Uptime Kuma `1`) vor Produktivbetrieb fest pinnen – Phase 15

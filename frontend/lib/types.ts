@@ -192,20 +192,11 @@ export interface Game {
 // --- Rights management (Phase 6) ---------------------------------------------
 
 export type SourceType =
-  | "own_upload"
-  | "licensed_creator"
-  | "partner"
-  | "contract"
-  | "other_licensed";
+  "own_upload" | "licensed_creator" | "partner" | "contract" | "other_licensed";
 export type LicenseStatus = "pending" | "approved" | "rejected" | "expired" | "revoked";
 export type PolicyStatus = "permitted" | "license_required" | "forbidden";
 export type MaterialStatus =
-  | "DISCOVERED"
-  | "RIGHTS_PENDING"
-  | "RIGHTS_APPROVED"
-  | "RIGHTS_REJECTED"
-  | "ANALYZED"
-  | "FAILED";
+  "DISCOVERED" | "RIGHTS_PENDING" | "RIGHTS_APPROVED" | "RIGHTS_REJECTED" | "ANALYZED" | "FAILED";
 export type CheckOutcome = "ok" | "denied" | "missing";
 
 export interface Creator {
@@ -415,6 +406,27 @@ export interface VariantBrief {
   } | null;
   subtitle_formats: string[];
   subtitle_issues: string[];
+  quality: QualityResult | null;
+}
+
+/** One check of the quality control (Phase 10). */
+export interface QualityCheckItem {
+  name: string;
+  passed: boolean;
+  detail: string;
+  blocking: boolean;
+  penalty: number;
+  values: Record<string, unknown>;
+}
+
+export interface QualityResult {
+  passed: boolean;
+  score: number | null;
+  min_score: number | null;
+  reasons: string[];
+  checks: QualityCheckItem[];
+  measured: { lufs?: number; true_peak?: number; black_s?: number; frozen_s?: number };
+  checked_at: string;
 }
 
 export interface Clip {

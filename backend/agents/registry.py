@@ -111,6 +111,12 @@ def _subtitle() -> Agent:
     return SubtitleAgent()
 
 
+def _quality_control() -> Agent:
+    from agents.quality_control import QualityControlAgent
+
+    return QualityControlAgent()
+
+
 GF, V = "gameplay_files", "variants"
 
 _SPECS: tuple[AgentSpec, ...] = (
@@ -153,7 +159,8 @@ _SPECS: tuple[AgentSpec, ...] = (
               stage=Stage(V, "SUBTITLES"), production=True, factory=_subtitle),
     AgentSpec("quality_control", 13, "Quality Control",
               "Prüft Technik, Rechte und Duplikate vor der Freigabe.", 10, CostKind.LOCAL,
-              stage=Stage(V, "QUALITY_CHECK"), production=True),
+              stage=Stage(V, "QUALITY_CHECK"), production=True,
+              factory=_quality_control),
     AgentSpec("publishing_strategy", 14, "Publishing Strategy",
               "Bestimmt pro Kanal Menge, Auswahl und Zeitpunkt der Veröffentlichungen.",
               11, CostKind.LOCAL, stage=Stage(V, "READY_TO_PUBLISH")),

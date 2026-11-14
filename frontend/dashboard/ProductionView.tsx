@@ -27,7 +27,10 @@ const VARIANT_STATUS: Partial<Record<VideoStatus, [string, Tone]>> = {
   LOCALIZATION: ["Skript fertig, Lokalisierung folgt", "ok"],
   VOICEOVER: ["Lokalisiert, Stimme folgt", "ok"],
   SUBTITLES: ["Stimme fertig, Untertitel folgen", "ok"],
-  QUALITY_CHECK: ["Fertig, Qualitätsprüfung folgt", "ok"],
+  QUALITY_CHECK: ["Fertig, Qualitätsprüfung läuft", "ok"],
+  QUALITY_APPROVED: ["Qualität geprüft", "ok"],
+  QUALITY_REJECTED: ["Von Qualitätsprüfung abgelehnt", "danger"],
+  READY_TO_PUBLISH: ["Bereit zur Veröffentlichung", "ok"],
   FAILED: ["Fehler", "danger"],
 };
 const LICENSE_LABELS: Record<LicenseStatus, string> = {
@@ -403,6 +406,73 @@ const BEAT_LABELS: Record<string, string> = {
   cta: "Aufruf",
 };
 
+const CHECK_LABELS: Record<string, string> = {
+  file: "Datei",
+  integrity: "Unverändert",
+  decode: "Dekodierbar",
+  format: "Format",
+  platform: "Plattformgrenzen",
+  rights: "Rechte",
+  voice: "Stimmrechte",
+  voice_overflow: "Sprechtext-Länge",
+  subtitles: "Untertitel",
+  subtitle_issue: "Lesbarkeit",
+  language: "Sprache",
+  loudness: "Lautheit",
+  true_peak: "Spitzenpegel",
+  silent: "Ton",
+  black: "Schwarzbild",
+  frozen: "Standbild",
+  measure: "Messung",
+  duplicate_exact: "Identische Datei",
+  duplicate_visual: "Ähnliches Video",
+  duplicate_scene: "Gleiche Szene",
+  ab_test: "A/B-Test",
+};
+
+function QualityBox({ variant: v }: { variant: VariantBrief }) {
+  const q = v.quality;
+  if (!q) return null;
+  const failed = q.checks.filter((c) => !c.passed);
+  return (
+    <div
+      className="quality-box"
+      aria-label={`Qualitätsprüfung ${v.language.toUpperCase()} ${v.label}`}
+    >
+      <p>
+        <Badge tone={q.passed ? "ok" : "danger"}>{q.passed ? "Freigegeben" : "Abgelehnt"}</Badge>{" "}
+        Qualitätswert <strong>{q.score?.toFixed(2) ?? "–"}</strong>
+        {q.min_score !== null && <span className="muted"> (Minimum {q.min_score.toFixed(2)})</span>}
+        {" · "}
+        {q.checks.length - failed.length} von {q.checks.length} Prüfungen bestanden
+      </p>
+      {q.reasons.length > 0 && (
+        <ul className="quality-reasons" aria-label={q.passed ? "Hinweise" : "Gründe"}>
+          {q.reasons.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      )}
+      <p className="muted">
+        {q.measured.lufs !== undefined && `Lautheit ${q.measured.lufs.toFixed(1)} LUFS · `}
+        {q.measured.true_peak !== undefined && `Spitze ${q.measured.true_peak.toFixed(1)} dBTP · `}
+        {q.checks
+          .filter((c) => c.passed && c.name !== "ab_test")
+          .map((c) => CHECK_LABELS[c.name] ?? c.name)
+          .join(", ")}{" "}
+        ✓
+      </p>
+      {q.checks
+        .filter((c) => c.name === "ab_test")
+        .map((c) => (
+          <p key={c.name} className="muted">
+            {c.detail}
+          </p>
+        ))}
+    </div>
+  );
+}
+
 function VariantScriptCard({ variant: v }: { variant: VariantBrief }) {
   if (!v.video_format) return null;
   const script = v.script;
@@ -449,6 +519,7 @@ function VariantScriptCard({ variant: v }: { variant: VariantBrief }) {
               {v.subtitle_issues.length > 0 && ` · Hinweise: ${v.subtitle_issues.join("; ")}`}
             </p>
           )}
+          {v.quality && <QualityBox variant={v} />}
           {v.final_video && (
             <video
               className="clip-preview"
