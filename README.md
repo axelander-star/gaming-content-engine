@@ -2,7 +2,7 @@
 
 Cloudbasiertes KI-System, das Gaming-Trends erkennt, rechtlich freigegebenes Gameplay zu eigenständigen Kurzvideos verarbeitet, diese auf Deutsch und Englisch auf YouTube Shorts, TikTok, Instagram Reels und Facebook Reels veröffentlicht und anhand der tatsächlichen Ergebnisse selbst entscheidet, wann und wie viel pro Kanal veröffentlicht wird.
 
-> **Status:** Phase 1 von 15 (Repository, Dokumentation, Architektur). Es gibt noch keinen lauffähigen Anwendungscode. Siehe [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
+> **Status:** Phase 2 von 15 abgeschlossen (Backend, Datenbank, Redis-Queue). Noch kein Dashboard und keine Agenten. Siehe [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
 
 ## Grundprinzipien
 
@@ -28,24 +28,26 @@ Cloudbasiertes KI-System, das Gaming-Trends erkennt, rechtlich freigegebenes Gam
 ## Projektstruktur
 
 ```
-backend/          FastAPI-Anwendung, Agenten, Services, Tests (ab Phase 2)
+backend/          FastAPI-Anwendung, Worker, Datenmodell, Tests (siehe backend/README.md)
 frontend/         Next.js-Dashboard (ab Phase 3)
 infrastructure/   Docker-, Caddy- und Monitoring-Konfiguration
 scripts/          Hilfs- und Prüfskripte
 docs/             Projektdokumentation
 ```
 
-## Schnellstart (Phase 1: nur Infrastruktur)
+## Schnellstart
 
-Voraussetzungen: Docker mit Compose-Plugin, Python 3.11+.
+Voraussetzungen: Docker mit Compose-Plugin.
 
 ```bash
 cp .env.example .env
 # In .env alle Werte "change-me" ersetzen (siehe Kommentare in der Datei)
-docker compose up -d            # PostgreSQL + Redis
-docker compose ps               # beide Dienste sollten "healthy" sein
-./scripts/verify_phase1.sh      # Strukturprüfung der Phase 1
+docker compose up -d --build    # PostgreSQL, Redis, Migration + Seed, Backend, Worker
+docker compose ps               # postgres/redis "healthy", migrate "exited (0)"
+curl http://127.0.0.1:8000/api/health/ready
 ```
+
+Prüfungen: `./scripts/verify_phase1.sh` (Struktur, Secrets, Compose) und `./scripts/test_backend.sh` (Lint, Typen, Tests; siehe [backend/README.md](backend/README.md)).
 
 Optionale Profile: `--profile proxy` (Caddy), `--profile workflow` (n8n), `--profile monitoring` (Uptime Kuma).
 

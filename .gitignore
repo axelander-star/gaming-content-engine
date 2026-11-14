@@ -57,3 +57,7 @@ backups/
 *.swp
 .DS_Store
 Thumbs.db
+
+# --- Redis-Laufzeitdateien ---
+dump.rdb
+appendonly.aof
