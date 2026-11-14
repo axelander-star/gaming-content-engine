@@ -26,7 +26,7 @@ router = APIRouter(prefix="/agents", tags=["agents"], dependencies=[Depends(csrf
 AgentStatus = Literal["not_available", "stopped", "paused", "running", "error", "ready"]
 
 #: Agents the operator may start by hand (they do not work on a single entity).
-MANUAL_RUN = {"master", "budget_cost"}
+MANUAL_RUN = {"master", "budget_cost", "trend_research", "game_intelligence"}
 
 
 class AgentOut(BaseModel):

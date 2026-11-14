@@ -45,7 +45,7 @@ Die Engine wird in 15 Phasen gebaut (Spezifikation Abschnitt 18). Jede Phase end
 
 **Abnahme:** Pipeline-Durchlauf mit Dummy-Agenten bis `READY_TO_PUBLISH`; pausierter Agent blockiert; Not-Aus stoppt alles.
 
-### Phase 5 – Trend Research und Game Intelligence
+### Phase 5 – Trend Research und Game Intelligence ✅
 
 - Adapter: YouTube Data API, Twitch Helix, Steam (jeweils Mock + Live)
 - Trend-Scoring (Wachstum, Volumen, Sprache, eigene Performance), Trendberichte

@@ -7,13 +7,13 @@ FastAPI-API, RQ-Worker und Datenmodell der Gaming Content Engine. Python 3.12+, 
 | Ordner | Inhalt |
 |---|---|
 | `app/` | Einstiegspunkte: `main.py` (API), `worker.py` (Queue-Worker), `scheduler.py` (Zeitsteuerung), `seed.py` (Basisdaten) |
-| `api/` | HTTP-Router: Health, Auth, Benutzer, Einstellungen, Kanäle, Übersicht, Agenten |
+| `api/` | HTTP-Router: Health, Auth, Benutzer, Einstellungen, Kanäle, Übersicht, Agenten, Trends |
 | `core/` | Konfiguration, Logging, Enums, Statusabläufe (`states.py`) |
 | `database/` | Engine/Session, Basisklassen, Alembic-Migrationen |
 | `models/` | SQLAlchemy-Modelle aller 27 Tabellen, nach Bereich gruppiert |
-| `services/` | Geschäftslogik: Statuswechsel (`workflow.py`), Gates, Orchestrator, Budget, Queue, Health, Seed |
+| `services/` | Geschäftslogik: Statuswechsel (`workflow.py`), Gates, Orchestrator, Budget, Trends, Trendquellen (`sources/`), Queue, Health, Seed |
 | `workflows/` | Queue-Jobs (Heartbeat); Agenten-Jobs: `services/orchestrator.run_agent_job` |
-| `agents/` | Basisklasse, Registry aller 18 Agenten, Master Orchestrator, Budget & Cost |
+| `agents/` | Basisklasse, Registry aller 18 Agenten, Master, Budget & Cost, Trend Research, Game Intelligence |
 | `tests/` | `unit/` ohne Abhängigkeiten, `integration/` gegen PostgreSQL + Redis |
 
 ## Lokal entwickeln
@@ -61,6 +61,9 @@ API-Dokumentation (nur außerhalb von Production): http://127.0.0.1:8000/api/doc
 | GET | `/api/agents/{name}/runs` | Letzte Läufe eines Agenten |
 | GET | `/api/agents/decisions` | Letzte Entscheidungen (optional `?agent=`) |
 | GET | `/api/agents/budget` | Budgetstand und -stufe des laufenden Monats |
+| GET | `/api/trends?language=de` | Aktuelle Trends je Sprache (Score, Wachstum, Zielgruppe, Quellen) |
+| GET | `/api/trends/report?language=de` | Neuester Trendbericht |
+| GET | `/api/games`, `/api/games/{id}` | Spiele mit Profil (Zielgruppe, Modi, Videoideen) |
 
 Alle Endpunkte außer Health und Login brauchen eine Sitzung. Schreibende Anfragen brauchen zusätzlich den Header `X-CSRF-Token` mit dem Wert des Cookies `gce_csrf`.
 

@@ -68,6 +68,18 @@ class Settings(BaseSettings):
     master_batch_size: int = Field(default=25, ge=1, le=1000)
     agent_max_retries: int = Field(default=3, ge=0, le=20)
     agent_retry_base_delay_s: int = Field(default=300, ge=0)
+    trend_research_seconds: int = Field(default=6 * 3600, ge=300)
+    game_intelligence_seconds: int = Field(default=24 * 3600, ge=300)
+
+    # --- Trend sources (Phase 5). "mock" needs no keys and makes no network calls. ---
+    trend_sources_mode: Literal["mock", "live"] = "mock"
+    youtube_api_key: SecretStr = SecretStr("")
+    youtube_daily_quota_units: int = Field(default=2000, ge=0)  # own cap below Google's quota
+    twitch_client_id: str = ""
+    twitch_client_secret: SecretStr = SecretStr("")
+    twitch_max_requests_per_run: int = Field(default=20, ge=0)
+    steam_max_requests_per_run: int = Field(default=30, ge=0)
+    http_timeout_s: float = Field(default=10.0, gt=0)
 
     @property
     def database_url(self) -> str:
