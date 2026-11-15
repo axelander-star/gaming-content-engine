@@ -1002,3 +1002,49 @@ export interface Idea {
   planned_for: string | null;
   decided_at: string | null;
 }
+
+// --- editorial calendar (E6) ---
+
+export interface CalendarEntry {
+  id: number;
+  project_id: number;
+  project: string;
+  note: string | null;
+}
+
+export interface CalendarVideo {
+  job_id: number;
+  variant_id: number;
+  title: string;
+  channel: string;
+  project_id: number;
+  at: string;
+  status: "scheduled" | "running" | "succeeded" | "failed" | "cancelled";
+  is_mock: boolean;
+}
+
+export interface CalendarDay {
+  day: string;
+  weekday: string;
+  is_today: boolean;
+  entries: CalendarEntry[];
+  videos: CalendarVideo[];
+}
+
+export interface CalendarFocus {
+  id: number;
+  project_id: number;
+  project: string;
+  topic: string;
+  starts_on: string;
+  ends_on: string;
+  note: string | null;
+}
+
+export interface Calendar {
+  start: string;
+  end: string;
+  today: string;
+  days: CalendarDay[];
+  focus: CalendarFocus[];
+}

@@ -39,7 +39,7 @@ from core.enums import (
 from models.channels import Channel
 from models.production import Variant
 from models.publishing import PublishingJob, StrategyVersion
-from services import gates, learning, strategy, workflow
+from services import gates, learning, planning, strategy, workflow
 from services.controls import effective_controls, get_operations
 
 ACTIVE_JOBS = (
@@ -103,6 +103,9 @@ class PublishingStrategyAgent(Agent):
         amount = 0 if bounds.paused else min(version.posts_per_day, bounds.upper)
 
         block = publish_block(s, settings, channel)
+        if block is None:
+            # The editorial plan decides which topic area posts on a day, never how much.
+            block = planning.day_block(s, today, channel.content_project_id)
         minimum = get_operations(s).min_quality_score
         start, end = _day(today, tz)
         jobs = list(
@@ -290,6 +293,7 @@ class PublishingStrategyAgent(Agent):
             .limit(200)
         ).all()
         games = strategy.games_for_clips(s, [v.clip_id for v in rows])
+        focus = planning.focus_topics(s, today, channel.content_project_id)
         for v in rows:
             if (v.quality_score or 0.0) < minimum:
                 held.append({"variant_id": v.id, "reason": "Qualitätswert unter Minimum"})
@@ -312,6 +316,7 @@ class PublishingStrategyAgent(Agent):
                     video_format=v.video_format,
                     hook_type=v.hook_type,
                     experiment=bool((v.concept or {}).get("experiment")),
+                    focus=_focus_match(focus, games.get(v.clip_id), v.title),
                 )
             )
         chosen = strategy.choose(candidates, slots, groups)
@@ -367,6 +372,12 @@ class PublishingStrategyAgent(Agent):
         rest = [c for c in candidates if c.variant_id not in chosen_ids]
         held += [{"variant_id": c.variant_id, "reason": "Tagesmenge erreicht"} for c in rest]
         return planned, held
+
+
+def _focus_match(topics: list[str], *texts: str | None) -> str | None:
+    """First focus topic that appears in the game name or the video title."""
+    folded = " ".join(planning._norm(t) for t in texts if t)
+    return next((t for t in topics if t and planning._norm(t) in folded), None)
 
 
 def _now(payload: dict[str, Any]) -> datetime:

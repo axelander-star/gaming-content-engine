@@ -33,6 +33,9 @@ import type {
   AIStatus,
   AIUsage,
   AITestResult,
+  Calendar,
+  CalendarEntry,
+  CalendarFocus,
   ChatAction,
   Idea,
   IdeaStatus,
@@ -187,6 +190,24 @@ export const api = {
     request<Idea>(`/ideas/${id}/accept`, { method: "POST", body: json({ day }) }),
   rejectIdea: (id: number) => request<Idea>(`/ideas/${id}/reject`, { method: "POST" }),
   reopenIdea: (id: number) => request<Idea>(`/ideas/${id}/reopen`, { method: "POST" }),
+
+  calendar: (start: string, end: string, projectId?: number) =>
+    request<Calendar>(
+      `/planning/calendar?start=${start}&end=${end}${projectId ? `&project_id=${projectId}` : ""}`,
+    ),
+  addPlanDay: (body: { day: string; project_id: number; note?: string | null }) =>
+    request<CalendarEntry>("/planning/days", { method: "POST", body: json(body) }),
+  updatePlanDay: (id: number, changes: { day?: string; note?: string | null }) =>
+    request<CalendarEntry>(`/planning/days/${id}`, { method: "PATCH", body: json(changes) }),
+  deletePlanDay: (id: number) => request<void>(`/planning/days/${id}`, { method: "DELETE" }),
+  addFocus: (body: {
+    project_id: number;
+    topic: string;
+    starts_on: string;
+    ends_on: string;
+    note?: string | null;
+  }) => request<CalendarFocus>("/planning/focus", { method: "POST", body: json(body) }),
+  deleteFocus: (id: number) => request<void>(`/planning/focus/${id}`, { method: "DELETE" }),
 
   settings: () => request<SettingsResponse>("/settings"),
   updateControls: (

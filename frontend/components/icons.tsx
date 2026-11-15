@@ -25,7 +25,8 @@ export type IconName =
   | "sun"
   | "moon"
   | "chat"
-  | "bulb";
+  | "bulb"
+  | "calendar";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -136,6 +137,12 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   moon: <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />,
   chat: <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />,
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+    </>
+  ),
   bulb: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" />,
 };
 

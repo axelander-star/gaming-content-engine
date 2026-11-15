@@ -349,6 +349,10 @@ def decide_amount(
     return Decision(target, target - (previous if previous is not None else target), reasons)
 
 
+#: Priority bonus for videos matching a focus topic of the editorial plan (E6).
+FOCUS_BONUS = 0.1
+
+
 # --- selection and timing ---------------------------------------------------------
 
 
@@ -362,6 +366,8 @@ class Candidate:
     video_format: str | None = None
     hook_type: str | None = None
     experiment: bool = False
+    #: Focus topic of the editorial plan this video matches (extension E6).
+    focus: str | None = None
 
 
 def group_scores(posts: Sequence[PostPerf], assessment: Assessment) -> dict[str, dict[str, float]]:
@@ -394,6 +400,9 @@ def priority(c: Candidate, groups: dict[str, dict[str, float]]) -> tuple[float, 
         value += bonus
         if abs(bonus) >= 0.03:
             notes.append(f"{kind} {key} {rel:.2f}×")
+    if c.focus:
+        value += FOCUS_BONUS
+        notes.append(f"Schwerpunkt {c.focus}")
     return round(value, 3), notes
 
 
