@@ -6,22 +6,53 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { Icon } from "@/components/icons";
+import type { IconName } from "@/components/icons";
 import { api } from "@/lib/api";
 import { onEmergencyStop } from "@/lib/events";
 import { ROLE_LABELS } from "@/lib/roles";
+import { readTheme, setTheme } from "@/lib/theme";
+import type { Theme } from "@/lib/theme";
 
-const NAV = [
-  { href: "/", label: "Übersicht" },
-  { href: "/themenbereiche", label: "Themenbereiche" },
-  { href: "/agenten", label: "Agenten" },
-  { href: "/rechte", label: "Rechte" },
-  { href: "/produktion", label: "Videoproduktion" },
-  { href: "/publishing", label: "Publishing" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/kosten", label: "Kosten" },
-  { href: "/system", label: "System" },
-  { href: "/einstellungen", label: "Einstellungen" },
-] as const;
+interface NavItem {
+  href: string;
+  label: string;
+  icon: IconName;
+}
+
+/** Navigation groups. Later phases add their pages here once they exist. */
+const NAV: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Steuerung",
+    items: [
+      { href: "/", label: "Übersicht", icon: "home" },
+      { href: "/themenbereiche", label: "Themenbereiche", icon: "layers" },
+    ],
+  },
+  {
+    title: "Engine",
+    items: [
+      { href: "/agenten", label: "Agenten", icon: "bot" },
+      { href: "/rechte", label: "Rechte", icon: "shield" },
+      { href: "/produktion", label: "Videoproduktion", icon: "film" },
+      { href: "/publishing", label: "Publishing", icon: "send" },
+      { href: "/analytics", label: "Analytics", icon: "chart" },
+      { href: "/kosten", label: "Kosten", icon: "coins" },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { href: "/system", label: "System", icon: "server" },
+      { href: "/einstellungen", label: "Einstellungen", icon: "settings" },
+    ],
+  },
+];
+
+function initials(name: string): string {
+  const parts = name.split(/[\s@._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+}
 
 /** Layout for every signed-in page: sidebar, header, emergency-stop banner. */
 export function AppShell({ children }: { children: ReactNode }) {
@@ -29,6 +60,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [emergency, setEmergency] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setThemeState] = useState<Theme>("dark");
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -43,35 +76,106 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [user, pathname]);
 
   useEffect(() => onEmergencyStop(setEmergency), []);
+  useEffect(() => setThemeState(readTheme()), []);
+  useEffect(() => setMenuOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   if (loading || !user) {
     return <div className="center-screen muted">Lade …</div>;
   }
 
+  const name = user.display_name ?? user.email;
+  const toggleTheme = () => {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    setThemeState(next);
+  };
+
   return (
-    <div className="shell">
-      <aside className="sidebar">
+    <div className={`shell ${menuOpen ? "menu-open" : ""}`}>
+      <aside className="sidebar" id="sidebar">
         <div className="brand">
-          Gaming Content <span>Engine</span>
+          <span className="brand-mark" aria-hidden="true">
+            CE
+          </span>
+          <span>
+            Content <span className="brand-accent">Engine</span>
+          </span>
         </div>
         <nav aria-label="Hauptnavigation">
-          {NAV.map((item) => {
-            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-            return (
-              <Link key={item.href} href={item.href} className={active ? "active" : undefined}>
-                {item.label}
-              </Link>
-            );
-          })}
+          {NAV.map((group) => (
+            <div className="nav-group" key={group.title}>
+              <div className="nav-group-title">{group.title}</div>
+              {group.items.map((item) => {
+                const active =
+                  item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={active ? "active" : undefined}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon name={item.icon} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
+        <div className="sidebar-foot">
+          <span className="avatar" aria-hidden="true">
+            {initials(name)}
+          </span>
+          <span className="sidebar-user">
+            <span className="sidebar-user-name">{name}</span>
+            <span className="sidebar-user-role">{ROLE_LABELS[user.role]}</span>
+          </span>
+        </div>
       </aside>
+      {menuOpen && (
+        <button
+          type="button"
+          className="scrim"
+          aria-label="Menü schließen"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
       <div className="main">
         <header className="topbar">
-          <div />
+          <button
+            type="button"
+            className="icon-btn menu-btn"
+            aria-label={menuOpen ? "Menü schließen" : "Menü öffnen"}
+            aria-expanded={menuOpen}
+            aria-controls="sidebar"
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <Icon name={menuOpen ? "close" : "menu"} />
+          </button>
+          <div className="topbar-spacer" />
           <div className="topbar-user">
-            <span>
-              {user.display_name ?? user.email} · {ROLE_LABELS[user.role]}
+            <span className="topbar-name">
+              {name} · {ROLE_LABELS[user.role]}
             </span>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={theme === "dark" ? "Helles Design" : "Dunkles Design"}
+              title={theme === "dark" ? "Helles Design" : "Dunkles Design"}
+              onClick={toggleTheme}
+            >
+              <Icon name={theme === "dark" ? "sun" : "moon"} />
+            </button>
             <button type="button" className="btn btn-ghost" onClick={() => void logout()}>
               Abmelden
             </button>

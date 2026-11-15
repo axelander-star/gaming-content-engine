@@ -44,7 +44,7 @@ export default function LoginPage() {
     <div className="center-screen">
       <form className="card login" onSubmit={onSubmit}>
         <h1>
-          Gaming Content <span>Engine</span>
+          Content <span>Engine</span>
         </h1>
         <p className="muted">Bitte anmelden.</p>
         <label>

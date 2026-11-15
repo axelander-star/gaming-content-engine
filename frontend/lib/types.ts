@@ -70,6 +70,86 @@ export interface Overview {
   controls: EffectiveControls;
 }
 
+export type DashboardStateKey =
+  | "draft"
+  | "in_progress"
+  | "ready"
+  | "scheduled"
+  | "uploading"
+  | "published"
+  | "failed";
+
+export type PlatformConnection =
+  | "not_connected"
+  | "restricted"
+  | "connected"
+  | "expired"
+  | "data_source_mock"
+  | "data_source_ok"
+  | "data_source_error";
+
+export interface PlatformTile {
+  code: PlatformCode | "twitch";
+  name: string;
+  can_publish: boolean;
+  note: string;
+  connection: PlatformConnection;
+  channels: number;
+  channels_connected: number;
+  published: number;
+  test_posts: number;
+  last_published_at: string | null;
+  open_jobs: number;
+  failed_jobs: number;
+}
+
+export interface DashboardRecentPost {
+  id: number;
+  title: string | null;
+  platform: PlatformCode;
+  channel: string;
+  content_project: string;
+  published_at: string | null;
+  url: string | null;
+  is_mock: boolean;
+}
+
+export interface DashboardFailure {
+  kind: "publishing" | "video";
+  id: number;
+  title: string | null;
+  platform: PlatformCode | null;
+  channel: string | null;
+  error: string | null;
+  at: string;
+}
+
+export interface DashboardActivity {
+  at: string;
+  kind: "audit" | "agent";
+  action: string;
+  actor: string | null;
+  entity_type: string | null;
+  entity_id: number | null;
+  status_before: string | null;
+  status_after: string | null;
+  message: string | null;
+}
+
+export interface Dashboard {
+  videos_total: number;
+  published: number;
+  scheduled: number;
+  unpublished: number;
+  failed: number;
+  states: { key: DashboardStateKey; count: number }[];
+  platforms: PlatformTile[];
+  recent_posts: DashboardRecentPost[];
+  failures: DashboardFailure[];
+  activity: DashboardActivity[];
+  controls: EffectiveControls;
+}
+
 export interface Readiness {
   status: "ok" | "degraded";
   database: boolean;

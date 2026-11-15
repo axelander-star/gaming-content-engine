@@ -49,7 +49,12 @@ try {
     await page.getByRole("button", { name: "Anmelden" }).click();
     await page.getByRole("heading", { name: "Übersicht" }).waitFor();
     await page.getByText("0 / 8").waitFor();
-    await page.getByText("Bereit").waitFor();
+    await page.getByText("Bereit", { exact: true }).waitFor();
+    for (const name of ["YouTube", "Twitch", "Instagram", "TikTok"]) {
+      await page.getByRole("article", { name }).waitFor();
+    }
+    await page.getByText("Videos können nicht zu Twitch hochgeladen werden.").waitFor();
+    await page.getByRole("heading", { name: "Status aller Videos" }).waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/overview.png`, fullPage: true });
   });
 
