@@ -33,6 +33,7 @@ export interface OperationsSettings {
   languages: Language[];
   platforms: PlatformCode[];
   ai_provider: string;
+  ai_monthly_cap_usd: number;
   creative_variants: number;
   tts_provider: string;
   notifications_enabled: boolean;
@@ -819,4 +820,68 @@ export interface ChannelInput {
   language: Language;
   name: string;
   content_project_id: number;
+}
+
+// --- AI layer (extension E3) -------------------------------------------------
+
+export type AICallStatus = "reserved" | "succeeded" | "refused" | "failed" | "blocked";
+
+export interface AIStatus {
+  provider: string;
+  live: boolean;
+  reason: string | null;
+  key_configured: boolean;
+  paid_calls_enabled: boolean;
+  cap_usd: string;
+  cap_max_usd: string;
+  spent_usd: string;
+  reserved_usd: string;
+  remaining_usd: string;
+  used_pct: number;
+  model_text: string;
+  model_reasoning: string;
+  prices: Record<string, { input: string; output: string }>;
+  calls_this_month: number;
+  blocked_this_month: number;
+}
+
+export interface AIUsageGroup {
+  key: string;
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: string;
+}
+
+export interface AICall {
+  id: number;
+  created_at: string;
+  purpose: string;
+  tier: "text" | "reasoning";
+  provider: string;
+  model: string;
+  status: AICallStatus;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: string;
+  estimated_usd: string;
+  duration_ms: number | null;
+  error: string | null;
+  content_project: string | null;
+}
+
+export interface AIUsage {
+  by_purpose: AIUsageGroup[];
+  by_model: AIUsageGroup[];
+  recent: AICall[];
+}
+
+export interface AITestResult {
+  text: string;
+  provider: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: string;
+  call_id: number;
 }

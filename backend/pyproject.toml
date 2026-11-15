@@ -22,6 +22,7 @@ dependencies = [
     "opencv-python-headless>=4.10,<5",
     "scenedetect>=0.6.4,<0.7",
     "cryptography>=50,<51",  # 46.x has known advisories (pip-audit, Phase 15)
+    "anthropic>=2.8,<3",  # Claude API (extension phase E3); used only in live AI mode
 ]
 
 [project.optional-dependencies]

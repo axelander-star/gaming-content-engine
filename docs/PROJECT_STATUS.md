@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase 2 (Dashboard im Dark Mode) abgeschlossen · **Nächster Schritt:** Erweiterung Phase 3 (KI-Schicht: Mock/Claude, Budget, Kostenbuchung) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase 3 (KI-Schicht) abgeschlossen · **Nächster Schritt:** Erweiterung Phase 4 (Chat-Assistent mit Aktionen) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -36,7 +36,7 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 |---|---|---|
 | E1 | Themenbereiche, Kanalzuordnung, harte Sperre gegen falschen Kanal | ✅ abgeschlossen |
 | E2 | Dashboard-Neugestaltung (Dark Mode, Navigation, Startseite) | ✅ abgeschlossen |
-| E3 | KI-Schicht (Mock/Claude, Budget, Kostenbuchung) | offen |
+| E3 | KI-Schicht (Mock/Claude, Budget, Kostenbuchung) | ✅ abgeschlossen |
 | E4 | Chat-Assistent mit Aktionen | offen |
 | E5 | Recherche und Ideenlabor | offen |
 | E6 | Redaktionsplan und Kalender | offen |
@@ -44,6 +44,47 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | offen |
 | E9 | Tests, Sicherheitsprüfung, Doku | offen |
 | E10 | Vorbereitung Hetzner | offen |
+
+### Phase E3 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **KI-Schicht** (`services/ai.py`): ein Einstieg für alle KI-Aufrufe mit zwei Stufen. „Kurze Texte“ (Titel, Beschreibungen, Hooks) laufen über Claude Haiku 5.5, „Chat, Ideen, Planung“ über Claude Sonnet 5.5. Beide Modelle sind per Umgebungsvariable austauschbar.
+- **Zwei Anbieter:** „Test (Mock)“ ist Standard, ohne Netz und ohne Kosten; spätere Phasen liefern dafür passende Beispieldaten. „Claude“ nutzt das offizielle SDK `anthropic` und ruft nur auf, wenn alles zutrifft: Anbieter „Claude“ gewählt, API-Schlüssel auf dem Server, `PAID_API_CALLS_ENABLED=true`, kein Not-Aus, Euro-Budget frei. Fehlt etwas, wird der Aufruf blockiert und protokolliert, nie still durch Testdaten ersetzt.
+- **Harte Monatsgrenze 20 $:** Vor jedem echten Aufruf wird der ungünstigste Preis (geschätzter Prompt plus alle erlaubten Ausgabe-Tokens) unter einer Datenbanksperre reserviert. Passt er nicht mehr unter die Grenze, wird nichts gesendet. Danach ersetzt der echte Verbrauch die Reservierung. Hängen gebliebene Reservierungen (Absturz) werden nach 30 Minuten mit dem reservierten Betrag abgeschlossen, damit die Grenze nie zu niedrig rechnet. Im Dashboard lässt sich die Grenze nur senken, nie über `AI_MONTHLY_CAP_USD_MAX` (20 $) heben.
+- **Kostenbuchung:** jeder Aufruf (auch Mock und blockierte) als Zeile in `ai_calls` mit Zweck, Modell, Tokens, Kosten in Dollar und Themenbereich; echte Kosten zusätzlich in Euro in `costs` (Kategorie KI) und damit im Monatsbudget.
+- **Sicherungen bei Claude:** kurzer Aufwand (`effort=low`) als Standard, Obergrenzen für Prompt (60.000 Zeichen) und Antwort (16.000 Tokens), Ablehnungen werden erkannt und gebucht; bei Sonnet 5.5 springt bei einer Sicherheitsablehnung automatisch Sonnet 5 zum gleichen Preis ein.
+- **API:** `GET /api/ai/status`, `GET /api/ai/usage`, `POST /api/ai/test` (nur Admin). Einstellung `ai_monthly_cap_usd` in den Betriebseinstellungen; der KI-Anbieter ist dort jetzt wählbar.
+- **Dashboard:** neuer Bereich „KI-Nutzung (Claude)“ auf der Kostenseite (Modus, Verbrauch gegen die Grenze, Modelle mit Preisen, Schlüssel- und Freigabestatus, Verbrauch nach Zweck, letzte Aufrufe, Testaufruf). Unter Einstellungen Auswahl des Anbieters und Feld für die Monatsgrenze.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/services/ai.py`, `backend/models/ai.py`, `backend/api/ai.py`, Migration `7edd378c8370_ai_calls`, `backend/tests/integration/test_ai.py`, `frontend/dashboard/AIUsagePanel.tsx`
+- Geändert: `backend/core/{config,enums}.py`, `backend/models/__init__.py`, `backend/services/controls.py`, `backend/api/settings.py`, `backend/app/main.py`, `backend/pyproject.toml` (Abhängigkeit `anthropic`), `backend/tests/integration/test_auth.py`, `.env.example`, `frontend/lib/{api,types}.ts`, `frontend/dashboard/{CostsView,OperationsForm}.tsx`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, `docs/{PROJECT_STATUS,API_INTEGRATIONS}.md`
+
+**3. Durchgeführte Tests**
+
+- 21 neue Tests mit einem nachgebauten Claude-Client (kein echter Aufruf): Preisrechnung inkl. Haiku über 100.000 Tokens, Mock ist Standard und kostenlos, Mock-Daten des Aufrufers, Grenzen für Prompt und Antwort, Blockade ohne Schlüssel, ohne Freigabe, bei Not-Aus und bei leerem Euro-Budget, echter Aufruf wird gebucht (Dollar und Euro), Sonnet mit Rückfallmodell, Ablehnung, API-Fehler ohne Kosten, Grenze nie über Server-Maximum, Aufruf über der Grenze wird nicht gesendet, Verbrauch plus Reservierung zählen, alte Reservierungen, API (Status, Verbrauch, Testaufruf, 409 ohne Schlüssel, Grenze über Maximum abgelehnt, Rollen)
+- `alembic upgrade`, `downgrade -1`, erneut `upgrade`, `alembic check`
+- `scripts/test_backend.sh`, Frontend `typecheck`, `build`, E2E mit neuem Schritt „KI-Schicht“, `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 423 Backend-Tests bestanden; ruff, mypy und `alembic check` ohne Befund
+- E2E: 21 Schritte bestanden
+- `verify_phase1.sh`: 69 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- Es wurde **kein echter Claude-Aufruf** gemacht; das passiert erst, wenn der Betreiber einen API-Schlüssel hinterlegt und kostenpflichtige Aufrufe freigibt. Empfehlung: in der Anthropic-Konsole zusätzlich ein Ausgabenlimit von 20 $ setzen (zweite Sicherung).
+- Die Kostenschätzung vor dem Aufruf ist bewusst grob (3 Zeichen je Token); sie rechnet eher zu hoch.
+- Der Script & Hook Agent nutzt weiter die Vorlagen; bei Auswahl „Claude“ meldet er „nicht angebunden“ und bleibt bei der Vorlage. Die KI-Texte für Videos werden mit der Eigenproduktion (E7) über die neue Schicht angebunden.
+- Preise sind Stand 03.11.2026 und im Code hinterlegt; vor der Freischaltung gegen die aktuelle Preisliste prüfen.
+- Behoben nebenbei: Der Test „manipuliertes Token“ setzte das Cookie doppelt; mit der neuen HTTP-Bibliothek `httpx2` (kommt mit dem SDK) wurde dabei das gültige Cookie mitgeschickt.
+
+**6. Nächster Schritt**
+
+Phase E4: Chat-Assistent, der den Plan per natürlicher Sprache ändert („diese Woche GTA 6“, „Mittwoch Ernährung“), mit Aktionskarten, Rückgängig und Verlauf; im Mock-Modus mit festen Beispielantworten.
 
 ### Phase E2 – Bericht
 

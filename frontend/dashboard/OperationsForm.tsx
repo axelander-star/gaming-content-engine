@@ -24,6 +24,12 @@ const FIELDS: { key: NumericKey; label: string; step: number; min: number; max?:
   },
   { key: "min_quality_score", label: "Mindestqualität (0–1)", step: 0.05, min: 0, max: 1 },
   {
+    key: "ai_monthly_cap_usd",
+    label: "KI-Monatsgrenze ($, höchstens Server-Maximum)",
+    step: 1,
+    min: 0,
+  },
+  {
     key: "min_publish_interval_minutes",
     label: "Mindestabstand zwischen Veröffentlichungen (Min.)",
     step: 5,
@@ -49,7 +55,10 @@ export function OperationsForm({
     setError(null);
     setSaved(false);
     try {
-      const changes = Object.fromEntries(FIELDS.map((f) => [f.key, values[f.key]]));
+      const changes: Partial<OperationsSettings> = {
+        ...Object.fromEntries(FIELDS.map((f) => [f.key, values[f.key]])),
+        ai_provider: values.ai_provider,
+      };
       setValues(await api.updateOperations(changes));
       setSaved(true);
     } catch (err) {
@@ -78,7 +87,14 @@ export function OperationsForm({
         ))}
         <label>
           KI-Anbieter
-          <input value={values.ai_provider} disabled />
+          <select
+            value={values.ai_provider === "claude" ? "claude" : "mock"}
+            disabled={!editable}
+            onChange={(e) => setValues({ ...values, ai_provider: e.target.value })}
+          >
+            <option value="mock">Test (Mock, kostenlos)</option>
+            <option value="claude">Claude (kostenpflichtig)</option>
+          </select>
         </label>
         <label>
           TTS-Anbieter
@@ -96,8 +112,9 @@ export function OperationsForm({
         </div>
       </form>
       <p className="muted small">
-        KI- und TTS-Anbieter werden erst nach Preisprüfung und Freigabe gewählt (Phase 8/9). Bis
-        dahin laufen alle Dienste als Mock.
+        „Claude“ ruft die KI nur auf, wenn zusätzlich auf dem Server ein API-Schlüssel hinterlegt
+        und kostenpflichtige Aufrufe freigegeben sind; die Monatsgrenze gilt immer. Status und
+        Verbrauch stehen unter Kosten. Die Sprachausgabe bleibt bis zur Freigabe ein Mock.
       </p>
       <ErrorText error={error} />
     </Section>

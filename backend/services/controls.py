@@ -47,7 +47,11 @@ class OperationsSettings(BaseModel):
     min_publish_interval_minutes: int = Field(default=60, ge=0, le=7 * 24 * 60)
     languages: list[Language] = Field(default_factory=lambda: [Language.DE, Language.EN])
     platforms: list[PlatformCode] = Field(default_factory=lambda: list(PlatformCode))
+    #: ``mock`` (no cost) or ``claude`` (live, see services/ai.py for all conditions);
+    #: the AI layer treats any other value as ``mock``.
     ai_provider: str = Field(default="mock", max_length=64)
+    #: Monthly cap for AI calls in US dollars; never above AI_MONTHLY_CAP_USD_MAX.
+    ai_monthly_cap_usd: float = Field(default=20.0, ge=0, le=1000)
     #: Creative variants (A–D) per clip and channel; each one differs in hook or format.
     creative_variants: int = Field(default=2, ge=1, le=4)
     tts_provider: str = Field(default="mock", max_length=64)

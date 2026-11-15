@@ -30,6 +30,9 @@ import type {
   OperationsSettings,
   Overview,
   Dashboard,
+  AIStatus,
+  AIUsage,
+  AITestResult,
   PolicyStatus,
   PublisherPolicy,
   Readiness,
@@ -135,6 +138,11 @@ export const api = {
   readiness: () => request<Readiness>("/health/ready"),
   overview: () => request<Overview>("/overview"),
   dashboard: () => request<Dashboard>("/overview/dashboard"),
+
+  aiStatus: () => request<AIStatus>("/ai/status"),
+  aiUsage: (limit = 20) => request<AIUsage>(`/ai/usage?limit=${limit}`),
+  aiTest: (prompt: string, tier: "text" | "reasoning") =>
+    request<AITestResult>("/ai/test", { method: "POST", body: json({ prompt, tier }) }),
 
   settings: () => request<SettingsResponse>("/settings"),
   updateControls: (

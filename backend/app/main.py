@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from redis.exceptions import RedisError
 
 from api.agents import router as agents_router
+from api.ai import router as ai_router
 from api.analytics import router as analytics_router
 from api.auth import router as auth_router
 from api.channels import oauth_router
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
         system_router,
         uploads_router,
         projects_router,
+        ai_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 

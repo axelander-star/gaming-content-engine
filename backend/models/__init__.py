@@ -1,6 +1,7 @@
 """ORM models. Importing this package registers every table on ``Base.metadata``."""
 
 from models.access import AuditLog, Notification, SystemSetting, User
+from models.ai import AICall
 from models.analytics import AnalyticsSnapshot, LearningVersion, Metric
 from models.channels import Channel, ChannelCredential, Platform
 from models.control import AgentDecision, AgentRun, AgentState, Cost
@@ -29,6 +30,7 @@ from models.trends import Game, Trend, TrendReport
 from models.uploads import UploadSession
 
 __all__ = [
+    "AICall",
     "AgentDecision",
     "AgentRun",
     "AgentState",
