@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase 3 (KI-Schicht) abgeschlossen · **Nächster Schritt:** Erweiterung Phase 4 (Chat-Assistent mit Aktionen) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E7 (Mediathek und Eigenproduktion) abgeschlossen · **Nächster Schritt:** Erweiterung Phase E8 (Freigabecenter und Plattformen) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -40,10 +40,60 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E4 | Chat-Assistent mit Aktionen | ✅ abgeschlossen |
 | E5 | Recherche und Ideenlabor | ✅ abgeschlossen |
 | E6 | Redaktionsplan und Kalender | ✅ abgeschlossen |
-| E7 | Mediathek und Eigenproduktion | offen |
+| E7 | Mediathek und Eigenproduktion | ✅ abgeschlossen |
 | E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | offen |
 | E9 | Tests, Sicherheitsprüfung, Doku | offen |
 | E10 | Vorbereitung Hetzner | offen |
+
+### Phase E7 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **Mediathek** (`library_items`, neue Seite unter Steuerung): eigene Videos (MP4, MOV, MKV), Bilder (PNG, JPEG, WebP) und Ton (MP3, WAV, M4A) je Themenbereich. Upload über den fortsetzbaren Upload (Verbraucher `library`) mit **Pflichtbestätigung „eigene Aufnahme“** je Datei; Bestätigungstext, Person und Zeit werden gespeichert. Die Datei wird geprüft (Länge, Auflösung, Bildrate, Format, lesbar) und inhaltsadressiert abgelegt; dieselbe Datei kann je Bereich nur einmal vorkommen.
+- **Original bleibt, 9:16 kommt dazu:** Der neue Agent *Media Library* (Nr. 21) erzeugt Vorschaubild und Hochformat-Fassung (Video 1080×1920 bzw. 720×1280 mit unscharfem Hintergrund, Bild als 9:16-JPEG). Schon senkrechte H.264-Videos verwenden das Original; Videos über 3 Minuten behalten nur das Original (die Produktion schneidet daraus). Archivieren und Zurückholen statt Löschen; ein Bild, das ein offener Entwurf nutzt, lässt sich nicht archivieren.
+- **Eigenproduktion ohne fremdes Video** (`own_productions`, neue Seite): Skript aus einer übernommenen Idee oder einem Thema über die KI-Schicht (Sonnet, im Mock ein festes Testskript), danach jeder Abschnitt änderbar (Überschrift, Sprechtext, Bild, Reihenfolge). Der neue Agent *Own Production* (Nr. 22) macht daraus: Stimme je Abschnitt → Zeitplan → Bild-/Textvideo (eigene Bilder aus der Mediathek **nur desselben Bereichs** oder Farbflächen, Überschrift oben) → Untertitel unten im sicheren Bereich, eingebrannt plus SRT/WebVTT → Video 1080×1920 H.264/AAC in der Mediathek als „selbst erzeugt“ mit Herkunftsnachweis.
+- **Stimme:** Standard bleibt die stumme, kostenlose Teststimme. Nur Anbieter mit Freigabe für kommerzielle Nutzung werden angenommen; bezahlte Stimmen fragen vorher das Budget und werden gebucht. Eine echte Stimme (z. B. Piper lokal oder ein bezahlter Dienst) ist noch nicht eingebaut, siehe Punkt 5.
+- **API:** `GET /api/library`, `GET/PATCH /api/library/{id}`, `GET /api/library/{id}/file?which=original|rendition|thumb`, `POST /api/library/{id}/archive|restore|reprocess`, `GET /api/library/info`; `GET/POST /api/productions`, `GET/PATCH/DELETE /api/productions/{id}`, `POST /api/productions/{id}/render`, `GET /api/productions/{id}/subtitles?fmt=srt|vtt`.
+
+**Gemessene Renderzeiten** (lokal, 4 Kerne, ähnlich Hetzner CX33):
+
+| Aufgabe | Dauer | Faktor |
+|---|---|---|
+| 9:16-Fassung eines 30-s-Videos 1080p (unscharfer Hintergrund) | 23–24 s | 1,3× Echtzeit |
+| Eigenproduktion 39 s, 6 Abschnitte, 3 mit Bild, Untertitel | 19–20 s | 2× Echtzeit |
+| Eigenproduktion 15,5 s im E2E-Test | 6,6 s | 2,4× Echtzeit |
+
+Die Voreinstellung `RENDER_PRESET` ändert daran kaum etwas (ultrafast bis medium ±1 s); die Zeit steckt in Skalierung, Unschärfe und Untertiteln.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/models/library.py`, `backend/services/{library,own_production}.py`, `backend/agents/library.py`, `backend/api/library.py`, Migration `5487266eb759_media_library_and_own_production`, `backend/tests/integration/test_library.py`, `frontend/dashboard/{LibraryView,OwnProductionView}.tsx`, `frontend/app/(dashboard)/{mediathek,eigenproduktion}/page.tsx`
+- Geändert: `backend/agents/registry.py`, `backend/services/{uploads,render,orchestrator}.py`, `backend/api/uploads.py`, `backend/app/{main,scheduler}.py`, `backend/core/{config,enums}.py`, `backend/models/__init__.py`, Agenten-Tests (jetzt 22 Agenten), `.env.example`, `frontend/lib/{api,types}.ts`, `frontend/components/{AppShell,icons}.tsx`, `frontend/dashboard/AgentsView.tsx`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, `docs/{PROJECT_STATUS,AGENTS,UPLOADS}.md`
+
+**3. Durchgeführte Tests**
+
+- 13 neue Tests mit echten, selbst erzeugten Testvideos und -bildern: Querformat-Upload → Original unverändert (SHA-256), 9:16-Fassung 720×1280, Vorschau, Dateiabruf; senkrechtes Video nutzt das Original; langes Video nur Original; Bild → 1080×1920; Upload ohne Bestätigung, für unbekannten Bereich oder mit falschem Typ abgelehnt; Dublette je Bereich, aber erlaubt in anderem Bereich; kaputte Datei; Rollen (Betrachter sieht, ändert nicht); Produktion vom Thema bis zum fertigen Video (Codecs, Länge, Untertitel-Dateien, Bild im Herkunftsnachweis, gemessene Renderzeit); Bild aus anderem Bereich wird abgelehnt; Produktion aus Idee nur im eigenen Bereich und nicht aus verworfener Idee; fehlende Stimme wird als Fehler festgehalten; KI kann keine Bilder wählen; Zeitplan und Überschriften-Spur
+- Migration hin und zurück, `alembic check`
+- Gefundener Fehler im Abnahmetest (nicht aus E7): Nach 21 Uhr Berliner Zeit hatte der Strategie-Agent für heute kein Zeitfenster mehr, der Test schlug abends fehl. Der Test entscheidet in dem Fall jetzt wie am Mittag desselben Tages.
+- `scripts/test_backend.sh`, Frontend `typecheck` und `build`, E2E mit neuem Schritt „Mediathek und Eigenproduktion“ (Bild hochladen, Skript, Bild zuordnen, Video erzeugen), `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 489 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund
+- E2E: 25 Schritte bestanden
+- `verify_phase1.sh`: 69 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- **Noch keine echte Stimme.** Die Teststimme ist stumm; Videos haben eingebrannte Untertitel, aber keinen Ton. Vorschlag aus dem Plan: Piper lokal (kostenlos, Lizenz der jeweiligen Stimme vor dem Einbau prüfen) oder ein bezahlter Anbieter nach Kostenvergleich. Das entscheidest du.
+- Fertige Videos sind noch nicht veröffentlichbar: Aus Mediathek-Videos werden erst im Freigabecenter (E8) Beiträge für Kanäle.
+- Ein erneutes Rendern nach Änderungen legt ein weiteres Video in der Mediathek an; das alte bleibt, bis du es archivierst.
+- Bilder werden als Standbild gezeigt (kein Zoom oder Schwenk), Übergänge sind harte Schnitte.
+- Eigene Gameplay-Aufnahmen aus der Mediathek gehen noch nicht in die bestehende Gameplay-Produktion; für Spielszenen gilt weiter die Rechteprüfung mit Publisher-Richtlinie.
+
+**6. Nächster Schritt**
+
+Phase E8: Freigabecenter und Plattformen (Texte je Plattform, Vorschau, Termin, Freigabe; Instagram Login, TikTok als Entwurf, YouTube Shorts und Video, Twitch ehrlich ohne Upload).
 
 ### Phase E6 – Bericht
 

@@ -1,4 +1,6 @@
-"""Registry of the 18 agents from PROJECT_SPEC section 6 plus research and idea lab (E5).
+"""Registry of the 18 agents from PROJECT_SPEC section 6 plus the extension agents.
+
+E5 added research and idea lab, E7 media library and own production.
 
 Each entry describes the agent (for the dashboard), the phase in which it is
 implemented, how it can cause costs, and its pipeline stage. Agents whose
@@ -149,6 +151,18 @@ def _idea_lab() -> Agent:
     return IdeaLabAgent()
 
 
+def _media_library() -> Agent:
+    from agents.library import MediaLibraryAgent
+
+    return MediaLibraryAgent()
+
+
+def _own_production() -> Agent:
+    from agents.library import OwnProductionAgent
+
+    return OwnProductionAgent()
+
+
 def _publishing() -> Agent:
     from agents.publishing import PublishingAgent
 
@@ -221,6 +235,12 @@ _SPECS: tuple[AgentSpec, ...] = (
     AgentSpec("idea_lab", 20, "Idea Lab",
               "Macht aus Recherche-Einträgen bewertete Videoideen mit Quellen.", 15,
               CostKind.PAID, factory=_idea_lab),
+    AgentSpec("media_library", 21, "Media Library",
+              "Erkennt eigene Uploads und erzeugt Vorschau und 9:16-Fassung; das Original "
+              "bleibt.", 15, CostKind.LOCAL, production=True, factory=_media_library),
+    AgentSpec("own_production", 22, "Own Production",
+              "Macht aus Skript, Stimme, eigenen Bildern und Untertiteln ein Hochformat-Video.",
+              15, CostKind.LOCAL, production=True, factory=_own_production),
 )  # fmt: skip
 
 _registry: dict[str, AgentSpec] = {s.name: s for s in _SPECS}

@@ -142,6 +142,7 @@ def complete_upload(
         db.rollback()
         _raise(exc)
     db.commit()
+    uploads.run_after_commit(session)
     return _out(session)
 
 

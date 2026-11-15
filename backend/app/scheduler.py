@@ -24,7 +24,7 @@ from services.queue import get_redis
 
 log = logging.getLogger("scheduler")
 
-SWEEP_AGENTS = {"rights_license", "material_scout", "analytics"}
+SWEEP_AGENTS = {"rights_license", "material_scout", "analytics", "media_library"}
 
 
 @dataclass
@@ -48,6 +48,7 @@ class Schedule:
                 "learning": settings.learning_seconds,
                 "research": settings.research_seconds,
                 "idea_lab": settings.ideas_seconds,
+                "media_library": settings.library_sweep_seconds,
             }
         )
 

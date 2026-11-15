@@ -1048,3 +1048,90 @@ export interface Calendar {
   days: CalendarDay[];
   focus: CalendarFocus[];
 }
+
+// --- Media library and own production (extension E7) --------------------------------
+
+export type LibraryKind = "video" | "image" | "audio";
+export type LibraryOrigin = "upload" | "generated";
+export type LibraryStatus = "processing" | "ready" | "failed";
+
+export interface LibraryItem {
+  id: number;
+  project_id: number;
+  project: string;
+  kind: LibraryKind;
+  origin: LibraryOrigin;
+  status: LibraryStatus;
+  title: string;
+  filename: string | null;
+  content_type: string;
+  size_bytes: number;
+  duration_s: number | null;
+  width: number | null;
+  height: number | null;
+  fps: number | null;
+  video_codec: string | null;
+  audio_codec: string | null;
+  orientation: "portrait" | "landscape" | "square" | null;
+  has_rendition: boolean;
+  has_thumb: boolean;
+  rendition: Record<string, unknown>;
+  render_seconds: number | null;
+  rights: Record<string, unknown>;
+  tags: string[];
+  note: string | null;
+  error_message: string | null;
+  archived: boolean;
+  created_at: string;
+}
+
+export interface LibraryInfo {
+  rights_statement: string;
+  allowed_types: Record<string, string>;
+  max_rendition_s: number;
+}
+
+export type ProductionStatus = "draft" | "queued" | "rendering" | "done" | "failed";
+
+export interface ProductionSegment {
+  headline: string;
+  text: string;
+  image_item_id: number | null;
+}
+
+export interface Production {
+  id: number;
+  project_id: number;
+  project: string;
+  idea_id: number | null;
+  title: string;
+  language: Language;
+  status: ProductionStatus;
+  segments: ProductionSegment[];
+  script_source: string;
+  voice_provider: string | null;
+  duration_s: number | null;
+  render_seconds: number | null;
+  result: {
+    cues?: number;
+    subtitle_issues?: string[];
+    realtime_factor?: number;
+    ffmpeg_seconds?: number;
+    size_bytes?: number;
+    voice?: { provider: string; voice_id: string; spoken_s: number };
+    timeline?: { start_s: number; voice_end_s: number; end_s: number }[];
+  };
+  output_item_id: number | null;
+  error_message: string | null;
+  created_at: string;
+  rendered_at: string | null;
+}
+
+export interface ProductionInput {
+  project_id: number;
+  title?: string | null;
+  topic?: string | null;
+  idea_id?: number | null;
+  language?: Language;
+  segments?: ProductionSegment[] | null;
+}

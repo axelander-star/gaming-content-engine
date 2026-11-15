@@ -191,7 +191,7 @@ export function AgentsView() {
       <div className="grid stats">
         <StatCard
           label="Aktive Agenten"
-          value={`${implemented} / ${agents.length || 20}`}
+          value={`${implemented} / ${agents.length || 22}`}
           hint="Weitere Agenten folgen mit ihren Phasen"
         />
         <StatCard

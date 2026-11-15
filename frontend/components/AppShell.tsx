@@ -29,6 +29,8 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/assistent", label: "Assistent", icon: "chat" },
       { href: "/ideen", label: "Ideenlabor", icon: "bulb" },
       { href: "/redaktionsplan", label: "Redaktionsplan", icon: "calendar" },
+      { href: "/eigenproduktion", label: "Eigenproduktion", icon: "wand" },
+      { href: "/mediathek", label: "Mediathek", icon: "image" },
       { href: "/themenbereiche", label: "Themenbereiche", icon: "layers" },
     ],
   },
