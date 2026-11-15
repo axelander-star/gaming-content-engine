@@ -35,7 +35,8 @@ VIDEO_TRANSITIONS: Mapping[V, frozenset[V]] = {
     V.QUALITY_CHECK: frozenset({V.QUALITY_APPROVED, V.QUALITY_REJECTED}),
     V.QUALITY_APPROVED: frozenset({V.READY_TO_PUBLISH, V.ARCHIVED}),
     V.QUALITY_REJECTED: frozenset({V.EDITING, V.ARCHIVED}),
-    V.READY_TO_PUBLISH: frozenset({V.SCHEDULED, V.QUALITY_CHECK, V.ARCHIVED}),
+    # QUALITY_APPROVED: an approval in the approval center is withdrawn (extension E8)
+    V.READY_TO_PUBLISH: frozenset({V.SCHEDULED, V.QUALITY_CHECK, V.QUALITY_APPROVED, V.ARCHIVED}),
     V.SCHEDULED: frozenset({V.PUBLISHED, V.READY_TO_PUBLISH}),  # unschedule
     V.PUBLISHED: frozenset({V.ANALYTICS_PENDING}),
     V.ANALYTICS_PENDING: frozenset({V.ANALYZED}),

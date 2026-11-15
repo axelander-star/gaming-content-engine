@@ -36,12 +36,15 @@ from core.config import Settings
 from core.enums import (
     AgentRunStatus,
     ChannelAuthStatus,
+    LibraryOrigin,
+    LibraryStatus,
     MaterialStatus,
     PublishingJobStatus,
     VideoStatus,
 )
 from models.channels import Channel
 from models.control import AgentRun
+from models.library import LibraryItem
 from models.production import Clip, GameplayFile, QualityCheck, Scene, Variant
 from models.publishing import PublishingJob
 from services import agent_control
@@ -150,6 +153,50 @@ def source_file(session: Session, variant: Variant) -> GameplayFile | None:
     )
 
 
+def library_problem(session: Session, variant: Variant) -> str | None:
+    """``None`` if the library video of a variant may be published (extension E8)."""
+    item = session.get(LibraryItem, variant.library_item_id)
+    if item is None:
+        return "Mediathek-Video fehlt"
+    return library_item_problem(item, variant.content_project_id)
+
+
+def library_item_problem(item: LibraryItem, project_id: int) -> str | None:
+    """The video must be ready, not archived, in the topic area ``project_id``, and
+    either an own upload with a stored rights confirmation or an own production
+    without third-party video."""
+    if item.content_project_id != project_id:
+        return "Mediathek-Video gehört zu einem anderen Themenbereich"
+    if item.archived_at is not None:
+        return "Mediathek-Video ist archiviert"
+    if item.status != LibraryStatus.READY:
+        return f"Mediathek-Video ist nicht bereit ({item.status.value})"
+    rights = item.rights or {}
+    if item.origin == LibraryOrigin.UPLOAD:
+        if not rights.get("confirmed_by_user_id"):
+            return "Rechtebestätigung fehlt"
+    elif rights.get("kind") != "generated" or rights.get("third_party_video") is not False:
+        return "Eigenproduktion ohne Nachweis, dass kein Fremdvideo enthalten ist"
+    return None
+
+
+def source_problem(session: Session, variant: Variant) -> str | None:
+    """``None`` if the source of a variant (clip material or library video) is usable."""
+    if variant.library_item_id is not None:
+        return library_problem(session, variant)
+    source = source_file(session, variant)
+    if source is None:
+        return "Quellmaterial fehlt"
+    return rights_check(session, source)
+
+
+def source_key(variant: Variant) -> int:
+    """One key per source: variants of the same clip or library video share it."""
+    if variant.clip_id is not None:
+        return variant.clip_id
+    return -int(variant.library_item_id or 0)
+
+
 def _quality_check(session: Session, settings: Settings, variant: Variant) -> str | None:
     latest = session.scalar(
         select(QualityCheck)
@@ -179,6 +226,22 @@ def _channel_check(session: Session, settings: Settings, variant: Variant) -> st
             return "live publishing not allowed (auto-publish switches)"
         if channel.auth_status != ChannelAuthStatus.AUTHORIZED:
             return f"channel not authorized ({channel.auth_status.value})"
+    return None
+
+
+def _clip_source_problem(session: Session, variant: Variant) -> tuple[str, str] | None:
+    source = source_file(session, variant)
+    if source is None or source.status != MaterialStatus.ANALYZED:
+        return ("rights", "source material has not passed rights and analysis")
+    problem = rights_check(session, source)
+    if problem:
+        return ("rights", problem)
+    if source.content_project_id != variant.content_project_id:
+        return (
+            "project",
+            f"video belongs to project {variant.content_project_id}, "
+            f"its material to project {source.content_project_id}",
+        )
     return None
 
 
@@ -214,18 +277,20 @@ def check_entity(
             if problem:
                 return GateResult.deny("rights", problem)
         return GateResult.ok()
-    source = source_file(session, entity)
-    if source is None or source.status != MaterialStatus.ANALYZED:
-        return GateResult.deny("rights", "source material has not passed rights and analysis")
-    problem = rights_check(session, source)
-    if problem:
-        return GateResult.deny("rights", problem)
-    if source.content_project_id != entity.content_project_id:
-        return GateResult.deny(
-            "project",
-            f"video belongs to project {entity.content_project_id}, "
-            f"its material to project {source.content_project_id}",
-        )
+    if entity.library_item_id is not None:
+        # Library videos skip the clip pipeline: they enter at QUALITY_APPROVED and
+        # only the publishing stages may work on them.
+        if entity.status not in _NEEDS_QUALITY:
+            return GateResult.deny(
+                "library_video", "Mediathek-Videos durchlaufen die Clip-Pipeline nicht"
+            )
+        problem = library_problem(session, entity)
+        if problem:
+            return GateResult.deny("rights", problem)
+    else:
+        clip_problem = _clip_source_problem(session, entity)
+        if clip_problem:
+            return GateResult.deny(*clip_problem)
     if entity.status in _NEEDS_QUALITY:
         problem = _quality_check(session, settings, entity)
         if problem:

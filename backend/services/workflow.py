@@ -56,6 +56,11 @@ def transition(session: Session, entity: WorkflowEntity, target: StrEnum, actor:
     _audit(session, entity, "status_change", current.value, target.value, actor)
 
 
+def record_entry(session: Session, entity: WorkflowEntity, actor: str) -> None:
+    """Log the first status of a new entity (it enters the workflow with it)."""
+    _audit(session, entity, "status_change", "NEW", entity.status.value, actor)
+
+
 def mark_failed(
     session: Session, entity: WorkflowEntity, step: str, error: str, actor: str
 ) -> None:

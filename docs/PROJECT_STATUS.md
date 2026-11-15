@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E7 (Mediathek und Eigenproduktion) abgeschlossen · **Nächster Schritt:** Erweiterung Phase E8 (Freigabecenter und Plattformen) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E8 (Freigabecenter und Plattformen) abgeschlossen · **Nächster Schritt:** Erweiterung Phase E9 (Tests, Sicherheitsprüfung, Doku) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -41,9 +41,52 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E5 | Recherche und Ideenlabor | ✅ abgeschlossen |
 | E6 | Redaktionsplan und Kalender | ✅ abgeschlossen |
 | E7 | Mediathek und Eigenproduktion | ✅ abgeschlossen |
-| E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | offen |
+| E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | ✅ abgeschlossen |
 | E9 | Tests, Sicherheitsprüfung, Doku | offen |
 | E10 | Vorbereitung Hetzner | offen |
+
+### Phase E8 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **Freigabecenter** (neue Seite unter Steuerung): Ein fertiges Video aus der Mediathek wird für einen oder mehrere Kanäle **desselben Themenbereichs** vorbereitet. Je Kanal entsteht ein eigener Beitrag mit Titel, Beschreibung, Hashtags und Plattform-Optionen; die Texte schlägt die KI-Schicht vor (Haiku, im Mock aus Titel, Notiz und Tags der Datei). Du siehst Vorschau, technische Prüfung und den fertigen Posttext mit Zeichenzahl, änderst Texte und Optionen und gibst jeden Beitrag einzeln frei. Freigaben lassen sich zurückziehen (auch wenn der Beitrag schon eingeplant ist; der Auftrag wird dann storniert), nicht freigegebene Beiträge verwerfen.
+- **Über die bestehende Maschine:** Beiträge sind Varianten mit `library_item_id` statt Clip. Sie starten nach der technischen Prüfung (Länge, Auflösung, Hochformat wo nötig, Datei lesbar) direkt bei „Qualität bestanden“ und durchlaufen die Clip-Pipeline nie. Erst deine Freigabe macht sie veröffentlichungsbereit; **Menge und Zeitpunkt entscheidet weiter der Strategie-Agent je Kanal**, nichts ist fest eingestellt. Die Gates prüfen bei jedem Schritt erneut: Video bereit, nicht archiviert, gleicher Themenbereich, Rechte bestätigt bzw. Eigenproduktion ohne Fremdvideo. Ein Beitrag kann technisch nicht auf einem Kanal eines anderen Bereichs landen (Prüfung beim Speichern und im Gate).
+- **YouTube:** je Beitrag Sichtbarkeit (Standard privat), Short oder normales Video, geplanter Zeitpunkt über `publishAt` (setzt automatisch privat), „speziell für Kinder“, Kategorie; Hashtags gehen in Tags und Beschreibung. YouTube hat kein Shorts-Feld: Hochformat bis 3 Minuten wird automatisch ein Short.
+- **TikTok als Entwurf (neuer Standard):** Das Video geht über den offiziellen Entwurfsweg (`inbox/video/init`, Scope `video.upload`) ins TikTok-Postfach; Text und Veröffentlichung machst du in der App. Direct Post bleibt als Option je Beitrag.
+- **Instagram ohne Facebook-Seite:** neuer Weg „Instagram-Login“ (`graph.instagram.com`, Scopes `instagram_business_*`), mit eigener Verbindung, verschlüsseltem 60-Tage-Token und automatischer Verlängerung. Weil Meta das Video bei diesem Weg selbst abholen muss, wird es kurz in einen privaten Cloudflare-R2-Bucket gelegt und über eine signierte Adresse (15 Minuten gültig) bereitgestellt, danach gelöscht. **Dashboard und API bleiben privat.** Der alte Weg über eine Facebook-Seite bleibt mit `INSTAGRAM_LOGIN=facebook` erhalten.
+- **Twitch:** im Freigabecenter steht offen, dass Twitch keine Upload-Schnittstelle hat.
+- **API:** `GET /api/approval/info`, `GET /api/approval`, `POST /api/approval/suggest`, `POST /api/approval/prepare`, `PATCH /api/approval/{id}`, `POST /api/approval/{id}/approve|withdraw|discard`; neue Rückleitung `GET /api/oauth/instagram/callback`.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/services/{approval,instagram,r2}.py`, `backend/api/approval.py`, Migration `79004ffcd696_posts_from_library_videos`, `backend/tests/integration/test_approval.py`, `frontend/dashboard/ApprovalView.tsx`, `frontend/app/(dashboard)/freigabe/page.tsx`
+- Geändert: `backend/models/production.py` (Variante: Clip optional, `library_item_id`, `hashtags`, `publish_options`, genau eine Quelle), `backend/core/{config,states}.py`, `backend/services/{gates,projects,strategy,workflow,publishers,tiktok,youtube,platform}.py`, `backend/agents/publishing_strategy.py`, `backend/api/{channels,analytics,production}.py`, `backend/app/main.py`, `backend/tests/integration/test_social_publishing.py`, `.env.example`, `frontend/lib/{api,types}.ts`, `frontend/components/AppShell.tsx`, `frontend/dashboard/ChannelsTable.tsx`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, `docs/{PROJECT_STATUS,API_INTEGRATIONS,ARCHITECTURE,AGENTS}.md`
+
+**3. Durchgeführte Tests**
+
+- 18 neue Tests, alle ohne echte Plattform (HTTP geht an Attrappen): Beitrag je Kanal mit technischer Prüfung; Dublette; falscher Themenbereich (auch direkt in der Datenbank); Querformat nur als normales YouTube-Video; fehlende Rechtebestätigung und Eigenproduktion mit Fremdvideo; Freigeben, Sperre nach Freigabe, Zurückziehen, Verwerfen, archiviertes Video; Clip-Agenten lehnen Mediathek-Beiträge ab; Strategie plant den Beitrag, Zurückziehen storniert, Mock-Veröffentlichung; YouTube-Upload mit Sichtbarkeit, Kategorie, Tags und Link; TikTok-Entwurf ohne Direct Post; Instagram-Login über signierte R2-Adresse mit Löschen danach; ohne R2 kein Versuch; Instagram-Verbindung, Verschlüsselung und Verlängerung; R2-Signatur gegen das offizielle AWS-Beispiel; Optionen und Hashtags; komplette API mit Rollen
+- Bisherige Phase-13-Tests laufen jetzt ausdrücklich im Direct-Post- und Facebook-Seiten-Modus (beide Wege bleiben getestet)
+- Migration hin und zurück, `alembic check`
+- `scripts/test_backend.sh`, Frontend `typecheck` und `build`, E2E mit neuem Schritt „Freigabecenter“, `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 507 Backend-Tests bestanden (95 % Abdeckung); ruff, mypy und `alembic check` ohne Befund
+- E2E: 26 Schritte bestanden (neu: „Freigabecenter“; der Verbindungsschritt prüft jetzt Instagram-Login und Facebook getrennt)
+- `verify_phase1.sh`: 70 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- **Drei Instagram-Login-Seiten waren nicht automatisch abrufbar** (Code gegen Token, Langzeit-Token, Verlängerung). Die Adressen entsprechen Metas bekannter Doku, müssen aber vor dem ersten echten Verbinden im Browser bestätigt werden (in `API_INTEGRATIONS.md` markiert).
+- Instagram-Login braucht Cloudflare R2. Solange R2 nicht eingerichtet ist, meldet ein Instagram-Kanal „nicht eingerichtet“; Kennzahlen über Instagram-Login sind noch nicht angebunden.
+- TikTok-Entwürfe zählen als „veröffentlicht“, sobald sie im Postfach liegen; ob du sie in der App wirklich postest, sieht das System erst über die Kennzahlen. Höchstens 5 offene Entwürfe pro Tag.
+- Freigabe-Modi je Bereich oder Kanal (z. B. „automatisch freigeben ab Qualitätswert X“) sind noch nicht eingebaut; jeder Mediathek-Beitrag braucht deine Freigabe.
+- Clips aus der Gameplay-Pipeline laufen weiter ohne Freigabecenter direkt in die Strategie (wie bisher).
+- Weiter offen aus E7: keine echte Stimme.
+
+**6. Nächster Schritt**
+
+Phase E9: Tests, Sicherheitsprüfung und Doku für die ganze Erweiterung (erweiterter Abnahmetest, Prüfung der neuen Endpunkte und Token-Speicherung).
 
 ### Phase E7 – Bericht
 
@@ -1068,6 +1111,9 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 14.11.2026 | Vergleich mit dem Kanalschnitt zum selben Messzeitpunkt (Median), Videos unter 24 h werden nicht bewertet | Spezifikation Abschnitt 3: kein Urteil nach einer Stunde, robust gegen Ausreißer |
 | 14.11.2026 | Aktiver Kanal mindestens ein Video pro Tag; stoppen nur per Pause | Bei null Videos entstehen keine Daten mehr, der Kanal käme nie zurück |
 | 14.11.2026 | Rücksetzen erzeugt eine neue Version statt die alte zu löschen | Verlauf bleibt vollständig nachvollziehbar |
+| 15.11.2026 | Mediathek-Beiträge als Varianten mit `library_item_id` über die bestehende Strategie und Veröffentlichung (Plan 5.3) | Eine Maschine für Clips und eigene Videos; Menge bleibt dynamisch, Gates und Mock-Schutz gelten unverändert |
+| 15.11.2026 | Jeder Mediathek-Beitrag braucht eine menschliche Freigabe; YouTube standardmäßig privat, TikTok standardmäßig als Entwurf | Nichts geht ungeprüft raus; Entwurf ist der sicherste offizielle TikTok-Weg ohne Audit |
+| 15.11.2026 | Instagram-Login holt das Video über eine signierte, 15 Minuten gültige R2-Adresse | Meta erlaubt dort nur `video_url`; Dashboard und API bleiben privat |
 
 ## Offene Punkte
 

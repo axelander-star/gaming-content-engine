@@ -1135,3 +1135,72 @@ export interface ProductionInput {
   language?: Language;
   segments?: ProductionSegment[] | null;
 }
+
+// --- approval center (extension E8) ---
+
+export interface ApprovalPlatform {
+  code: PlatformCode;
+  title_max: number;
+  caption_max: number;
+  hashtags_max: number;
+  max_duration_s: number;
+  vertical: boolean;
+  defaults: Record<string, unknown>;
+}
+
+export interface ApprovalInfo {
+  publishing_mode: "mock" | "live";
+  platforms: ApprovalPlatform[];
+  youtube_privacy: string[];
+  youtube_formats: string[];
+  tiktok_modes: string[];
+  twitch_note: string;
+}
+
+export interface ApprovalCheck {
+  name: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface ApprovalPost {
+  id: number;
+  status: VideoStatus;
+  project_id: number;
+  project: string;
+  item_id: number;
+  item_title: string;
+  channel_id: number;
+  channel: string;
+  platform: PlatformCode;
+  language: Language;
+  title: string;
+  description: string;
+  hashtags: string[];
+  options: Record<string, unknown>;
+  caption: string;
+  quality_score: number | null;
+  checks: ApprovalCheck[];
+  problems: string[];
+  scheduled_for: string | null;
+  published_url: string | null;
+  published_mock: boolean | null;
+  updated_at: string | null;
+}
+
+export interface PostTexts {
+  title: string;
+  description: string;
+  hashtags: string[];
+}
+
+export interface PostTextsInput extends PostTexts {
+  options?: Record<string, unknown>;
+}
+
+export interface PostChanges {
+  title?: string;
+  description?: string;
+  hashtags?: string[];
+  options?: Record<string, unknown>;
+}

@@ -19,7 +19,7 @@ from models.channels import Channel, ChannelCredential, Platform
 from models.production import Variant
 from models.projects import ContentProject
 from models.publishing import Post
-from services import audit, meta, platform, tiktok, youtube
+from services import audit, instagram, meta, platform, tiktok, youtube
 
 log = logging.getLogger(__name__)
 
@@ -242,8 +242,10 @@ class ConnectOut(BaseModel):
 
 def _authorization_url(settings: Settings, channel: Channel, user_id: int) -> str:
     code = PlatformCode(channel.platform.code)
-    provider = platform.provider_for(code)
+    provider = platform.provider_for(code, settings)
     state = platform.make_state(settings, provider, channel.id, user_id)
+    if provider == instagram.PROVIDER:
+        return instagram.authorization_url(settings, state)
     if code == PlatformCode.YOUTUBE:
         return youtube.authorization_url(settings, state)
     if code == PlatformCode.TIKTOK:
@@ -310,14 +312,20 @@ def _status_after_connect(
         ok = youtube.UPLOAD_SCOPE in scopes
     elif code == PlatformCode.TIKTOK:
         # Unaudited TikTok apps may only post privately: hold videos (PROJECT_SPEC 11).
-        ok = tiktok.PUBLISH_SCOPE in scopes and settings.tiktok_app_audited
+        # Drafts to the creator's inbox never go public by themselves (E8).
+        if settings.tiktok_post_mode == "inbox":
+            ok = tiktok.UPLOAD_SCOPE in scopes
+        else:
+            ok = tiktok.PUBLISH_SCOPE in scopes and settings.tiktok_app_audited
+    elif cred.provider == instagram.PROVIDER:
+        ok = instagram.PUBLISH_SCOPE in scopes
     else:
         ok = meta.PUBLISH_SCOPE[code] in scopes
     return ChannelAuthStatus.AUTHORIZED if ok else ChannelAuthStatus.CONNECTED_RESTRICTED
 
 
 oauth_router = APIRouter(prefix="/oauth", tags=["oauth"])
-PROVIDERS = ("youtube", "tiktok", "meta")
+PROVIDERS = ("youtube", "tiktok", "meta", "instagram")
 
 
 @oauth_router.get("/{provider}/callback")
@@ -349,9 +357,14 @@ def oauth_callback(
     if channel is None or user is None or user.role != UserRole.ADMIN or not user.is_active:
         return back("invalid")
     platform_code = PlatformCode(channel.platform.code)
-    if platform.provider_for(platform_code) != provider:
+    if platform.provider_for(platform_code, settings) != provider:
         return back("invalid")
-    connect = {"youtube": youtube.connect, "tiktok": tiktok.connect, "meta": meta.connect}
+    connect = {
+        "youtube": youtube.connect,
+        "tiktok": tiktok.connect,
+        "meta": meta.connect,
+        "instagram": instagram.connect,
+    }
     try:
         cred = connect[provider](db, settings, channel, code, user_id)
     except (platform.PlatformError, platform.NotConfiguredError) as exc:

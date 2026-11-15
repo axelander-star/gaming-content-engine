@@ -108,7 +108,7 @@ def overview(
             "platform": channel.platform.code.value,
             "language": channel.language.value,
             "channel": channel.name,
-            "game": games.get(variant.clip_id),
+            "game": games.get(variant.clip_id) if variant.clip_id else None,
             "format": variant.video_format,
             "hook": variant.hook_type,
             "hour": post.published_at.hour,

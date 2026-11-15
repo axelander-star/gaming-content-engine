@@ -499,6 +499,8 @@ try {
       await channels.getByRole("button", { name: "Mit TikTok verbinden" }).first().click();
       await channels.getByText("TikTok-App ist nicht eingerichtet").waitFor();
       await channels.getByRole("button", { name: "Mit Instagram verbinden" }).first().click();
+      await channels.getByText("Instagram-App ist nicht eingerichtet").waitFor();
+      await channels.getByRole("button", { name: "Mit Facebook verbinden" }).first().click();
       await channels.getByText("Meta-App ist nicht eingerichtet").waitFor();
       assert.equal(await channels.getByText("Verbunden", { exact: true }).count(), 0);
       assert.ok(page.url().includes("/einstellungen"), "must not leave the dashboard");
@@ -694,6 +696,35 @@ try {
     await page.getByRole("link", { name: "Mediathek", exact: true }).click();
     await page.getByRole("article", { name: "Datei Haferflocken richtig lagern" })
       .getByText("Selbst erzeugt").waitFor();
+  });
+
+  await step("Freigabecenter: Beitrag vorbereiten, Texte prüfen, freigeben", async () => {
+    await page.getByRole("link", { name: "Freigabecenter", exact: true }).click();
+    await page.getByRole("heading", { name: "Freigabecenter", level: 1 }).waitFor();
+    await page.getByText(/Testbetrieb: Freigegebene Beiträge werden nur simuliert/).waitFor();
+    await page.getByText(/Twitch: Twitch bietet keine offizielle Schnittstelle/).waitFor();
+    const form = page.getByRole("form", { name: "Beitrag vorbereiten" });
+    await form.getByLabel("Themenbereich").selectOption({ label: "Ernährung E2E" });
+    const video = form.getByLabel("Video");
+    await video.locator("option", { hasText: "Haferflocken richtig lagern" }).waitFor({ state: "attached" });
+    await video.selectOption({ label: "Haferflocken richtig lagern" });
+    await form.getByLabel(/YouTube Ernährung E2E/).check();
+    await form.getByRole("button", { name: "Beiträge vorbereiten" }).click();
+    const card = page.getByRole("article", { name: "Beitrag YouTube Ernährung E2E" });
+    await card.getByText("Wartet auf Freigabe").waitFor({ timeout: 30000 });
+    const texts = card.getByRole("form", { name: "Texte YouTube Ernährung E2E" });
+    await texts.getByLabel("Hashtags").fill("#Hafer #Vorrat");
+    await texts.getByRole("button", { name: "Texte speichern" }).click();
+    await card.getByText(/technisch in Ordnung/).click();
+    await card.locator(".appr-preview-text").getByText("#Hafer #Vorrat").waitFor();
+    await card.getByLabel("Sichtbarkeit").selectOption("unlisted");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/freigabecenter.png`, fullPage: true });
+    await card.getByRole("button", { name: "Freigeben" }).click();
+    await page.getByRole("tab", { name: /Freigegeben/ }).click();
+    await card.getByText("Freigegeben", { exact: true }).waitFor();
+    await card.getByRole("button", { name: "Freigabe zurückziehen" }).click();
+    await page.getByRole("tab", { name: /Zu prüfen/ }).click();
+    await card.getByText("Wartet auf Freigabe").waitFor();
   });
 
   await step("Abmelden", async () => {

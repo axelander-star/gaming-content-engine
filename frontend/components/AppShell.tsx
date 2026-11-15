@@ -31,6 +31,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/redaktionsplan", label: "Redaktionsplan", icon: "calendar" },
       { href: "/eigenproduktion", label: "Eigenproduktion", icon: "wand" },
       { href: "/mediathek", label: "Mediathek", icon: "image" },
+      { href: "/freigabe", label: "Freigabecenter", icon: "check" },
       { href: "/themenbereiche", label: "Themenbereiche", icon: "layers" },
     ],
   },

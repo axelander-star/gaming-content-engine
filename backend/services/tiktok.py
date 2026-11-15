@@ -10,6 +10,12 @@ docs/API_INTEGRATIONS.md):
   options of the creator), ``video/init`` with ``FILE_UPLOAD``, chunked ``PUT`` to
   the returned ``upload_url`` (``Content-Range``), ``status/fetch``.
 
+* Upload as draft (extension E8, checked 15.11.2026), scope ``video.upload``:
+  ``/v2/post/publish/inbox/video/init/`` with ``FILE_UPLOAD``, the same chunked
+  ``PUT``, then ``status/fetch`` until ``SEND_TO_USER_INBOX``. The creator gets an
+  inbox notification and finishes caption and posting in the TikTok app. At most
+  5 pending drafts per 24 hours (``spam_risk_too_many_pending_share``).
+
 Posts of unaudited apps are restricted to private viewing; the default privacy
 level here is ``SELF_ONLY`` and must be one the creator offers.
 """
@@ -39,9 +45,11 @@ TOKEN_URL = f"{API}/oauth/token/"
 REVOKE_URL = f"{API}/oauth/revoke/"
 CREATOR_INFO_URL = f"{API}/post/publish/creator_info/query/"
 INIT_URL = f"{API}/post/publish/video/init/"
+INBOX_INIT_URL = f"{API}/post/publish/inbox/video/init/"
 STATUS_URL = f"{API}/post/publish/status/fetch/"
 PUBLISH_SCOPE = "video.publish"
-SCOPES = (PUBLISH_SCOPE, "video.list")  # video.list: statistics (Phase 14)
+UPLOAD_SCOPE = "video.upload"  # draft to the creator's inbox (extension E8)
+SCOPES = (PUBLISH_SCOPE, UPLOAD_SCOPE, "video.list")  # video.list: statistics (Phase 14)
 PROVIDER = "tiktok"
 
 #: Files up to this size go in one request; larger ones in chunks (min 5 MB, max 64 MB
@@ -53,6 +61,7 @@ CHUNK_SIZE = 10_000_000
 TRANSIENT_CODES = {
     "rate_limit_exceeded",
     "spam_risk_too_many_posts",
+    "spam_risk_too_many_pending_share",  # more than 5 open inbox drafts in 24 h
     "reached_active_user_cap",
     "internal_error",
 }
@@ -293,6 +302,42 @@ def post_video(
     return PostResult(publish_id, status, post_id, privacy, info.get("creator_username"))
 
 
+def upload_draft(
+    token: str,
+    path: Path,
+    attempts: int = 5,
+    polls: int = 10,
+    interval: float = 30.0,
+    sleep: Any = time.sleep,
+) -> PostResult:
+    """Upload ``path`` as a draft to the creator's TikTok inbox (nothing goes public).
+
+    The creator completes the post in the app; caption and privacy are set there.
+    """
+    size = path.stat().st_size
+    chunk, count = chunk_plan(size)
+    body = {
+        "source_info": {
+            "source": "FILE_UPLOAD",
+            "video_size": size,
+            "chunk_size": chunk,
+            "total_chunk_count": count,
+        }
+    }
+    data = _post(INBOX_INIT_URL, token, body, "Entwurf-Start")
+    publish_id, upload_url = str(data.get("publish_id") or ""), str(data.get("upload_url") or "")
+    if not publish_id or not upload_url:
+        raise PlatformError("Entwurf-Start ohne publish_id oder upload_url beantwortet")
+    _upload_chunks(upload_url, path, size, attempts, sleep)
+    status, post_id = _wait(token, publish_id, polls, interval, sleep, done=DRAFT_DONE)
+    return PostResult(publish_id, status, post_id, "draft", None)
+
+
+#: Status values after which an upload counts as done.
+POST_DONE = frozenset({"PUBLISH_COMPLETE"})
+DRAFT_DONE = frozenset({"SEND_TO_USER_INBOX", "PUBLISH_COMPLETE"})
+
+
 def _upload_chunks(url: str, path: Path, size: int, attempts: int, sleep: Any) -> None:
     with platform.http_client(600) as client, path.open("rb") as fh:
         for first, last in chunk_ranges(size):
@@ -318,7 +363,12 @@ def _upload_chunks(url: str, path: Path, size: int, attempts: int, sleep: Any) -
 
 
 def _wait(
-    token: str, publish_id: str, polls: int, interval: float, sleep: Any
+    token: str,
+    publish_id: str,
+    polls: int,
+    interval: float,
+    sleep: Any,
+    done: frozenset[str] = POST_DONE,
 ) -> tuple[str, str | None]:
     """Status after the upload. ``PUBLISH_COMPLETE`` may come without a post id: TikTok
     only reveals it for public posts that passed moderation."""
@@ -330,7 +380,7 @@ def _wait(
         status = str(data.get("status") or status)
         if status == "FAILED":
             raise PlatformError(f"TikTok hat den Beitrag abgelehnt: {data.get('fail_reason')}")
-        if status == "PUBLISH_COMPLETE":
+        if status in done:
             ids = data.get("publicaly_available_post_id") or []  # spelling as in the API
             return status, (str(ids[0]) if ids else None)
     return status, None  # still processing: uploaded, TikTok finishes on its own

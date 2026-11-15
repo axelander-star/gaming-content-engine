@@ -280,7 +280,7 @@ class PublishingStrategyAgent(Agent):
         groups: dict[str, dict[str, float]],
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         s, settings = ctx.session, ctx.settings
-        busy_clips = {s.get(Variant, j.variant_id).clip_id for j in jobs}  # type: ignore[union-attr]
+        busy_clips = {gates.source_key(s.get(Variant, j.variant_id)) for j in jobs}  # type: ignore[arg-type]
         held: list[dict[str, Any]] = []
         candidates: list[strategy.Candidate] = []
         rows = s.scalars(
@@ -298,25 +298,26 @@ class PublishingStrategyAgent(Agent):
             if (v.quality_score or 0.0) < minimum:
                 held.append({"variant_id": v.id, "reason": "Qualitätswert unter Minimum"})
                 continue
-            source = gates.source_file(s, v)
-            problem = "Quellmaterial fehlt" if source is None else gates.rights_check(s, source)
+            problem = gates.source_problem(s, v)
             if problem:
                 held.append({"variant_id": v.id, "reason": f"Rechte: {problem}"})
                 continue
-            if v.clip_id in busy_clips:
-                held.append({"variant_id": v.id, "reason": "Andere Clip-Variante heute geplant"})
+            if gates.source_key(v) in busy_clips:
+                held.append(
+                    {"variant_id": v.id, "reason": "Andere Variante desselben Videos heute geplant"}
+                )
                 continue
             candidates.append(
                 strategy.Candidate(
                     variant_id=v.id,
-                    clip_id=v.clip_id,
+                    clip_id=gates.source_key(v),
                     quality=v.quality_score or 0.0,
                     ready_since=v.updated_at or now,
-                    game=games.get(v.clip_id),
+                    game=games.get(v.clip_id) if v.clip_id else None,
                     video_format=v.video_format,
                     hook_type=v.hook_type,
                     experiment=bool((v.concept or {}).get("experiment")),
-                    focus=_focus_match(focus, games.get(v.clip_id), v.title),
+                    focus=_focus_match(focus, games.get(v.clip_id) if v.clip_id else None, v.title),
                 )
             )
         chosen = strategy.choose(candidates, slots, groups)

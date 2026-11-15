@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     ] = "SELF_ONLY"
     #: Set only once TikTok has audited the app; until then channels stay restricted.
     tiktok_app_audited: bool = False
+    #: "inbox": upload as draft, the creator posts in the app (default, extension E8);
+    #: "direct": Direct Post (needs an audited app for anything but private posts).
+    tiktok_post_mode: Literal["inbox", "direct"] = "inbox"
     #: Own cap per channel and day (TikTok publishes no fixed number).
     tiktok_daily_post_limit: int = Field(default=5, ge=0, le=1000)
 
@@ -97,6 +100,22 @@ class Settings(BaseSettings):
     #: Instagram: 50 API posts per 24 h (content_publishing_limit); Facebook Pages: 30 Reels.
     instagram_daily_post_limit: int = Field(default=50, ge=0, le=50)
     facebook_daily_reels_limit: int = Field(default=30, ge=0, le=30)
+
+    # --- Instagram API with Instagram Login (extension E8, no Facebook Page needed) ---
+    #: How Instagram channels connect: "instagram" (Instagram Login, own app id) or
+    #: "facebook" (Facebook Login for Business via a Page, Phase 13).
+    instagram_login: Literal["instagram", "facebook"] = "instagram"
+    instagram_app_id: str = ""
+    instagram_app_secret: SecretStr = SecretStr("")
+    instagram_oauth_redirect_uri: str = "http://localhost:3000/api/oauth/instagram/callback"
+
+    # --- Cloudflare R2 (extension E8): short-lived public video address for Instagram ---
+    r2_account_id: str = ""
+    r2_bucket: str = ""
+    r2_access_key_id: SecretStr = SecretStr("")
+    r2_secret_access_key: SecretStr = SecretStr("")
+    #: Lifetime of the presigned address Meta fetches the video from.
+    r2_presign_seconds: int = Field(default=900, ge=60, le=3600)
 
     # --- Budget (PROJECT_SPEC section 13) ---
     monthly_budget_eur: float = Field(default=50.0, ge=0)

@@ -242,21 +242,30 @@ def video_resource(
     privacy: str,
     synthetic_voice: bool,
     tags: list[str] | None = None,
+    category_id: str = GAMING_CATEGORY,
+    made_for_kids: bool = False,
+    publish_at: str | None = None,
 ) -> dict[str, Any]:
+    """``videos.insert`` body. YouTube has no Shorts flag: a vertical (or square)
+    video up to three minutes becomes a Short by itself. ``publishAt`` only works
+    with ``privacyStatus=private`` (the video goes public at that time)."""
+    status: dict[str, Any] = {
+        "privacyStatus": "private" if publish_at else privacy,  # explicit: API default is public
+        "selfDeclaredMadeForKids": made_for_kids,
+        "containsSyntheticMedia": synthetic_voice,
+    }
+    if publish_at:
+        status["publishAt"] = publish_at
     return {
         "snippet": {
             "title": title,
             "description": description,
             "tags": tags or [],
-            "categoryId": GAMING_CATEGORY,
+            "categoryId": category_id,
             "defaultLanguage": language,
             "defaultAudioLanguage": language,
         },
-        "status": {
-            "privacyStatus": privacy,  # always explicit: the API default is public
-            "selfDeclaredMadeForKids": False,
-            "containsSyntheticMedia": synthetic_voice,
-        },
+        "status": status,
     }
 
 

@@ -169,6 +169,7 @@ def list_clips(
         checks[qc.variant_id] = qc  # latest check wins
     clip_uris = {c.id: c.storage_uri for c, _, _ in rows}
     for v in rows_v:
+        assert v.clip_id is not None  # selected by clip id
         latest = scripts.get(v.id)
         vo = voices.get(v.id)
         variants.setdefault(v.clip_id, []).append(

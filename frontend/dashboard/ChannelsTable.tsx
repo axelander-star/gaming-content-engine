@@ -12,6 +12,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   youtube: "YouTube",
   tiktok: "TikTok",
   meta: "Facebook/Instagram",
+  instagram: "Instagram",
 };
 
 function connectMessage(provider: string, result: string): string {
