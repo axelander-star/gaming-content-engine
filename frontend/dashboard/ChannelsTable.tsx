@@ -147,6 +147,7 @@ export function ChannelsTable({ role }: { role: UserRole }) {
             <tr>
               <th>Kanal</th>
               <th>Plattform</th>
+              <th>Themenbereich</th>
               <th>Sprache</th>
               <th>Verbindung</th>
               <th>Status</th>
@@ -158,6 +159,7 @@ export function ChannelsTable({ role }: { role: UserRole }) {
               <tr key={c.id}>
                 <td>{c.name}</td>
                 <td>{PLATFORM_LABELS[c.platform]}</td>
+                <td>{c.content_project}</td>
                 <td>{c.language.toUpperCase()}</td>
                 <td>
                   <Badge tone={c.auth_status === "authorized" ? "ok" : "neutral"}>

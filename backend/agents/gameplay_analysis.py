@@ -45,10 +45,15 @@ def local_file(settings: Settings, uri: str) -> Path:
     return path
 
 
-def primary_channel(session: Session, language: Language) -> Channel | None:
-    """Channel a new variant starts on. Publishing Strategy (Phase 11) distributes it."""
+def primary_channel(session: Session, language: Language, project_id: int) -> Channel | None:
+    """Channel a new variant starts on: the first channel of the material's content project
+    in that language. Publishing Strategy (Phase 11) distributes it. Channels of other
+    projects are never chosen (a nutrition video never lands on a gaming channel)."""
     return session.scalar(
-        select(Channel).where(Channel.language == language).order_by(Channel.id).limit(1)
+        select(Channel)
+        .where(Channel.language == language, Channel.content_project_id == project_id)
+        .order_by(Channel.id)
+        .limit(1)
     )
 
 
@@ -105,11 +110,15 @@ class GameplayAnalysisAgent(Agent):
             s.flush()
             variants = []
             for lang in languages:
-                channel = primary_channel(s, lang)
+                channel = primary_channel(s, lang, material.content_project_id)
                 if channel is None:
                     continue
                 variant = Variant(
-                    clip_id=clip.id, channel_id=channel.id, language=lang, variant_label="A"
+                    clip_id=clip.id,
+                    channel_id=channel.id,
+                    content_project_id=material.content_project_id,
+                    language=lang,
+                    variant_label="A",
                 )
                 s.add(variant)
                 variants.append(lang.value)

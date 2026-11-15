@@ -27,6 +27,9 @@ class ChannelOut(BaseModel):
     name: str
     language: Language
     platform: PlatformCode
+    #: Topic area of the channel; content of other projects never goes here.
+    content_project_id: int
+    content_project: str
     auth_status: ChannelAuthStatus
     is_paused: bool
     min_posts_per_day: int

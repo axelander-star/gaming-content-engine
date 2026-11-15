@@ -29,7 +29,13 @@ from sqlalchemy.orm import Session
 
 from agents.base import Agent, AgentContext, AgentResult, PermanentError
 from core.config import Settings
-from core.enums import ChannelAuthStatus, PublishingJobStatus, PublishingMode, VideoStatus
+from core.enums import (
+    ChannelAuthStatus,
+    ContentProjectStatus,
+    PublishingJobStatus,
+    PublishingMode,
+    VideoStatus,
+)
 from models.channels import Channel
 from models.production import Variant
 from models.publishing import PublishingJob, StrategyVersion
@@ -52,7 +58,9 @@ def bounds_for(session: Session, channel: Channel) -> strategy.Bounds:
         max_posts=channel.max_posts_per_day,
         interval_minutes=max(channel.min_interval_minutes, ops.min_publish_interval_minutes),
         window=strategy.window_for(channel),
-        paused=channel.is_paused or channel.platform.is_paused,
+        paused=channel.is_paused
+        or channel.platform.is_paused
+        or channel.content_project.status != ContentProjectStatus.ACTIVE,
     )
 
 
@@ -60,6 +68,8 @@ def publish_block(session: Session, settings: Settings, channel: Channel) -> str
     """Why nothing may be planned for this channel right now (None = allowed)."""
     if channel.is_paused or channel.platform.is_paused:
         return "Kanal oder Plattform pausiert"
+    if channel.content_project.status != ContentProjectStatus.ACTIVE:
+        return f"Themenbereich „{channel.content_project.name}“ ist nicht aktiv"
     controls = effective_controls(session, settings)
     if controls.emergency_stop:
         return "Not-Aus aktiv"
@@ -340,6 +350,7 @@ class PublishingStrategyAgent(Agent):
                 PublishingJob(
                     variant_id=variant.id,
                     channel_id=channel.id,
+                    content_project_id=variant.content_project_id,
                     status=PublishingJobStatus.SCHEDULED,
                     mode=mode,
                     scheduled_for=when,

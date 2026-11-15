@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 15.11.2026 · **Aktuelle Phase:** 15 abgeschlossen, Abnahmetest nach Abschnitt 20 durchgeführt · **Nächster Schritt:** Phase B laut [ROADMAP.md](ROADMAP.md) (2FA, gültige Zugangsdaten, Backup nach Freigabe, Server-Vorbereitung)
+**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase 1 (Themenbereiche) abgeschlossen · **Nächster Schritt:** Erweiterung Phase 2 (Dashboard-Neugestaltung im Dark Mode) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -27,6 +27,66 @@
 ## Einschub: private Nutzung (15.11.2026)
 
 Entscheidung des Betreibers: Die Anwendung ist ausschließlich für ihn bestimmt, kein öffentliches Produkt. Umgesetzt (ohne Deployment): Prüfung des Cloudflare-Access-Tokens im Backend (`ACCESS_GUARD=cloudflare`), Einzelbenutzer-Modus (`SINGLE_USER_MODE`), Dienst `cloudflared` (Profil `tunnel`), interner Caddy-Eingang für den Tunnel, `harden.sh --tunnel`, Warnungen in `deploy.sh`. 13 neue Tests, alle 372 Backend-Tests grün. Checkliste ohne öffentliche Website überarbeitet. Nachgezogen (15.11.): Prüfung des Zugangsschutzes ohne Blockieren der Ereignisschleife und mit 30 s Uhrentoleranz; statische Rechtstext-Seite für Google/Meta auf eigenem Caddy-Eingang `:8081` ohne Route zur Anwendung; fortsetzbarer Upload in Teilstücken (`/api/uploads`, Tabelle `upload_sessions`, Dashboard mit Fortschritt und Anhalten, 9 neue Tests, [UPLOADS.md](UPLOADS.md)). Offen: Einrichtung von Cloudflare und Server (gemeinsam, nach Prüfung durch den Betreiber), Rechtstexte lesen und `LEGAL_*` setzen. Details: [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md), [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
+
+## Erweiterung: KI-Content-Plattform (ab 15.11.2026)
+
+Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System mehr, sondern ein persönlicher, per Chat gesteuerter KI-Content-Manager für beliebig viele Themenbereiche (z. B. Gaming, Ernährung) mit eigenen Kanälen. Plan mit 10 Phasen und Entscheidungen: [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md). Entscheidung des Betreibers: KI-Anbieter Claude (Haiku 5.5 für Texte, Sonnet 5.5 für Chat, Ideen und Planung) mit harter Obergrenze 20 $/Monat; bis ein API-Schlüssel hinterlegt und freigegeben ist, läuft alles im Mock-Modus.
+
+| Phase | Inhalt | Status |
+|---|---|---|
+| E1 | Themenbereiche, Kanalzuordnung, harte Sperre gegen falschen Kanal | ✅ abgeschlossen |
+| E2 | Dashboard-Neugestaltung (Dark Mode, Navigation, Startseite) | offen |
+| E3 | KI-Schicht (Mock/Claude, Budget, Kostenbuchung) | offen |
+| E4 | Chat-Assistent mit Aktionen | offen |
+| E5 | Recherche und Ideenlabor | offen |
+| E6 | Redaktionsplan und Kalender | offen |
+| E7 | Mediathek und Eigenproduktion | offen |
+| E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | offen |
+| E9 | Tests, Sicherheitsprüfung, Doku | offen |
+| E10 | Vorbereitung Hetzner | offen |
+
+### Phase E1 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **Themenbereiche** (Tabelle `content_projects`): Name, Beschreibung, Sprachen, Zielgruppe, Tonalität, Unterthemen, Priorität, Status (aktiv, pausiert, archiviert). Gaming ist per Migration der erste Bereich (Standard); alle vorhandenen Kanäle, Materialien, Videos, Aufträge und Beiträge gehören ihm.
+- **Kanalzuordnung:** Jeder Kanal gehört zu genau einem Themenbereich. Neue Kanäle (z. B. „YouTube Ernährung“) lassen sich anlegen; sie starten pausiert, nicht verbunden, Obergrenze 0. Ein Kanal kann den Bereich nur wechseln, solange er keine Videos oder Beiträge hat.
+- **Harte Sperre, dreifach:**
+  1. Datenbank: zusammengesetzte Fremdschlüssel (Kanal-ID + Themenbereich) auf `variants`, `publishing_jobs` und `posts`. Selbst ein direkter SQL-Befehl kann ein Video nicht auf den Kanal eines anderen Bereichs legen.
+  2. Code: Vor jedem Speichern füllt `services/projects.py` den Bereich aus Kanal bzw. Video und lehnt ein Video ab, dessen Ausgangsmaterial zu einem anderen Bereich gehört als der Kanal (`ProjectMismatchError`).
+  3. Gates: Pausierte oder archivierte Bereiche stoppen Produktion und Veröffentlichung; zusätzlich Vergleich Material ↔ Video ↔ Kanal vor jedem Schritt. Der Publishing Strategy Agent plant für Kanäle eines inaktiven Bereichs nichts.
+- **Neue Videos** starten nur auf Kanälen des Themenbereichs ihres Materials. Material wird beim Registrieren/Hochladen einem Bereich zugeordnet (ohne Angabe: Gaming).
+- **API:** `GET/POST /api/projects`, `GET/PATCH /api/projects/{id}`, `POST /api/channels`, `PUT /api/channels/{id}/project`; `content_project_id` bei Material (auch im fortsetzbaren Upload). Alle Änderungen im Audit-Log.
+- **Dashboard:** neue Seite „Themenbereiche“ (Karten mit Kennzahlen, Unterthemen, Bearbeiten, Pausieren/Archivieren, Kanäle je Bereich, Kanal anlegen); Spalte „Themenbereich“ in der Kanaltabelle der Einstellungen.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/models/projects.py`, `backend/services/projects.py`, `backend/api/projects.py`, Migration `9fbc1a219fbe_content_projects`, `backend/tests/integration/test_projects.py`, `frontend/dashboard/ProjectsView.tsx`, `frontend/app/(dashboard)/themenbereiche/page.tsx`, `docs/CONTENT_PLATFORM_PLAN.md`
+- Geändert: `backend/core/enums.py`, `backend/models/{__init__,channels,production,publishing}.py`, `backend/services/{gates,seed}.py`, `backend/agents/{gameplay_analysis,creative_director,publishing,publishing_strategy}.py`, `backend/api/{channels,rights,schemas}.py`, `backend/app/main.py`, `frontend/lib/{api,types}.ts`, `frontend/components/AppShell.tsx`, `frontend/dashboard/ChannelsTable.tsx`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, `docs/{PROJECT_STATUS,ARCHITECTURE}.md`
+
+**3. Durchgeführte Tests**
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest) inkl. Abnahmetest
+- 17 neue Tests: Standardbereich und Bestandsdaten, Vererbung des Bereichs, Ernährungsvideo auf Gaming-Kanal (auch mit ausdrücklich falschem Bereich, beim Umhängen und per direktem SQL), Auftrag auf fremdem Kanal, Kanalauswahl neuer Videos, Gate bei pausiertem Bereich, Strategieplanung bei pausiertem Bereich, API (Anlegen, Doppelname, Kanal anlegen, Umhängen nur leerer Kanäle, Standardbereich nicht archivierbar, archivierter Bereich ohne neue Kanäle, Rollen, Material mit Bereich)
+- `alembic upgrade`, `downgrade -1`, erneut `upgrade` und `alembic check`
+- Frontend `typecheck`, `build`, Playwright-E2E mit neuem Schritt „Themenbereiche“
+- `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 398 Backend-Tests bestanden; ruff, mypy und `alembic check` ohne Befund
+- E2E: 20 Schritte bestanden
+- `verify_phase1.sh`: 68 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- Trends und Spiele sind noch nicht Themenbereichen zugeordnet (Recherche je Bereich kommt in Phase E5).
+- Modus je Bereich (nur sammeln / mit Freigabe / automatisch) und Not-Aus je Kanalebene folgen mit dem Freigabecenter (E8); heute wirkt „pausiert“ als Stopp je Bereich.
+- Das Dashboard hat noch das bisherige Design; die Neugestaltung im Dark Mode ist Phase E2.
+
+**6. Nächster Schritt**
+
+Phase E2: Dashboard-Grundstruktur und Design im Dark Mode (Navigation links, Startseite mit Kennzahlen, Plattformkacheln, Statuschips, responsive), bestehende Seiten unter „Engine“.
 
 ## Abnahmetest nach Abschnitt 20 (15.11.2026)
 

@@ -71,6 +71,7 @@ class CreativeDirectorAgent(Agent):
             sibling = Variant(
                 clip_id=variant.clip_id,
                 channel_id=variant.channel_id,
+                content_project_id=variant.content_project_id,
                 language=variant.language,
                 variant_label=label,
                 storage_uri=variant.storage_uri,

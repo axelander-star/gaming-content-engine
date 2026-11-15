@@ -133,6 +133,10 @@ Ergänzt in Phase 6: `license_documents` (versionierte Nachweise mit SHA-256), `
 
 Ergänzend in Phase 11/14 geplant: `strategy_versions` (gespeicherte Publishing-Strategien je Kanal für Rollback) und `experiments` (kontrollierte Tests).
 
+### Themenbereiche (Erweiterung E1, 15.11.2026)
+
+`content_projects` beschreibt einen Themenbereich (Gaming, Ernährung, …). `channels`, `gameplay_files`, `variants`, `publishing_jobs` und `posts` tragen `content_project_id`. Zusammengesetzte Fremdschlüssel `(channel_id, content_project_id) → channels(id, content_project_id)` und `(variant_id, content_project_id) → variants(id, content_project_id)` garantieren in der Datenbank, dass Video, Auftrag, Beitrag und Kanal immer zum selben Bereich gehören. `services/projects.py` füllt den Bereich vor jedem Flush und lehnt Videos ab, deren Material zu einem anderen Bereich gehört; die Gates stoppen inaktive Bereiche. Plan der weiteren Erweiterung: [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md).
+
 ### Rückverfolgbarkeit
 
 Jeder Post ist lückenlos bis zur Lizenz verfolgbar:

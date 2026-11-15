@@ -26,6 +26,14 @@ class ChannelAuthStatus(StrEnum):
     EXPIRED = "expired"
 
 
+class ContentProjectStatus(StrEnum):
+    """Lifecycle of a content project (topic area). Only ``active`` projects produce or publish."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ARCHIVED = "archived"
+
+
 class UserRole(StrEnum):
     ADMIN = "admin"
     OPERATOR = "operator"

@@ -13,6 +13,7 @@ from core.enums import ChannelAuthStatus, Language, PlatformCode, PolicyStatus
 from models.channels import Channel, Platform
 from models.rights import PublisherPolicy
 from models.trends import Game
+from services.projects import default_project_id
 
 #: Policies required by the specification itself (section 5). Everything else is
 #: researched and entered by the operator; nothing is assumed to be permissive.
@@ -40,6 +41,7 @@ PLATFORM_NAMES: dict[PlatformCode, str] = {
 def seed_base_data(session: Session) -> dict[str, int]:
     """Create missing platforms and channels. Returns counts of created rows."""
     created = {"platforms": 0, "channels": 0, "policies": 0}
+    project_id = default_project_id(session)  # Gaming, the first content project
     for code, name in PLATFORM_NAMES.items():
         platform = session.scalar(select(Platform).where(Platform.code == code))
         if platform is None:
@@ -58,6 +60,7 @@ def seed_base_data(session: Session) -> dict[str, int]:
                 session.add(
                     Channel(
                         platform_id=platform.id,
+                        content_project_id=project_id,
                         language=lang,
                         name=channel_name,
                         auth_status=ChannelAuthStatus.NOT_CONNECTED,

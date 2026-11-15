@@ -18,6 +18,7 @@ from api.channels import router as channels_router
 from api.health import router as health_router
 from api.overview import router as overview_router
 from api.production import router as production_router
+from api.projects import router as projects_router
 from api.publishing import router as publishing_router
 from api.rights import router as rights_router
 from api.settings import router as settings_router
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
         analytics_router,
         system_router,
         uploads_router,
+        projects_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 
