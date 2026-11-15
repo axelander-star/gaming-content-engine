@@ -26,6 +26,8 @@ Cloudbasiertes KI-System, das Gaming-Trends erkennt, rechtlich freigegebenes Gam
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Betrieb: Deployment, Überwachung, Datensicherung, Härtung, Skalierung |
 | [docs/ACCEPTANCE_TEST.md](docs/ACCEPTANCE_TEST.md) | Abnahmetest nach Spezifikation Abschnitt 20: echt vs. simuliert, Befunde, Voraussetzungen für den Livebetrieb |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Entwicklungsplan nach Phase 15 (Phasen A–D) mit Kosten und Freigaben |
+| [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md) | Checkliste bis zum Produktivstart auf Hetzner (Betreiber, Agent, Server) |
+| [docs/PRIVATE_ACCESS.md](docs/PRIVATE_ACCESS.md) | Private Nutzung: Cloudflare Tunnel + Access, Einzelbenutzer, Datenschutz-URLs, Impressum |
 | [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Aktueller Stand, offene Punkte |
 
 ## Projektstruktur

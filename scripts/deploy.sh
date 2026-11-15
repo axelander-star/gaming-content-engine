@@ -31,6 +31,17 @@ if [[ "$(env_value AUTO_PUBLISH_ENABLED)" == "true" || "$(env_value PUBLISHING_M
   echo "Das darf nur nach ausdrücklicher Freigabe so sein. Weiter mit Enter, Abbruch mit Strg+C."
   read -r _
 fi
+# Private operation: Cloudflare Tunnel + Access (docs/PRIVATE_ACCESS.md).
+if [[ -n "$(env_value CLOUDFLARE_TUNNEL_TOKEN)" ]]; then
+  COMPOSE+=(--profile tunnel)
+  [[ "$(env_value CADDY_BIND)" == "127.0.0.1" ]] \
+    || echo "WARNUNG: Tunnel aktiv, aber CADDY_BIND ist nicht 127.0.0.1 – Ports 80/443 wären offen."
+fi
+if [[ "$(env_value APP_ENV)" == "production" && "$(env_value ACCESS_GUARD)" != "cloudflare" ]]; then
+  echo "WARNUNG: ACCESS_GUARD ist nicht 'cloudflare' – die API prüft kein Cloudflare-Access-Token."
+fi
+[[ "$(env_value SINGLE_USER_MODE)" == "true" ]] \
+  || echo "Hinweis: SINGLE_USER_MODE ist nicht 'true' – weitere Benutzerkonten wären möglich."
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] || fail "Lokale Änderungen im Arbeitsverzeichnis – bitte erst klären"
 
 PREVIOUS="$(git rev-parse HEAD)"

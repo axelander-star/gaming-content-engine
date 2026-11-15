@@ -36,7 +36,8 @@ Die automatische Veröffentlichung wird erst eingeschaltet, wenn alle Tests best
 ## 4. Netzwerk
 
 - PostgreSQL, Redis, n8n und Uptime Kuma sind nur auf `127.0.0.1` gebunden.
-- Öffentlich nur Caddy (80/443) mit automatischem TLS und Sicherheitsheadern.
+- **Private Nutzung (15.11.2026):** Zugang nur über Cloudflare Access; der Server ist über einen Cloudflare Tunnel angebunden und hat außer SSH keine offenen Ports. Das Backend prüft bei `ACCESS_GUARD=cloudflare` jedes Access-Token selbst (Signatur, Zielgruppe, Aussteller, Ablauf, optional E-Mail) und lehnt Anfragen ohne gültiges Token mit 403 ab; ausgenommen ist nur `/api/health` für interne Healthchecks. `SINGLE_USER_MODE=true` verhindert weitere Konten. Details: [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md).
+- Ohne Tunnel (alter Weg): öffentlich nur Caddy (80/443) mit automatischem TLS und Sicherheitsheadern.
 - Server: SSH nur mit Schlüssel, Firewall (ufw, zusätzlich Hetzner Firewall empfohlen) nur 22/80/443, fail2ban, automatische Sicherheitsupdates. Umgesetzt in Phase 15 als `infrastructure/server/harden.sh` (siehe [OPERATIONS.md](OPERATIONS.md)).
 - Zusätzliche Header in Caddy (Phase 15): `Content-Security-Policy` mit `frame-ancestors 'none'`, `base-uri 'self'`, `object-src 'none'` und `form-action 'self'`; dazu `Permissions-Policy` ohne Kamera, Mikrofon, Standort, Zahlung und USB sowie `Cross-Origin-Opener-Policy: same-origin`.
 
@@ -85,5 +86,6 @@ Die automatische Veröffentlichung wird erst eingeschaltet, wenn alle Tests best
 
 ## 10. Offene Sicherheitspunkte
 
+- Cloudflare Access und Tunnel: im Code vorbereitet, noch nicht eingerichtet ([PRIVATE_ACCESS.md](PRIVATE_ACCESS.md)).
 - Zwei-Faktor-Anmeldung (TOTP) für Admins: noch nicht umgesetzt. Bis dahin gelten eine starke Passwortrichtlinie, die Login-Sperre, kurze Sitzungen (30 min) und ein Dashboard, das nur über HTTPS erreichbar ist. Bevor weitere Personen Zugang bekommen, sollte TOTP nachgezogen werden.
 - Kopie der Sicherungen außerhalb des Servers: Ziel (Storage Box oder R2) und Kosten müssen noch freigegeben werden.

@@ -43,6 +43,19 @@ class Settings(BaseSettings):
     login_lockout_minutes: int = Field(default=15, gt=0)
     password_min_length: int = Field(default=12, ge=8)
 
+    # --- Private operation (single operator behind Cloudflare Access) ---
+    #: Refuse to create further accounts once one exists (dashboard and CLI).
+    single_user_mode: bool = False
+    #: ``cloudflare``: every API request (except ``/api/health``) must carry a valid
+    #: Cloudflare Access token. ``none``: no check (local development, tests).
+    access_guard: Literal["none", "cloudflare"] = "none"
+    #: Team domain of the Zero Trust organisation, e.g. ``myteam.cloudflareaccess.com``.
+    cf_access_team_domain: str = ""
+    #: Application Audience (AUD) tag of the Access application.
+    cf_access_aud: str = ""
+    #: Optional comma-separated allow list of e-mail addresses (second check behind Access).
+    cf_access_allowed_emails: str = ""
+
     # --- Safety switches (PROJECT_SPEC section 15) ---
     auto_publish_enabled: bool = False
     publishing_mode: Literal["mock", "live"] = "mock"
@@ -201,6 +214,11 @@ class Settings(BaseSettings):
         )
 
     @property
+    def cf_access_emails(self) -> set[str]:
+        """Allowed e-mail addresses (lower case); empty means "any user Access lets in"."""
+        return {e.strip().lower() for e in self.cf_access_allowed_emails.split(",") if e.strip()}
+
+    @property
     def publishing_allowed(self) -> bool:
         """True only if every global switch permits a real publication."""
         return (
@@ -217,6 +235,12 @@ class Settings(BaseSettings):
         ]
         if thresholds != sorted(thresholds):
             raise ValueError("Budget thresholds must be ascending (warn <= reduced <= ...)")
+        if self.access_guard == "cloudflare" and not (
+            self.cf_access_team_domain.strip() and self.cf_access_aud.strip()
+        ):
+            raise ValueError(
+                "ACCESS_GUARD=cloudflare needs CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD"
+            )
         if self.app_env == "production":
             if not self.session_cookie_secure:
                 raise ValueError("SESSION_COOKIE_SECURE must be true in production")

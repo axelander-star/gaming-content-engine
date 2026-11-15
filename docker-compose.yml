@@ -187,12 +187,28 @@ services:
       DOMAIN: ${DOMAIN:-localhost}
       ACME_EMAIL: ${ACME_EMAIL:-}
     ports:
-      - "80:80"
-      - "443:443"
+      # Private operation behind Cloudflare Tunnel: CADDY_BIND=127.0.0.1 keeps 80/443
+      # closed to the internet; cloudflared reaches Caddy internally on port 8080.
+      - "${CADDY_BIND:-0.0.0.0}:80:80"
+      - "${CADDY_BIND:-0.0.0.0}:443:443"
     volumes:
       - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    networks: [web]
+
+  # Cloudflare Tunnel (private operation): outbound-only connection to Cloudflare,
+  # no open web ports on the server. Public hostname in the Zero Trust dashboard
+  # points to http://caddy:8080 and is protected by a Cloudflare Access application.
+  cloudflared:
+    image: cloudflare/cloudflared:${CLOUDFLARED_VERSION:-2026.10.5}
+    profiles: ["tunnel"]
+    <<: [*restart, *logging]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - caddy
     networks: [web]
 
   n8n:

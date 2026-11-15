@@ -3,10 +3,11 @@
 #
 # Run once as root on the server:   sudo ./infrastructure/server/harden.sh
 # Preview without changes:          sudo ./infrastructure/server/harden.sh --dry-run
+# Private operation (Cloudflare Tunnel, no open web ports):  add --tunnel
 #
 # What it does (idempotent):
 #   1. automatic security updates (unattended-upgrades)
-#   2. firewall: only SSH, HTTP and HTTPS reachable (ufw)
+#   2. firewall: only SSH, HTTP and HTTPS reachable (ufw); with --tunnel only SSH
 #   3. SSH: keys only, no password login, root only with a key
 #   4. fail2ban against SSH brute force
 #   5. Docker log rotation and no direct port publishing past the firewall rules
@@ -15,7 +16,14 @@
 set -euo pipefail
 
 DRY=0
-[[ "${1:-}" == "--dry-run" ]] && DRY=1
+TUNNEL=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY=1 ;;
+    --tunnel) TUNNEL=1 ;;
+    *) echo "Unbekannte Option: $arg (erlaubt: --dry-run, --tunnel)" >&2; exit 2 ;;
+  esac
+done
 SSH_PORT="${SSH_PORT:-22}"
 
 run() {
@@ -48,8 +56,14 @@ echo "== 2. Firewall: nur SSH, HTTP, HTTPS"
 run ufw default deny incoming
 run ufw default allow outgoing
 run ufw limit "${SSH_PORT}/tcp"
-run ufw allow 80/tcp
-run ufw allow 443/tcp
+if [[ $TUNNEL -eq 1 ]]; then
+  # Cloudflare Tunnel connects outbound; no inbound web ports needed.
+  run ufw delete allow 80/tcp || true
+  run ufw delete allow 443/tcp || true
+else
+  run ufw allow 80/tcp
+  run ufw allow 443/tcp
+fi
 run ufw --force enable
 
 echo "== 3. SSH nur mit Schlüssel"
@@ -81,4 +95,8 @@ else
   echo "/etc/docker/daemon.json existiert bereits – unverändert gelassen."
 fi
 
-echo "Fertig. Zusätzlich empfohlen: Hetzner Cloud Firewall mit denselben Regeln (22, 80, 443)."
+if [[ $TUNNEL -eq 1 ]]; then
+  echo "Fertig. Zusätzlich empfohlen: Hetzner Cloud Firewall, eingehend nur 22 (am besten nur von deiner IP)."
+else
+  echo "Fertig. Zusätzlich empfohlen: Hetzner Cloud Firewall mit denselben Regeln (22, 80, 443)."
+fi

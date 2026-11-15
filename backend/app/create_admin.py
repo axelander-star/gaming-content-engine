@@ -37,6 +37,15 @@ def main(argv: list[str] | None = None) -> int:
 
     with get_sessionmaker()() as session, session.begin():
         user = session.scalar(select(User).where(User.email == email))
+        if user is None and get_settings().single_user_mode:
+            other = session.scalar(select(User.email).limit(1))
+            if other is not None:
+                print(
+                    "Error: single-user mode is on and an account already exists. "
+                    "Reset that account instead (same command with its e-mail).",
+                    file=sys.stderr,
+                )
+                return 3
         if user is None:
             user = User(email=email, password_hash=hash_password(password), role=UserRole.ADMIN)
             session.add(user)

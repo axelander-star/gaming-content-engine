@@ -5,9 +5,9 @@ Stand: Phase 15. Dieses Dokument beschreibt den Betrieb auf dem Server: Einricht
 ## 1. Erstinstallation
 
 1. Server mit Ubuntu 24.04 anlegen (geplant: Hetzner CX33) und SSH-Schlüssel hinterlegen.
-2. Härtung ausführen (Abschnitt 6): `sudo ./infrastructure/server/harden.sh --dry-run`, dann ohne `--dry-run`.
+2. Härtung ausführen (Abschnitt 6): `sudo ./infrastructure/server/harden.sh --tunnel --dry-run`, dann ohne `--dry-run`. `--tunnel` für den privaten Betrieb hinter Cloudflare Tunnel (nur SSH offen, siehe [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md)); ohne Tunnel die Option weglassen.
 3. Docker Engine mit Compose-Plugin nach der offiziellen Docker-Anleitung installieren.
-4. Repository klonen, `.env` aus `.env.example` erstellen und alle Pflichtwerte setzen: `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SECRET_KEY`, `CREDENTIALS_ENCRYPTION_KEY`, `BACKUP_PASSPHRASE`, `APP_ENV=production`, `DOMAIN`, `ACME_EMAIL`. Die Sicherheitsschalter bleiben auf ihren Standardwerten (`AUTO_PUBLISH_ENABLED=false`, `PUBLISHING_MODE=mock`).
+4. Repository klonen, `.env` aus `.env.example` erstellen und alle Pflichtwerte setzen: `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SECRET_KEY`, `CREDENTIALS_ENCRYPTION_KEY`, `BACKUP_PASSPHRASE`, `APP_ENV=production`; für den privaten Betrieb zusätzlich `ACCESS_GUARD=cloudflare`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_ACCESS_ALLOWED_EMAILS`, `SINGLE_USER_MODE=true`, `CLOUDFLARE_TUNNEL_TOKEN`, `CADDY_BIND=127.0.0.1` (ohne Tunnel stattdessen `DOMAIN` und `ACME_EMAIL`). Die Sicherheitsschalter bleiben auf ihren Standardwerten (`AUTO_PUBLISH_ENABLED=false`, `PUBLISHING_MODE=mock`).
 5. `./scripts/deploy.sh` ausführen.
 6. Ersten Admin anlegen: `docker compose run --rm backend python -m app.create_admin`.
 7. Uptime Kuma einrichten (Abschnitt 3).

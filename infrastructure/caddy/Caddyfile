@@ -1,10 +1,11 @@
-# Caddy Reverse Proxy (Stand: Phase 15)
+# Caddy Reverse Proxy (Stand: private Nutzung, 15.11.2026)
 # /api/* geht an das Backend, alles andere an das Dashboard.
 {
 	email {$ACME_EMAIL}
 }
 
-{$DOMAIN:localhost} {
+# Routes and headers shared by both entry points.
+(app) {
 	encode zstd gzip
 
 	header {
@@ -30,4 +31,17 @@
 	handle {
 		reverse_proxy frontend:3000
 	}
+}
+
+# Public entry point with automatic HTTPS (Let's Encrypt) for DOMAIN.
+# In private operation behind Cloudflare Tunnel leave DOMAIN empty: this block then
+# only answers on localhost, and ports 80/443 stay closed (CADDY_BIND=127.0.0.1).
+{$DOMAIN:localhost} {
+	import app
+}
+
+# Internal entry point for Cloudflare Tunnel (cloudflared -> http://caddy:8080).
+# Not published on the host; TLS ends at Cloudflare, the tunnel itself is encrypted.
+http://:8080 {
+	import app
 }
