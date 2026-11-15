@@ -159,6 +159,9 @@ class Settings(BaseSettings):
     game_intelligence_seconds: int = Field(default=24 * 3600, ge=300)
     rights_sweep_seconds: int = Field(default=24 * 3600, ge=300)  # license expiry monitoring
     material_needs_seconds: int = Field(default=24 * 3600, ge=300)
+    #: Research and idea lab (extension phase E5).
+    research_seconds: int = Field(default=6 * 3600, ge=300)
+    ideas_seconds: int = Field(default=24 * 3600, ge=300)
 
     # --- Operations (Phase 15): monitoring, alerts, backups ---
     #: How often the scheduler runs the system checks (and pushes to Uptime Kuma).
@@ -221,6 +224,13 @@ class Settings(BaseSettings):
     twitch_max_requests_per_run: int = Field(default=20, ge=0)
     steam_max_requests_per_run: int = Field(default=30, ge=0)
     http_timeout_s: float = Field(default=10.0, gt=0)
+
+    # --- Research feeds (extension phase E5). "mock" makes no network calls. ---
+    research_sources_mode: Literal["mock", "live"] = "mock"
+    research_max_feed_bytes: int = Field(default=2 * 1024**2, gt=0)
+    research_items_per_source: int = Field(default=30, ge=1, le=200)
+    #: Ideas the idea lab drafts per topic area and run.
+    ideas_per_run: int = Field(default=5, ge=1, le=20)
 
     @property
     def database_url(self) -> str:

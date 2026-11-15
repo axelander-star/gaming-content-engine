@@ -46,6 +46,8 @@ class Schedule:
                 "material_scout": settings.material_needs_seconds,
                 "analytics": settings.analytics_seconds,
                 "learning": settings.learning_seconds,
+                "research": settings.research_seconds,
+                "idea_lab": settings.ideas_seconds,
             }
         )
 

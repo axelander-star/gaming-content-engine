@@ -1372,3 +1372,142 @@ details summary {
   color: var(--muted);
   font-weight: 600;
 }
+
+/* --- idea lab (E5) --- */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.inline-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tabs {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  background: var(--surface);
+}
+.tab {
+  font: inherit;
+  font-size: 13px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.tab.is-active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+.notice {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--info-bg);
+  color: var(--info);
+  margin: 0 0 12px;
+}
+.idea-list,
+.side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.idea-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.idea-card h3 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+.idea-card p {
+  margin: 0;
+}
+.idea-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.idea-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.idea-score {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--surface-3);
+}
+.idea-score-ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.idea-score-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px 16px;
+}
+.score-bar {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 28px;
+  gap: 8px;
+  align-items: center;
+}
+.score-bar .meter {
+  height: 6px;
+}
+.idea-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.source-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.source-list a {
+  color: var(--accent-2);
+}
+.row-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.source-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feed-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

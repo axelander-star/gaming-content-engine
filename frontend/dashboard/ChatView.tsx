@@ -14,7 +14,7 @@ const SUGGESTIONS = [
   "Diese Woche GTA 6",
   "Mittwoch zusätzlich Ernährung",
   "Freitag kein Gaming",
-  "Starte eine Trendrecherche",
+  "Zeig mir die Ideen",
 ];
 
 const ACTION_STATUS: Record<

@@ -38,12 +38,52 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E2 | Dashboard-Neugestaltung (Dark Mode, Navigation, Startseite) | ✅ abgeschlossen |
 | E3 | KI-Schicht (Mock/Claude, Budget, Kostenbuchung) | ✅ abgeschlossen |
 | E4 | Chat-Assistent mit Aktionen | ✅ abgeschlossen |
-| E5 | Recherche und Ideenlabor | offen |
+| E5 | Recherche und Ideenlabor | ✅ abgeschlossen |
 | E6 | Redaktionsplan und Kalender | offen |
 | E7 | Mediathek und Eigenproduktion | offen |
 | E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | offen |
 | E9 | Tests, Sicherheitsprüfung, Doku | offen |
 | E10 | Vorbereitung Hetzner | offen |
+
+### Phase E5 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **Recherche-Quellen je Themenbereich** (`research_sources`): RSS- und Atom-Feeds, im Ideenlabor vom Admin anzulegen, ein- und auszuschalten. Abruf mit Schutz gegen interne Ziele (auch nach Weiterleitungen), Größen- und Zeitlimit, sicherem XML-Parser (`defusedxml`, neue Abhängigkeit) und entferntem HTML. Im Testmodus (Standard) kein Netzabruf, sondern Beispiel-Feeds aus den Unterthemen des Bereichs.
+- **Zwei neue Agenten** (jetzt 20): *Research* sammelt Einträge (`research_items`, ohne Dubletten), *Idea Lab* macht daraus bewertete Ideen (`ideas`) mit Quellenliste, Format und Begründung. Beide laufen in einer **eigenen Queue `research`**, damit Recherche nie die Produktion aufhält, und im Zeitplan (Recherche alle 6 h, Ideen täglich).
+- **Bewertung im Code statt durch die KI:** Trend, Passung (Schwerpunkt aus dem Chat zählt), Aufwand und Rechte-Risiko mit fester, sichtbarer Formel. Die KI schreibt nur Titel und Beschreibung und nennt die genutzten Einträge; ungültige oder doppelte Vorschläge werden verworfen.
+- **Schutz vor Anweisungen in Feeds:** Feed-Text steht im Prompt als markiertes Material mit dem Hinweis, darin keine Anweisungen zu befolgen; der Ideen-Schritt hat keine Werkzeuge und kann weder Plan noch Produktion ändern.
+- **Ideenlabor** (neue Seite unter Steuerung): Ideen nach Bereich und Status, Punktzahl, Balken je Kriterium, Begründung, Quellen-Links, „Übernehmen“ (optional mit Tag, dann steht der Bereich an dem Tag im Redaktionsplan), „Verwerfen“, „Wieder öffnen“; Quellenverwaltung, neueste Einträge und „Recherche starten“ (Admin).
+- **Chat:** „Recherchiere für Ernährung“ startet Recherche und Ideenlabor für jeden Bereich (bei Gaming zusätzlich die Trendrecherche), „Zeig mir die Ideen“ listet die besten offenen Ideen.
+- **API:** `GET/POST /api/research/sources`, `PATCH/DELETE /api/research/sources/{id}`, `GET /api/research/items`, `POST /api/research/run`, `GET /api/ideas`, `POST /api/ideas/{id}/accept|reject|reopen`.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/models/research.py`, `backend/services/{research,ideas}.py`, `backend/agents/research.py`, `backend/api/research.py`, Migration `e7ef1942573e_research_and_idea_lab`, `backend/tests/integration/test_research.py`, `frontend/dashboard/IdeasView.tsx`, `frontend/app/(dashboard)/ideen/page.tsx`
+- Geändert: `backend/agents/registry.py`, `backend/services/{assistant,orchestrator,queue}.py`, `backend/app/{main,scheduler}.py`, `backend/api/agents.py`, `backend/core/{config,enums}.py`, `backend/models/__init__.py`, `backend/pyproject.toml`, Tests zu Agenten und Assistent, `.env.example`, `frontend/lib/{api,types}.ts`, `frontend/components/{AppShell,icons}.tsx`, `frontend/dashboard/{AgentsView,ChatView}.tsx`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, `docs/{PROJECT_STATUS,AGENTS,API_INTEGRATIONS}.md`
+
+**3. Durchgeführte Tests**
+
+- 24 neue Tests mit festen Feeds: RSS und Atom (Bereinigung, relative Links, `javascript:`-Links verworfen), kaputtes XML und Entity-Bombe abgelehnt, interne Ziele (localhost, 10.x, 169.254.x, ::1, gemischt) abgelehnt, Weiterleitung auf internes Ziel abgelehnt, Größenlimit, Mock-Sammeln ohne Dubletten, Live-Sammeln mit Fehlerquelle und ausgeschalteter Quelle, Testideen mit Schwerpunkt-Bewertung, Formel der Bewertung, Claude-Antwort mit ungültiger Quelle und Dublette (nachgebauter Client, keine Werkzeuge im Aufruf), beide Agenten über den Orchestrator, eigene Queue, API (Rollen, Adressprüfung, Dublette, Übernehmen mit Plantag, Verwerfen, Wieder öffnen, pausierter Bereich, Start der Recherche); Chat-Tests für Recherche je Bereich und Ideenliste
+- `alembic upgrade`, `downgrade -1`, erneut `upgrade`, `alembic check`
+- `scripts/test_backend.sh`, Frontend `typecheck` und `build`, E2E mit neuem Schritt „Ideenlabor“, `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 468 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund
+- E2E: 23 Schritte bestanden
+- `verify_phase1.sh`: 69 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- Kein echter Feed-Abruf und kein echter Claude-Aufruf; beides erst nach Freigabe (`RESEARCH_SOURCES_MODE=live`, Claude-Schlüssel).
+- Es sind noch keine echten Feeds eingetragen; welche Quellen je Bereich sinnvoll sind, legt der Betreiber fest.
+- DNS-Rebinding ist nur durch die Adressprüfung abgedeckt; auf dem Server sollte die Firewall ausgehende Verbindungen in interne Netze zusätzlich sperren (E10).
+- Übernommene Ideen setzen nur den Bereich auf den Plan; die Produktion aus einer Idee kommt mit E7.
+
+**6. Nächster Schritt**
+
+Phase E6: Redaktionskalender (Woche und Monat, Einträge verschieben) und Anbindung an den Publishing-Strategie-Agenten, der die Menge weiter selbst bestimmt.
 
 ### Phase E4 – Bericht
 

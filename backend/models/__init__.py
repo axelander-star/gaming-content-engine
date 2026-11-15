@@ -19,6 +19,7 @@ from models.production import (
 )
 from models.projects import ContentProject
 from models.publishing import Post, PublishingJob, StrategyVersion
+from models.research import Idea, ResearchItem, ResearchSource
 from models.rights import (
     Asset,
     Creator,
@@ -51,6 +52,7 @@ __all__ = [
     "EditorialDay",
     "Game",
     "GameplayFile",
+    "Idea",
     "LearningVersion",
     "License",
     "LicenseDocument",
@@ -61,6 +63,8 @@ __all__ = [
     "PublisherPolicy",
     "PublishingJob",
     "QualityCheck",
+    "ResearchItem",
+    "ResearchSource",
     "RightsCheck",
     "Scene",
     "Script",

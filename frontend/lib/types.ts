@@ -945,3 +945,60 @@ export interface WeekPlan {
   days: PlanDay[];
   focus: PlanFocus[];
 }
+
+// --- research and idea lab (E5) ---
+
+export type IdeaStatus = "new" | "accepted" | "rejected";
+
+export interface ResearchSource {
+  id: number;
+  content_project_id: number;
+  project: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  last_fetched_at: string | null;
+  last_status: string | null;
+  last_error: string | null;
+  last_item_count: number;
+  items: number;
+}
+
+export interface ResearchSources {
+  mode: "mock" | "live";
+  sources: ResearchSource[];
+}
+
+export interface ResearchItem {
+  id: number;
+  content_project_id: number;
+  source: string | null;
+  title: string;
+  url: string | null;
+  summary: string | null;
+  published_at: string | null;
+  fetched_at: string;
+  is_mock: boolean;
+  used: boolean;
+}
+
+export interface Idea {
+  id: number;
+  created_at: string;
+  content_project_id: number;
+  project: string;
+  title: string;
+  pitch: string;
+  format: string;
+  sources: { item_id: number | null; title: string; url: string | null }[];
+  trend_score: number;
+  fit_score: number;
+  effort_score: number;
+  rights_risk: number;
+  score: number;
+  reasoning: string;
+  status: IdeaStatus;
+  provider: string;
+  planned_for: string | null;
+  decided_at: string | null;
+}

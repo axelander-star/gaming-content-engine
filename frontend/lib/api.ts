@@ -34,6 +34,11 @@ import type {
   AIUsage,
   AITestResult,
   ChatAction,
+  Idea,
+  IdeaStatus,
+  ResearchItem,
+  ResearchSource,
+  ResearchSources,
   ChatExchange,
   ChatMessage,
   WeekPlan,
@@ -155,6 +160,33 @@ export const api = {
     request<ChatAction>(`/assistant/actions/${id}/undo`, { method: "POST" }),
   weekPlan: (start?: string) =>
     request<WeekPlan>(`/planning/week${start ? `?start=${encodeURIComponent(start)}` : ""}`),
+
+  researchSources: () => request<ResearchSources>("/research/sources"),
+  createResearchSource: (body: { content_project_id: number; name: string; url: string }) =>
+    request<ResearchSource>("/research/sources", { method: "POST", body: json(body) }),
+  updateResearchSource: (id: number, changes: { name?: string; enabled?: boolean }) =>
+    request<ResearchSource>(`/research/sources/${id}`, { method: "PATCH", body: json(changes) }),
+  deleteResearchSource: (id: number) =>
+    request<void>(`/research/sources/${id}`, { method: "DELETE" }),
+  researchItems: (projectId?: number, limit = 30) =>
+    request<ResearchItem[]>(
+      `/research/items?limit=${limit}${projectId ? `&project_id=${projectId}` : ""}`,
+    ),
+  runResearch: (projectId?: number) =>
+    request<{ jobs: Record<string, string> }>("/research/run", {
+      method: "POST",
+      body: json({ project_id: projectId ?? null, ideas: true }),
+    }),
+  ideas: (filters: { projectId?: number; status?: IdeaStatus } = {}) => {
+    const q = new URLSearchParams({ limit: "100" });
+    if (filters.projectId) q.set("project_id", String(filters.projectId));
+    if (filters.status) q.set("status", filters.status);
+    return request<Idea[]>(`/ideas?${q.toString()}`);
+  },
+  acceptIdea: (id: number, day: string | null) =>
+    request<Idea>(`/ideas/${id}/accept`, { method: "POST", body: json({ day }) }),
+  rejectIdea: (id: number) => request<Idea>(`/ideas/${id}/reject`, { method: "POST" }),
+  reopenIdea: (id: number) => request<Idea>(`/ideas/${id}/reopen`, { method: "POST" }),
 
   settings: () => request<SettingsResponse>("/settings"),
   updateControls: (

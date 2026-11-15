@@ -1,4 +1,4 @@
-"""Agents page: status of all 18 agents, pause/resume, runs, decisions, budget."""
+"""Agents page: status of all agents, pause/resume, runs, decisions, budget."""
 
 from __future__ import annotations
 
@@ -33,6 +33,8 @@ MANUAL_RUN = {
     "game_intelligence",
     "material_scout",  # material needs sweep
     "rights_license",  # license expiry sweep
+    "research",
+    "idea_lab",
 }
 
 

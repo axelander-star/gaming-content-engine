@@ -186,12 +186,12 @@ export function AgentsView() {
     <>
       <PageHeader
         title="Agenten"
-        description="Status, letzte Läufe, Entscheidungen und Kosten aller 18 Agenten."
+        description="Status, letzte Läufe, Entscheidungen und Kosten aller Agenten."
       />
       <div className="grid stats">
         <StatCard
           label="Aktive Agenten"
-          value={`${implemented} / ${agents.length || 18}`}
+          value={`${implemented} / ${agents.length || 20}`}
           hint="Weitere Agenten folgen mit ihren Phasen"
         />
         <StatCard

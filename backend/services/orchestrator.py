@@ -53,7 +53,12 @@ def job_key(agent_name: str, payload: dict[str, Any]) -> str:
     return f"agent-{agent_name}"
 
 
+RESEARCH_AGENTS = {"research", "idea_lab"}
+
+
 def queue_for(spec: AgentSpec, priority: bool) -> str:
+    if spec.name in RESEARCH_AGENTS:
+        return "research"  # own queue: research never delays production (E5)
     if priority or spec.name in {"master", "budget_cost"}:
         return "high"
     return "low" if spec.stage is None else "default"
