@@ -8,6 +8,10 @@ import type {
   AgentRun,
   Budget,
   Channel,
+  ChannelInput,
+  ContentProject,
+  ContentProjectInput,
+  ContentProjectPatch,
   AnalyticsFilters,
   AnalyticsOverview,
   ChannelPlan,
@@ -138,6 +142,19 @@ export const api = {
     request<OperationsSettings>("/settings/operations", { method: "PATCH", body: json(changes) }),
 
   channels: () => request<Channel[]>("/channels"),
+  createChannel: (body: ChannelInput) =>
+    request<Channel>("/channels", { method: "POST", body: json(body) }),
+  moveChannel: (id: number, contentProjectId: number) =>
+    request<Channel>(`/channels/${id}/project`, {
+      method: "PUT",
+      body: json({ content_project_id: contentProjectId }),
+    }),
+
+  projects: () => request<ContentProject[]>("/projects"),
+  createProject: (body: ContentProjectInput) =>
+    request<ContentProject>("/projects", { method: "POST", body: json(body) }),
+  updateProject: (id: number, changes: ContentProjectPatch) =>
+    request<ContentProject>(`/projects/${id}`, { method: "PATCH", body: json(changes) }),
   pauseChannel: (id: number) => request<Channel>(`/channels/${id}/pause`, { method: "POST" }),
   resumeChannel: (id: number) => request<Channel>(`/channels/${id}/resume`, { method: "POST" }),
   connectChannel: (id: number) =>

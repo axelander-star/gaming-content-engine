@@ -7,15 +7,18 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from api.deps import Admin, AppSettings, DbSession, Operator, Viewer, csrf_protect
 from api.schemas import ChannelOut
 from core.config import Settings
-from core.enums import ChannelAuthStatus, PlatformCode, UserRole
+from core.enums import ChannelAuthStatus, ContentProjectStatus, Language, PlatformCode, UserRole
 from models.access import User
-from models.channels import Channel, ChannelCredential
+from models.channels import Channel, ChannelCredential, Platform
+from models.production import Variant
+from models.projects import ContentProject
+from models.publishing import Post
 from services import audit, meta, platform, tiktok, youtube
 
 log = logging.getLogger(__name__)
@@ -43,6 +46,8 @@ def _out(channel: Channel, account: str | None = None) -> ChannelOut:
         name=channel.name,
         language=channel.language,
         platform=channel.platform.code,
+        content_project_id=channel.content_project_id,
+        content_project=channel.content_project.name,
         auth_status=channel.auth_status,
         is_paused=channel.is_paused,
         min_posts_per_day=channel.min_posts_per_day,
@@ -53,7 +58,11 @@ def _out(channel: Channel, account: str | None = None) -> ChannelOut:
 
 
 def _get(db: DbSession, channel_id: int) -> Channel:
-    channel = db.get(Channel, channel_id, options=[joinedload(Channel.platform)])
+    channel = db.get(
+        Channel,
+        channel_id,
+        options=[joinedload(Channel.platform), joinedload(Channel.content_project)],
+    )
     if channel is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Channel not found")
     return channel
@@ -62,7 +71,9 @@ def _get(db: DbSession, channel_id: int) -> Channel:
 @router.get("", response_model=list[ChannelOut])
 def list_channels(_: Viewer, db: DbSession) -> list[ChannelOut]:
     rows = db.scalars(
-        select(Channel).options(joinedload(Channel.platform)).order_by(Channel.id)
+        select(Channel)
+        .options(joinedload(Channel.platform), joinedload(Channel.content_project))
+        .order_by(Channel.id)
     ).all()
     accounts = dict(
         db.execute(
@@ -121,6 +132,105 @@ def set_limits(channel_id: int, body: ChannelLimits, admin: Admin, db: DbSession
     )
     db.commit()
     return _out(channel)
+
+
+# --- channels per content project -------------------------------------------------
+
+
+class ChannelIn(BaseModel):
+    platform: PlatformCode
+    language: Language
+    name: str = Field(min_length=1, max_length=120)
+    content_project_id: int
+
+
+class ChannelProjectIn(BaseModel):
+    content_project_id: int
+
+
+def _active_project(db: DbSession, project_id: int) -> ContentProject:
+    project = db.get(ContentProject, project_id)
+    if project is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Content project not found")
+    if project.status == ContentProjectStatus.ARCHIVED:
+        raise HTTPException(422, detail="Content project is archived")
+    return project
+
+
+@router.post("", response_model=ChannelOut, status_code=201)
+def create_channel(body: ChannelIn, admin: Admin, db: DbSession) -> ChannelOut:
+    """New channel for a content project, e.g. a second YouTube channel for nutrition.
+
+    It starts paused, not connected and with ``max_posts_per_day = 0``: nothing can be
+    published until the operator connects it and sets its safety bounds."""
+    project = _active_project(db, body.content_project_id)
+    plat = db.scalar(select(Platform).where(Platform.code == body.platform))
+    if plat is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Platform not found")
+    name = " ".join(body.name.split())
+    clash = db.scalar(
+        select(Channel.id).where(
+            Channel.platform_id == plat.id, Channel.language == body.language, Channel.name == name
+        )
+    )
+    if clash is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="A channel with this name exists")
+    channel = Channel(
+        platform_id=plat.id,
+        content_project_id=project.id,
+        language=body.language,
+        name=name,
+        auth_status=ChannelAuthStatus.NOT_CONNECTED,
+        is_paused=True,
+        min_posts_per_day=0,
+        max_posts_per_day=0,
+    )
+    db.add(channel)
+    db.flush()
+    audit.record(
+        db,
+        "channel.create",
+        user_id=admin.id,
+        entity_type="channels",
+        entity_id=channel.id,
+        after={**body.model_dump(mode="json"), "name": name},
+    )
+    db.commit()
+    return _out(_get(db, channel.id))
+
+
+@router.put("/{channel_id}/project", response_model=ChannelOut)
+def move_channel(
+    channel_id: int, body: ChannelProjectIn, admin: Admin, db: DbSession
+) -> ChannelOut:
+    """Assign a channel to another content project. Only while it holds no videos,
+    publishing jobs or posts, so no content ever changes its topic area."""
+    channel = _get(db, channel_id)
+    project = _active_project(db, body.content_project_id)
+    if channel.content_project_id == project.id:
+        return _out(channel)
+    used = db.scalar(select(func.count(Variant.id)).where(Variant.channel_id == channel.id)) or 0
+    used += db.scalar(select(func.count(Post.id)).where(Post.channel_id == channel.id)) or 0
+    if used:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Der Kanal hat bereits Videos oder Beiträge und kann den Themenbereich "
+            "nicht mehr wechseln. Lege für den neuen Themenbereich einen eigenen Kanal an.",
+        )
+    before = {"content_project_id": channel.content_project_id}
+    channel.content_project_id = project.id
+    audit.record(
+        db,
+        "channel.project",
+        user_id=admin.id,
+        entity_type="channels",
+        entity_id=channel.id,
+        before=before,
+        after={"content_project_id": project.id},
+    )
+    db.commit()
+    db.refresh(channel)
+    return _out(_get(db, channel.id))
 
 
 # --- platform connection (Phase 12/13) -----------------------------------------------

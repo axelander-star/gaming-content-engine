@@ -10,6 +10,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -30,12 +31,30 @@ class PublishingJob(IdMixin, TimestampMixin, Base):
     """
 
     __tablename__ = "publishing_jobs"
+    __table_args__ = (
+        # Variant and channel must belong to the job's content project.
+        ForeignKeyConstraint(
+            ["variant_id", "content_project_id"],
+            ["variants.id", "variants.content_project_id"],
+            name="fk_publishing_jobs_variant_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["channel_id", "content_project_id"],
+            ["channels.id", "channels.content_project_id"],
+            name="fk_publishing_jobs_channel_project",
+            ondelete="RESTRICT",
+        ),
+    )
 
     variant_id: Mapped[int] = mapped_column(
         ForeignKey("variants.id", ondelete="RESTRICT"), index=True
     )
     channel_id: Mapped[int] = mapped_column(
         ForeignKey("channels.id", ondelete="RESTRICT"), index=True
+    )
+    content_project_id: Mapped[int] = mapped_column(
+        ForeignKey("content_projects.id", ondelete="RESTRICT"), index=True
     )
     status: Mapped[PublishingJobStatus] = mapped_column(
         str_enum(PublishingJobStatus, "publishing_job_status"),
@@ -53,7 +72,7 @@ class PublishingJob(IdMixin, TimestampMixin, Base):
         ForeignKey("agent_decisions.id", ondelete="SET NULL")
     )
 
-    variant: Mapped[Variant] = relationship()
+    variant: Mapped[Variant] = relationship(foreign_keys=[variant_id])
 
 
 class Post(IdMixin, TimestampMixin, Base):
@@ -63,6 +82,18 @@ class Post(IdMixin, TimestampMixin, Base):
     __table_args__ = (
         # Protection against duplicate publications (PROJECT_SPEC section 15).
         UniqueConstraint("variant_id", "channel_id", name="uq_posts_variant_channel"),
+        ForeignKeyConstraint(
+            ["variant_id", "content_project_id"],
+            ["variants.id", "variants.content_project_id"],
+            name="fk_posts_variant_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["channel_id", "content_project_id"],
+            ["channels.id", "channels.content_project_id"],
+            name="fk_posts_channel_project",
+            ondelete="RESTRICT",
+        ),
     )
 
     publishing_job_id: Mapped[int] = mapped_column(
@@ -71,6 +102,9 @@ class Post(IdMixin, TimestampMixin, Base):
     variant_id: Mapped[int] = mapped_column(ForeignKey("variants.id", ondelete="RESTRICT"))
     channel_id: Mapped[int] = mapped_column(
         ForeignKey("channels.id", ondelete="RESTRICT"), index=True
+    )
+    content_project_id: Mapped[int] = mapped_column(
+        ForeignKey("content_projects.id", ondelete="RESTRICT"), index=True
     )
     external_post_id: Mapped[str | None] = mapped_column(String(200))
     url: Mapped[str | None] = mapped_column(String(1000))

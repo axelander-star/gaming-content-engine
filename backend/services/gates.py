@@ -14,7 +14,9 @@ Gates (in this order):
    against mock providers and :func:`services.budget.authorize_paid_call`
    refuses every real call anyway)
 5. daily production limit (``max_daily_production_jobs``)
-6. entity checks: the entity exists and is in the agent's stage status,
+6. entity checks: the content project of the entity is active and the video
+   and its material belong to the same project, the entity exists and is in
+   the agent's stage status,
    the rights of the source material are still valid, the quality gate is
    passed before publishing, and the target channel may publish.
 """
@@ -45,6 +47,7 @@ from models.publishing import PublishingJob
 from services import agent_control
 from services.budget import BudgetLevel, budget_status
 from services.controls import effective_controls, get_operations
+from services.projects import project_problem
 
 #: Sub-steps inside one status: (SQL filter, check on a loaded entity). ``EDITING`` is
 #: shared by the Creative Director (no concept yet) and Script & Hook (concept chosen).
@@ -167,6 +170,8 @@ def _channel_check(session: Session, settings: Settings, variant: Variant) -> st
     channel = session.get(Channel, variant.channel_id)
     if channel is None:
         return "channel missing"
+    if channel.content_project_id != variant.content_project_id:
+        return "channel belongs to another content project"
     if channel.is_paused or channel.platform.is_paused:
         return "channel or platform paused"
     if settings.publishing_mode == "live":
@@ -199,6 +204,9 @@ def check_entity(
         return GateResult.deny(
             "wrong_step", f"{spec.stage.entity_type}#{entity_id} is not at step {spec.stage.step}"
         )
+    problem = project_problem(session, entity.content_project_id)
+    if problem:
+        return GateResult.deny("project", problem)
     if isinstance(entity, GameplayFile):
         # Scout and rights agent decide about rights themselves; later stages re-check.
         if entity.status not in (MaterialStatus.DISCOVERED, MaterialStatus.RIGHTS_PENDING):
@@ -212,6 +220,12 @@ def check_entity(
     problem = rights_check(session, source)
     if problem:
         return GateResult.deny("rights", problem)
+    if source.content_project_id != entity.content_project_id:
+        return GateResult.deny(
+            "project",
+            f"video belongs to project {entity.content_project_id}, "
+            f"its material to project {source.content_project_id}",
+        )
     if entity.status in _NEEDS_QUALITY:
         problem = _quality_check(session, settings, entity)
         if problem:

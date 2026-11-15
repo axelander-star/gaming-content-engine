@@ -149,6 +149,7 @@ class PublishingAgent(Agent):
             publishing_job_id=job.id,
             variant_id=variant.id,
             channel_id=channel.id,
+            content_project_id=variant.content_project_id,
             external_post_id=result.external_id,
             url=result.url,
             published_at=datetime.now(UTC),

@@ -25,6 +25,7 @@ from api.deps import Admin, AppSettings, DbSession, Operator, Viewer, csrf_prote
 from core.config import Settings
 from core.enums import (
     AssetKind,
+    ContentProjectStatus,
     Language,
     LicenseStatus,
     MaterialStatus,
@@ -33,6 +34,7 @@ from core.enums import (
     SourceType,
 )
 from models.production import GameplayFile
+from models.projects import ContentProject
 from models.rights import (
     Asset,
     Creator,
@@ -44,7 +46,7 @@ from models.rights import (
 )
 from models.trends import Game
 from models.uploads import UploadSession
-from services import audit, media, rights, storage, uploads
+from services import audit, media, projects, rights, storage, uploads
 from services.trends import slugify
 
 router = APIRouter(tags=["rights"], dependencies=[Depends(csrf_protect)])
@@ -598,6 +600,8 @@ class MaterialIn(BaseModel):
     source_id: int
     license_id: int
     game_id: int | None = None
+    #: Topic area (content project); empty = default project (Gaming).
+    content_project_id: int | None = None
     title: str | None = Field(default=None, max_length=300)
     storage_uri: str = Field(min_length=1, max_length=1000)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -610,6 +614,8 @@ class MaterialOut(BaseModel):
     status: MaterialStatus
     game_id: int | None
     game: str | None
+    content_project_id: int
+    content_project: str
     source_id: int
     source: str
     license_id: int
@@ -625,6 +631,7 @@ def _material_out(db: DbSession, m: GameplayFile) -> MaterialOut:
     assert asset is not None
     source = db.get(Source, asset.source_id)
     game = db.get(Game, m.game_id) if m.game_id else None
+    project = db.get(ContentProject, m.content_project_id)
     check = db.scalar(
         select(RightsCheck)
         .where(RightsCheck.gameplay_file_id == m.id)
@@ -637,6 +644,8 @@ def _material_out(db: DbSession, m: GameplayFile) -> MaterialOut:
         status=m.status,
         game_id=m.game_id,
         game=game.name if game else None,
+        content_project_id=m.content_project_id,
+        content_project=project.name if project else "?",
         source_id=asset.source_id,
         source=source.name if source else "?",
         license_id=asset.license_id,
@@ -680,11 +689,9 @@ def get_material(material_id: int, _: Viewer, db: DbSession) -> MaterialOut:
 
 @router.post("/materials", response_model=MaterialOut, status_code=201)
 def register_material(body: MaterialIn, user: Operator, db: DbSession) -> MaterialOut:
-    lic = _license(db, body.license_id)
-    if lic.source_id != body.source_id:
-        raise HTTPException(422, detail="License does not belong to this source")
-    if body.game_id is not None and db.get(Game, body.game_id) is None:
-        raise _404("Game")
+    project_id = _check_material_refs(
+        db, body.source_id, body.license_id, body.game_id, body.content_project_id
+    )
     if db.scalar(select(GameplayFile.id).where(GameplayFile.sha256 == body.sha256)):
         raise HTTPException(409, detail="This file is already registered")
     asset = Asset(
@@ -702,6 +709,7 @@ def register_material(body: MaterialIn, user: Operator, db: DbSession) -> Materi
     material = GameplayFile(
         asset_id=asset.id,
         game_id=body.game_id,
+        content_project_id=project_id,
         storage_uri=body.storage_uri,
         sha256=body.sha256,
         duration_s=body.duration_s,
@@ -732,11 +740,12 @@ def upload_material(
     source_id: Annotated[int, Form()],
     license_id: Annotated[int, Form()],
     game_id: Annotated[int | None, Form()] = None,
+    content_project_id: Annotated[int | None, Form()] = None,
     title: Annotated[str | None, Form(max_length=300)] = None,
 ) -> MaterialOut:
     """Upload a licensed gameplay file in one request (small files; large files use
     the resumable ``/api/uploads`` with purpose ``material``). Checked with ffprobe."""
-    _check_material_refs(db, source_id, license_id, game_id)
+    project_id = _check_material_refs(db, source_id, license_id, game_id, content_project_id)
     suffix = VIDEO_TYPES.get(file.content_type or "")
     if suffix is None:
         raise HTTPException(422, detail="Only MP4, MOV or MKV video files are accepted")
@@ -750,7 +759,7 @@ def upload_material(
                     raise HTTPException(413, detail="File too large")
                 out.write(chunk)
         material = _register_gameplay(
-            db, settings, user.id, tmp, suffix, source_id, license_id, game_id, title
+            db, settings, user.id, tmp, suffix, source_id, license_id, game_id, title, project_id
         )
     finally:
         tmp.unlink(missing_ok=True)
@@ -759,13 +768,26 @@ def upload_material(
 
 
 def _check_material_refs(
-    db: DbSession, source_id: int, license_id: int, game_id: int | None
-) -> None:
+    db: Session,
+    source_id: int,
+    license_id: int,
+    game_id: int | None,
+    content_project_id: int | None = None,
+) -> int:
+    """Validate the references of new material; returns its content project id."""
     lic = _license(db, license_id)
     if lic.source_id != source_id:
         raise HTTPException(422, detail="License does not belong to this source")
     if game_id is not None and db.get(Game, game_id) is None:
         raise _404("Game")
+    if content_project_id is None:
+        return projects.default_project_id(db)
+    project = db.get(ContentProject, content_project_id)
+    if project is None:
+        raise _404("Content project")
+    if project.status == ContentProjectStatus.ARCHIVED:
+        raise HTTPException(422, detail="Content project is archived")
+    return project.id
 
 
 def _register_gameplay(
@@ -778,6 +800,7 @@ def _register_gameplay(
     license_id: int,
     game_id: int | None,
     title: str | None,
+    content_project_id: int,
 ) -> GameplayFile:
     """Probe a complete file, store it content-addressed and register it as material."""
     try:
@@ -806,6 +829,7 @@ def _register_gameplay(
     material = GameplayFile(
         asset_id=asset.id,
         game_id=game_id,
+        content_project_id=content_project_id,
         storage_uri=stored.uri,
         sha256=stored.sha256,
         duration_s=probe.duration_s,
@@ -837,6 +861,7 @@ class MaterialUploadParams(BaseModel):
     source_id: int
     license_id: int
     game_id: int | None = None
+    content_project_id: int | None = None
     title: str | None = Field(default=None, max_length=300)
 
 
@@ -852,7 +877,9 @@ def _validate_material_upload(
     except ValidationError as exc:
         raise uploads.UploadError(422, "Invalid material fields: " + str(exc.errors())) from exc
     try:
-        _check_material_refs(db, clean.source_id, clean.license_id, clean.game_id)
+        clean.content_project_id = _check_material_refs(
+            db, clean.source_id, clean.license_id, clean.game_id, clean.content_project_id
+        )
     except HTTPException as exc:
         raise _http_to_upload_error(exc) from exc
     return clean.model_dump()
@@ -864,7 +891,9 @@ def _accept_material_upload(
     p = MaterialUploadParams.model_validate(session.params)
     suffix = VIDEO_TYPES[session.content_type]
     try:
-        _check_material_refs(db, p.source_id, p.license_id, p.game_id)
+        project_id = _check_material_refs(
+            db, p.source_id, p.license_id, p.game_id, p.content_project_id
+        )
         material = _register_gameplay(
             db,
             settings,
@@ -875,6 +904,7 @@ def _accept_material_upload(
             p.license_id,
             p.game_id,
             p.title or Path(session.filename).stem,
+            project_id,
         )
     except HTTPException as exc:
         raise _http_to_upload_error(exc) from exc

@@ -48,6 +48,9 @@ export interface Channel {
   name: string;
   language: Language;
   platform: PlatformCode;
+  /** Topic area; content of other projects is never published on this channel. */
+  content_project_id: number;
+  content_project: string;
   auth_status: ChannelAuthStatus;
   is_paused: boolean;
   min_posts_per_day: number;
@@ -288,6 +291,8 @@ export interface Material {
   status: MaterialStatus;
   game_id: number | null;
   game: string | null;
+  content_project_id: number;
+  content_project: string;
   source_id: number;
   source: string;
   license_id: number;
@@ -690,4 +695,48 @@ export interface SystemStatus {
     restore_check: RestoreCheckInfo | null;
     backups: BackupInfo[];
   };
+}
+
+// --- content projects (topic areas) ---------------------------------------------------
+
+export type ContentProjectStatus = "active" | "paused" | "archived";
+
+export interface ContentProject {
+  id: number;
+  slug: string;
+  name: string;
+  description: string | null;
+  languages: Language[];
+  audience: string | null;
+  tone: string | null;
+  subtopics: string[];
+  priority: number;
+  status: ContentProjectStatus;
+  is_default: boolean;
+  channels: number;
+  materials: number;
+  videos: number;
+  published: number;
+  created_at: string;
+}
+
+export interface ContentProjectInput {
+  name: string;
+  description?: string | null;
+  languages?: Language[];
+  audience?: string | null;
+  tone?: string | null;
+  subtopics?: string[];
+  priority?: number;
+}
+
+export interface ContentProjectPatch extends Partial<ContentProjectInput> {
+  status?: ContentProjectStatus;
+}
+
+export interface ChannelInput {
+  platform: PlatformCode;
+  language: Language;
+  name: string;
+  content_project_id: number;
 }

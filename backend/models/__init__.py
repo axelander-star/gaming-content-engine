@@ -14,6 +14,7 @@ from models.production import (
     Variant,
     Voiceover,
 )
+from models.projects import ContentProject
 from models.publishing import Post, PublishingJob, StrategyVersion
 from models.rights import (
     Asset,
@@ -37,6 +38,7 @@ __all__ = [
     "Channel",
     "ChannelCredential",
     "Clip",
+    "ContentProject",
     "Cost",
     "Creator",
     "Game",
@@ -65,3 +67,6 @@ __all__ = [
     "Variant",
     "Voiceover",
 ]
+
+# Fills and checks the content project of new content on every flush.
+import services.projects  # noqa: F401  (registers the session listener)

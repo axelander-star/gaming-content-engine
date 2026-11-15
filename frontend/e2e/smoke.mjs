@@ -511,6 +511,33 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/settings.png`, fullPage: true });
   });
 
+  await step("Themenbereiche: Bereich und Kanal anlegen, Bereich pausieren", async () => {
+    await page.getByRole("link", { name: "Themenbereiche", exact: true }).click();
+    await page.getByRole("heading", { name: "Themenbereiche", level: 1 }).waitFor();
+    await page.getByRole("article", { name: "Themenbereich Gaming" }).waitFor();
+    await page.getByRole("button", { name: "Neuer Themenbereich" }).click();
+    const form = page.locator("form.project-form");
+    await form.getByLabel("Name").fill("Ernährung E2E");
+    await form.getByLabel("Unterthemen (mit Komma getrennt)").fill("Rezepte, Lebensmittelwissen");
+    await form.getByRole("button", { name: "Anlegen" }).click();
+    const card = page.getByRole("article", { name: "Themenbereich Ernährung E2E" });
+    await card.getByText("Lebensmittelwissen").waitFor();
+    const newChannel = page.getByRole("form", { name: "Neuer Kanal" });
+    await newChannel.getByLabel("Kanalname").fill("YouTube Ernährung E2E");
+    await newChannel
+      .getByLabel("Themenbereich des neuen Kanals")
+      .selectOption({ label: "Ernährung E2E" });
+    await newChannel.getByRole("button", { name: "Kanal anlegen" }).click();
+    const select = page.getByLabel("Themenbereich von YouTube Ernährung E2E");
+    await select.waitFor();
+    const selected = await select.evaluate((el) => el.options[el.selectedIndex].text);
+    assert.equal(selected, "Ernährung E2E");
+    await card.getByText("1", { exact: true }).first().waitFor();
+    await card.getByRole("button", { name: "Pausieren" }).click();
+    await card.getByText("Pausiert").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/themenbereiche.png`, fullPage: true });
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");

@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -30,6 +31,10 @@ class GameplayFile(IdMixin, TimestampMixin, FailureMixin, Base):
     __tablename__ = "gameplay_files"
 
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id", ondelete="RESTRICT"), index=True)
+    #: Topic area the material is produced for. Filled with the default project if empty.
+    content_project_id: Mapped[int] = mapped_column(
+        ForeignKey("content_projects.id", ondelete="RESTRICT"), index=True
+    )
     game_id: Mapped[int | None] = mapped_column(ForeignKey("games.id", ondelete="SET NULL"))
     status: Mapped[MaterialStatus] = mapped_column(
         str_enum(MaterialStatus, "material_status"), default=MaterialStatus.DISCOVERED, index=True
@@ -101,11 +106,23 @@ class Variant(IdMixin, TimestampMixin, FailureMixin, Base):
         UniqueConstraint(
             "clip_id", "channel_id", "variant_label", name="uq_variants_clip_chan_lbl"
         ),
+        UniqueConstraint("id", "content_project_id", name="uq_variants_id_project"),
+        # The channel must belong to the same content project as the video.
+        ForeignKeyConstraint(
+            ["channel_id", "content_project_id"],
+            ["channels.id", "channels.content_project_id"],
+            name="fk_variants_channel_project",
+            ondelete="RESTRICT",
+        ),
     )
 
     clip_id: Mapped[int] = mapped_column(ForeignKey("clips.id", ondelete="RESTRICT"), index=True)
     channel_id: Mapped[int] = mapped_column(
         ForeignKey("channels.id", ondelete="RESTRICT"), index=True
+    )
+    #: Taken from the channel; must match the project of the source material.
+    content_project_id: Mapped[int] = mapped_column(
+        ForeignKey("content_projects.id", ondelete="RESTRICT"), index=True
     )
     language: Mapped[Language] = mapped_column(str_enum(Language, "language"))
     variant_label: Mapped[str] = mapped_column(String(8))  # A, B, C, D ...

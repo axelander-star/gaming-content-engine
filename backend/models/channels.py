@@ -19,6 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.enums import ChannelAuthStatus, Language, PlatformCode
 from database.base import Base, IdMixin, TimestampMixin, str_enum
+from models.projects import ContentProject
 
 
 class Platform(IdMixin, TimestampMixin, Base):
@@ -44,12 +45,18 @@ class Channel(IdMixin, TimestampMixin, Base):
     __tablename__ = "channels"
     __table_args__ = (
         UniqueConstraint("platform_id", "language", "name", name="uq_channels_platform_lang_name"),
+        # Target of the composite foreign keys that pin content to its channel's project.
+        UniqueConstraint("id", "content_project_id", name="uq_channels_id_project"),
         CheckConstraint("min_posts_per_day >= 0", name="min_posts_non_negative"),
         CheckConstraint("max_posts_per_day >= min_posts_per_day", name="max_gte_min"),
         CheckConstraint("min_interval_minutes >= 0", name="interval_non_negative"),
     )
 
     platform_id: Mapped[int] = mapped_column(ForeignKey("platforms.id", ondelete="RESTRICT"))
+    #: Topic area of the channel. Filled with the default project if left empty.
+    content_project_id: Mapped[int] = mapped_column(
+        ForeignKey("content_projects.id", ondelete="RESTRICT"), index=True
+    )
     language: Mapped[Language] = mapped_column(str_enum(Language, "language"))
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text)
@@ -66,6 +73,7 @@ class Channel(IdMixin, TimestampMixin, Base):
     strategy: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
 
     platform: Mapped[Platform] = relationship(back_populates="channels")
+    content_project: Mapped[ContentProject] = relationship()
 
 
 class ChannelCredential(IdMixin, TimestampMixin, Base):
