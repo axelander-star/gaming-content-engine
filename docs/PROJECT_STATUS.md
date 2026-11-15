@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase 1 (Themenbereiche) abgeschlossen · **Nächster Schritt:** Erweiterung Phase 2 (Dashboard-Neugestaltung im Dark Mode) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase 2 (Dashboard im Dark Mode) abgeschlossen · **Nächster Schritt:** Erweiterung Phase 3 (KI-Schicht: Mock/Claude, Budget, Kostenbuchung) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -35,7 +35,7 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | Phase | Inhalt | Status |
 |---|---|---|
 | E1 | Themenbereiche, Kanalzuordnung, harte Sperre gegen falschen Kanal | ✅ abgeschlossen |
-| E2 | Dashboard-Neugestaltung (Dark Mode, Navigation, Startseite) | offen |
+| E2 | Dashboard-Neugestaltung (Dark Mode, Navigation, Startseite) | ✅ abgeschlossen |
 | E3 | KI-Schicht (Mock/Claude, Budget, Kostenbuchung) | offen |
 | E4 | Chat-Assistent mit Aktionen | offen |
 | E5 | Recherche und Ideenlabor | offen |
@@ -44,6 +44,48 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | offen |
 | E9 | Tests, Sicherheitsprüfung, Doku | offen |
 | E10 | Vorbereitung Hetzner | offen |
+
+### Phase E2 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **Dark Mode als Standard:** neue Farbpalette (dunkle Flächen, Akzent Violett, Statusfarben für OK, Warnung, Fehler, Info). Über das Sonnen-/Mond-Symbol oben rechts lässt sich auf Hell umschalten; die Wahl wird nur in diesem Browser gespeichert, ohne Aufblitzen beim Laden.
+- **Navigation links** mit Symbolen und Gruppen „Steuerung“ (Übersicht, Themenbereiche), „Engine“ (Agenten, Rechte, Videoproduktion, Publishing, Analytics, Kosten) und „System“ (System, Einstellungen), Benutzer unten. Auf Handy und Tablet (unter 900 px) klappt sie als Seitenmenü über den Menüknopf auf (schließt mit Escape, Klick daneben oder Seitenwechsel). Keine Platzhalter-Einträge für spätere Phasen; Chat, Ideenlabor, Redaktionsplan usw. kommen mit ihren Phasen dazu. Alle bestehenden Seiten bleiben unverändert erreichbar.
+- **Neue Startseite** (aktualisiert sich alle 30 s, solange sie sichtbar ist, plus Knopf „Jetzt aktualisieren“):
+  - Kennzahlen: Videos gesamt, veröffentlicht, geplant, unveröffentlicht, fehlgeschlagen, aktive Kanäle, Kosten des Monats.
+  - Statusleiste aller Videos mit Entwurf, In Bearbeitung, Bereit zur Veröffentlichung, Geplant, Wird hochgeladen, Veröffentlicht, Fehlgeschlagen.
+  - Plattformkacheln YouTube, Twitch, Instagram, TikTok mit Verbindungsstatus, verbundenen Kanälen, Veröffentlichungen, Testläufen (Mock-Posts getrennt gezählt), offenen und fehlgeschlagenen Aufträgen und letzter Veröffentlichung. **Twitch** ist ehrlich als Datenquelle gekennzeichnet („Videos können nicht zu Twitch hochgeladen werden“), mit Status Testdaten/aktiv/Fehler.
+  - Letzte Veröffentlichungen (mit Themenbereich, Test/Live), Fehler (Produktion und Veröffentlichung mit Fehlermeldung), Aktivitäten (Audit-Log und Agentenläufe auf Deutsch; fehlgeschlagene Anmeldungen und IP-Adressen werden nicht angezeigt), Systemstatus und aktuelle Trends.
+- **API:** `GET /api/overview/dashboard` liefert alles für die Startseite in einer Anfrage; `GET /api/overview` bleibt unverändert.
+- Plattform-Symbole sind schlichte eigene Zeichen in Markenfarbe, keine offiziellen Logos.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/tests/integration/test_dashboard.py`, `frontend/components/icons.tsx`, `frontend/lib/theme.ts`
+- Geändert: `backend/api/overview.py`, `frontend/components/{AppShell,ui}.tsx`, `frontend/dashboard/OverviewView.tsx`, `frontend/app/{layout.tsx,globals.css,login/page.tsx}`, `frontend/lib/{api,types}.ts`, `frontend/e2e/smoke.mjs`, `docs/PROJECT_STATUS.md`
+
+**3. Durchgeführte Tests**
+
+- `scripts/test_backend.sh` (ruff, mypy --strict, pytest inkl. Abnahmetest); 4 neue Tests: Anmeldung nötig, leeres Dashboard (Reihenfolge der Status, Twitch ohne Upload), Zählung von Status, Upload, Testposts, Fehlern und Aktivitäten, keine fehlgeschlagenen Anmeldungen in den Aktivitäten
+- Frontend `typecheck`, `build`, Playwright-E2E (Startseite prüft jetzt zusätzlich alle vier Plattformkacheln, den Twitch-Hinweis und die Statusleiste)
+- Screenshots in drei Breiten (1440, 820, 390 px) und mobiles Menü; kein waagerechtes Scrollen
+- `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 402 Backend-Tests bestanden; ruff und mypy ohne Befund
+- E2E: 20 Schritte bestanden
+- `verify_phase1.sh`: 68 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- Die Unterseiten (Agenten, Rechte usw.) haben das neue Farbschema und die neue Navigation, aber noch ihr bisheriges Layout; sie werden mit den Phasen, die sie betreffen, überarbeitet.
+- Die Startseite zeigt noch keine Kennzahlen je Themenbereich und keinen Wochenkalender; der Kalender kommt mit dem Redaktionsplan (E6), das Freigabecenter mit E8.
+- „Wird hochgeladen“ zählt laufende Veröffentlichungsaufträge; ein Video kann dabei gleichzeitig als „Geplant“ zählen.
+
+**6. Nächster Schritt**
+
+Phase E3: KI-Schicht (Mock-Anbieter und Claude, Budget-Obergrenze 20 $/Monat, Kostenbuchung je Aufruf). Ohne hinterlegten und freigegebenen API-Schlüssel bleibt alles im Mock-Modus.
 
 ### Phase E1 – Bericht
 
@@ -82,7 +124,7 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 
 - Trends und Spiele sind noch nicht Themenbereichen zugeordnet (Recherche je Bereich kommt in Phase E5).
 - Modus je Bereich (nur sammeln / mit Freigabe / automatisch) und Not-Aus je Kanalebene folgen mit dem Freigabecenter (E8); heute wirkt „pausiert“ als Stopp je Bereich.
-- Das Dashboard hat noch das bisherige Design; die Neugestaltung im Dark Mode ist Phase E2.
+- Das Dashboard hatte noch das bisherige Design (erledigt in Phase E2).
 
 **6. Nächster Schritt**
 

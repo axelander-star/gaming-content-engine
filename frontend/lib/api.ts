@@ -29,6 +29,7 @@ import type {
   MaterialStatus,
   OperationsSettings,
   Overview,
+  Dashboard,
   PolicyStatus,
   PublisherPolicy,
   Readiness,
@@ -133,6 +134,7 @@ export const api = {
 
   readiness: () => request<Readiness>("/health/ready"),
   overview: () => request<Overview>("/overview"),
+  dashboard: () => request<Dashboard>("/overview/dashboard"),
 
   settings: () => request<SettingsResponse>("/settings"),
   updateControls: (
