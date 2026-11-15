@@ -168,3 +168,4 @@ Auswahl der Anbieter erfolgt erst nach Preisprüfung zum Zeitpunkt der Einrichtu
 
 - Entwickler-Apps bei Google, TikTok und Meta müssen vom Betreiber angelegt werden; Audits/App-Reviews können Wochen dauern.
 - Klären, ob deutsche und englische Kanäle getrennte OAuth-Verbindungen benötigen (bei YouTube je Kanal, bei Meta je Seite/Konto).
+- Prüfung der echten Veröffentlichungswege, Mehrfach-Konten und Backup-Kosten (15.11.2026): siehe `docs/PLATFORM_PUBLISHING_REVIEW.md`. Wichtigster Punkt: TikTok schließt Upload-Werkzeuge für eigene Konten vom Audit aus; ohne Audit nur private Posts für höchstens 5 Konten.
