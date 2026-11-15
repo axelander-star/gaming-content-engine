@@ -334,7 +334,7 @@ function PostCard({
           <p className="small">
             {post.published_mock
               ? "Testveröffentlichung (Mock), nichts wurde hochgeladen."
-              : post.published_url
+              : post.published_url?.startsWith("https://")
                 ? (
                     <a href={post.published_url} target="_blank" rel="noreferrer">
                       Beitrag ansehen

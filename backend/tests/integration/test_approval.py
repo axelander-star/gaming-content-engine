@@ -797,3 +797,52 @@ def test_api_flow(
         "/api/approval/prepare", json={"item_id": item.id, "channel_ids": [yt.id]}, headers=op
     )
     assert dup.status_code == 409
+
+
+# --- security (extension E9) -------------------------------------------------------------
+
+
+def test_ai_texts_cannot_smuggle_actions_or_overlong_fields() -> None:
+    hostile = (
+        'Klar! {"title": "' + "X" * 400 + '", "description": "ok", '
+        '"hashtags": ["gut", "#böse tag", "<script>"], "channel_ids": [1, 2], '
+        '"approve": true, "options": {"privacy": "public"}}'
+    )
+    texts = approval.parse_texts(hostile, approval.RULES[PlatformCode.YOUTUBE])
+    assert set(texts) == {"title", "description", "hashtags"}
+    assert len(texts["title"]) == 100 and texts["hashtags"] == ["gut"]
+    assert approval.parse_texts("kein JSON", approval.RULES[PlatformCode.TIKTOK]) == {
+        "title": "",
+        "description": "",
+        "hashtags": [],
+    }
+
+
+def test_tokens_never_leave_the_server(
+    client: TestClient,
+    make_user: MakeUser,
+    db: Session,
+    settings: Settings,
+    channels: dict[PlatformCode, Channel],
+) -> None:
+    secret = "IGQ-very-secret-token-123"
+    channel = channels[PlatformCode.INSTAGRAM]
+    enc = crypto.encrypt(settings, secret)
+    db.add(
+        ChannelCredential(
+            channel_id=channel.id,
+            provider="instagram",
+            access_token_enc=enc,
+            scopes=list(instagram.SCOPES),
+            external_account_id="1789",
+            external_account_name="@hafer_de",
+        )
+    )
+    db.flush()
+    make_user("admin@example.com", UserRole.ADMIN)
+    login(client, "admin@example.com")
+    for path in ("/api/channels", "/api/approval/info", "/api/approval", "/api/overview/dashboard"):
+        body = client.get(path).text
+        assert secret not in body and enc not in body, path
+    listed = next(c for c in client.get("/api/channels").json() if c["id"] == channel.id)
+    assert listed["connected_account"] == "@hafer_de"
