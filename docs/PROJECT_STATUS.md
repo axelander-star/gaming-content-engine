@@ -37,13 +37,54 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E1 | Themenbereiche, Kanalzuordnung, harte Sperre gegen falschen Kanal | ✅ abgeschlossen |
 | E2 | Dashboard-Neugestaltung (Dark Mode, Navigation, Startseite) | ✅ abgeschlossen |
 | E3 | KI-Schicht (Mock/Claude, Budget, Kostenbuchung) | ✅ abgeschlossen |
-| E4 | Chat-Assistent mit Aktionen | offen |
+| E4 | Chat-Assistent mit Aktionen | ✅ abgeschlossen |
 | E5 | Recherche und Ideenlabor | offen |
 | E6 | Redaktionsplan und Kalender | offen |
 | E7 | Mediathek und Eigenproduktion | offen |
 | E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | offen |
 | E9 | Tests, Sicherheitsprüfung, Doku | offen |
 | E10 | Vorbereitung Hetzner | offen |
+
+### Phase E4 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **Chat-Assistent** (`services/assistant.py`, Seite „Assistent“ als zweiter Eintrag unter Steuerung): Den Plan in normalem Deutsch ändern. Der Assistent arbeitet nur über fünf fest definierte Werkzeuge: Überblick lesen, Schwerpunkt setzen („diese Woche GTA 6“), Tag einplanen oder herausnehmen („Mittwoch zusätzlich Ernährung“, „Freitag kein Gaming“), Themenbereich pausieren oder fortsetzen (nur Admin), Trendrecherche starten (nur Admin, bisher nur Gaming).
+- **Kein Werkzeug zum Veröffentlichen.** Bitten darum lehnt der Assistent ab und verweist auf die Seite Veröffentlichung, die Sicherheitsprüfungen und die Freigabe. Ein Test stellt sicher, dass kein Werkzeug „publish“, „post“ oder „upload“ heißt.
+- **Aktionskarten mit Rückgängig:** Jede Änderung wird als Karte mit Status (ausgeführt, rückgängig gemacht, nicht ausgeführt) gespeichert, samt dem vorherigen Zustand. „Rückgängig“ stellt ihn wieder her (einmal, nur eigene Aktionen; Status von Themenbereichen nur Admin). Jede Aktion steht zusätzlich im Audit-Log.
+- **Zwei Modi:** Im Mock-Modus (Standard, kostenlos) versteht eine feste Befehlserkennung die üblichen Sätze, auch mehrere Sätze in einer Nachricht. Mit Claude läuft Sonnet 5.5 in einer Werkzeug-Schleife (höchstens 4 Runden, 12 Aktionen je Nachricht); jede Runde geht durch die KI-Schicht und zählt gegen die 20-$-Grenze. Ist Claude gewählt, aber gesperrt (z. B. kein Schlüssel), sagt der Assistent das und nutzt sichtbar die Befehlserkennung.
+- **Redaktionsplan-Daten** (`services/planning.py`, Tabellen `editorial_days` und `content_focus`): welcher Themenbereich an welchem Tag läuft und welche Themen Vorrang haben. Die Menge der Videos legt weiterhin der Publishing-Strategie-Agent fest; der Plan bestimmt nur Themen und Tage. Wochenansicht neben dem Chat und `GET /api/planning/week`.
+- **Chatverlauf** je Nutzer (`chat_messages`, `chat_actions`); an Claude gehen nur die letzten 10 Nachrichten als reiner Text.
+- **KI-Schicht erweitert:** Werkzeug-Definitionen, Inhaltsblöcke und Stop-Grund werden durchgereicht; die Blöcke einer Antwort gehen innerhalb einer Runde unverändert zurück.
+- **API:** `GET/POST /api/assistant/messages` (Schreiben ab Operator), `POST /api/assistant/actions/{id}/undo`, `GET /api/planning/week`.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/services/{assistant,planning}.py`, `backend/models/{assistant,planning}.py`, `backend/api/assistant.py`, Migration `7e4806afbb52_assistant_and_editorial_plan`, `backend/tests/integration/test_assistant.py`, `frontend/dashboard/ChatView.tsx`, `frontend/app/(dashboard)/assistent/page.tsx`
+- Geändert: `backend/services/ai.py`, `backend/core/enums.py`, `backend/models/__init__.py`, `backend/app/main.py`, `frontend/lib/{api,types}.ts`, `frontend/components/{AppShell,icons}.tsx`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, `docs/{PROJECT_STATUS,API_INTEGRATIONS,CONTENT_PLATFORM_PLAN}.md`
+
+**3. Durchgeführte Tests**
+
+- 20 neue Tests: Rollen, kein Veröffentlichungswerkzeug, Ablehnung beim Veröffentlichen, Hilfetext, jedes Werkzeug im Mock (Überblick, Schwerpunkt diese und nächste Woche, Tag einplanen/herausnehmen/doppelt, mehrere Tage und Bereiche, Datum zu weit voraus, pausierter Bereich, Status nur Admin, Recherche nur Gaming), Rückgängig (einmalig, nur eigene), Verlauf je Nutzer, Satzerkennung, Claude-Schleife mit nachgebautem Client (Werkzeugaufruf, Ergebnis zurück, System-Prompt bleibt gleich, zwei Aufrufe gebucht), Verlauf nur als Text, Werkzeugfehler gehen an das Modell, gesperrtes Claude fällt sichtbar auf die Befehlserkennung zurück
+- `alembic upgrade`, `downgrade -1`, erneut `upgrade`, `alembic check`
+- `scripts/test_backend.sh`, Frontend `typecheck` und `build`, E2E mit neuem Schritt „Plan per Chat ändern“, `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 443 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund
+- E2E: 22 Schritte bestanden
+- `verify_phase1.sh`: 69 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- Kein echter Claude-Aufruf; die Werkzeug-Schleife ist nur mit einem nachgebauten Client getestet.
+- Die Befehlserkennung im Mock-Modus versteht nur typische Sätze; alles andere beantwortet sie mit einer Hilfeliste.
+- Der Redaktionsplan wird bisher nur gespeichert und angezeigt. Ideenlabor (E5) und Kalender (E6) nutzen ihn; die Produktion richtet sich ab E6/E7 danach.
+- Trendrecherche gibt es bisher nur für Gaming; Recherche für andere Bereiche kommt mit E5.
+
+**6. Nächster Schritt**
+
+Phase E5: Recherche und Ideenlabor je Themenbereich (Ideen mit Begründung, Bewertung, Übernahme in den Plan), im Mock-Modus mit Beispieldaten.
 
 ### Phase E3 – Bericht
 

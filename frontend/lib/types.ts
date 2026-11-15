@@ -885,3 +885,63 @@ export interface AITestResult {
   cost_usd: string;
   call_id: number;
 }
+
+// --- chat assistant and editorial plan (E4) ---
+
+export type ChatActionStatus = "done" | "undone" | "failed";
+
+export interface ChatAction {
+  id: number;
+  created_at: string;
+  tool: string;
+  args: Record<string, unknown>;
+  summary: string;
+  status: ChatActionStatus;
+  undoable: boolean;
+  error: string | null;
+  undone_at: string | null;
+}
+
+export interface ChatMessage {
+  id: number;
+  created_at: string;
+  role: "user" | "assistant";
+  text: string;
+  provider: string | null;
+  actions: ChatAction[];
+}
+
+export interface ChatExchange {
+  question: ChatMessage;
+  answer: ChatMessage;
+}
+
+export interface PlanProject {
+  id: number;
+  name: string;
+  note: string | null;
+}
+
+export interface PlanDay {
+  day: string;
+  weekday: string;
+  is_today: boolean;
+  projects: PlanProject[];
+}
+
+export interface PlanFocus {
+  id: number;
+  project_id: number;
+  project: string;
+  topic: string;
+  starts_on: string;
+  ends_on: string;
+}
+
+export interface WeekPlan {
+  start: string;
+  end: string;
+  today: string;
+  days: PlanDay[];
+  focus: PlanFocus[];
+}

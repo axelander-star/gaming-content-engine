@@ -26,6 +26,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     title: "Steuerung",
     items: [
       { href: "/", label: "Übersicht", icon: "home" },
+      { href: "/assistent", label: "Assistent", icon: "chat" },
       { href: "/themenbereiche", label: "Themenbereiche", icon: "layers" },
     ],
   },

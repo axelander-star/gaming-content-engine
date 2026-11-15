@@ -1215,3 +1215,160 @@ details summary {
   cursor: pointer;
   color: var(--muted);
 }
+
+/* --- chat assistant and week plan (E4) --- */
+.chat-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .chat-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.chat-panel {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 240px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 88%;
+}
+.chat-user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.chat-assistant {
+  align-self: flex-start;
+}
+.chat-bubble {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  line-height: 1.45;
+}
+.chat-user .chat-bubble {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+.chat-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.action-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.action-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.action-undone .action-main span:last-child {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.btn-small {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.chat-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.chat-form textarea {
+  flex: 1;
+  min-width: 0;
+}
+.chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+.chip-btn {
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  border-color: var(--border);
+  background: transparent;
+}
+.chip-btn:hover {
+  border-color: var(--accent);
+}
+.week-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.week-days,
+.focus-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.week-days li {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.week-days li.is-today {
+  background: var(--accent-soft);
+}
+.week-projects {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.small-heading {
+  font-size: 13px;
+  margin: 4px 0 6px;
+  color: var(--muted);
+  font-weight: 600;
+}

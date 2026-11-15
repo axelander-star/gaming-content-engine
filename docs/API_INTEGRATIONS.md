@@ -172,6 +172,8 @@ Entscheidung des Betreibers (15.11.2026): Claude, harte Obergrenze 20 $ je Monat
 - **Freischaltung (alles nötig):** `ANTHROPIC_API_KEY` auf dem Server, `PAID_API_CALLS_ENABLED=true`, Anbieter „Claude“ in den Einstellungen, kein Not-Aus, Euro-Budget nicht erschöpft. Fehlt etwas, wird der Aufruf blockiert und protokolliert, nie still durch Testdaten ersetzt.
 - **Offen:** API-Schlüssel in der Anthropic-Konsole anlegen, dort zusätzlich ein Ausgabenlimit setzen (zweite Sicherung), Freigabe durch den Betreiber.
 
+- **Chat-Assistent (E4):** nutzt Sonnet 5.5 mit Werkzeugen (Tool Use der Messages API, `strict: true`). Je Nachricht höchstens 4 Aufrufe; jeder Aufruf wird einzeln gegen die Monatsgrenze reserviert. Kein Werkzeug kann veröffentlichen.
+
 ## Speicher
 
 - **Cloudflare R2** (S3-kompatibel) über boto3/S3-Client. Mock: lokales Verzeichnis. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.

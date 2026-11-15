@@ -171,3 +171,11 @@ class AICallStatus(StrEnum):
     REFUSED = "refused"  # the model declined (stop_reason "refusal")
     FAILED = "failed"  # API or network error
     BLOCKED = "blocked"  # not sent: cap, budget, switch or missing key
+
+
+class ChatActionStatus(StrEnum):
+    """An action the chat assistant carried out (extension phase E4)."""
+
+    DONE = "done"
+    UNDONE = "undone"
+    FAILED = "failed"
