@@ -78,7 +78,7 @@ Angaben mit ⚠️ standen nicht auf den gelesenen Anbieterseiten oder sind dort
 
 - **OAuth-Rückleitungen** (YouTube, TikTok, Meta) laufen über deinen Browser, der bei Access angemeldet ist. Sie funktionieren deshalb hinter Access ohne Ausnahme-Regel.
 - **Uptime Kuma** prüft das Backend intern (`http://backend:8000/api/health/ready`) und bekommt Push-Meldungen; das bleibt. Der externe Monitor auf `https://<domain>/healthz` wird von Access blockiert. Entweder weglassen oder mit einem Access-Service-Token versehen ⚠️.
-- **Große Uploads:** Cloudflare begrenzt im kostenlosen Tarif den Umfang einer Anfrage auf 100 MB ⚠️. Gameplay-Dateien bis 4 GB können deshalb **nicht** in einem Stück über das Dashboard hochgeladen werden. Lösung (Coding-Agent, 0 €): Upload in Teilstücken unter 100 MB. Bis dahin nur kleinere Dateien hochladen.
+- **Große Uploads:** Cloudflare begrenzt im kostenlosen Tarif den Umfang einer Anfrage auf 100 MB ⚠️. Gameplay-Dateien bis 4 GB können deshalb **nicht** in einem Stück über das Dashboard hochgeladen werden. **Umgesetzt:** Das Dashboard lädt in Teilstücken von 16 MiB hoch und setzt nach einem Verbindungsabbruch an der letzten Stelle fort (0 €, Details: [UPLOADS.md](UPLOADS.md)).
 
 ## 4. Datenschutz-URLs bei rein privater Nutzung (geprüft am 15.11.2026)
 
@@ -94,10 +94,11 @@ Angaben mit ⚠️ standen nicht auf den gelesenen Anbieterseiten oder sind dort
 
 Google (und voraussichtlich Meta) brauchen je eine erreichbare Adresse für Datenschutzerklärung bzw. Nutzungsbedingungen. Dafür reicht **eine einzelne statische Textseite**, keine Website mit Besuchern:
 
-- **Variante 1 (empfohlen):** Eine einzige statische Seite `https://<domain>/rechtliches` mit Datenschutzerklärung und Nutzungsbedingungen, in Cloudflare Access als einziger Pfad mit Regel „Bypass“ freigegeben. Sie enthält nur Text, keine Verbindung zur Anwendung, keine Anmeldung, keine Cookies. Vorteil: liegt auf der eigenen Domain, die Google beim Zustimmungsbildschirm als autorisierte Domain verlangt ⚠️.
-- **Variante 2:** Text extern ablegen (z. B. öffentliche GitHub-Seite). Dann ist der eigene Server vollständig geschlossen, aber Google verlangt für die Links in der Regel eine autorisierte, eigene Domain ⚠️.
+- **Variante 1 (umgesetzt, Entscheidung vom 15.11.):** Eine einzige statische Seite auf einem **eigenen Hostnamen**, z. B. `https://rechtliches.<domain>`, mit Datenschutzerklärung, Nutzungsbedingungen und englischer Kurzfassung. Caddy liefert sie über einen eigenen Eingang (`:8081`) aus, der **keine Route zur Anwendung** hat: Nur `GET`/`HEAD` auf `/`, `/datenschutz`, `/nutzungsbedingungen`, `/privacy` und `/terms` antworten, alles andere (auch `/api`, `/login`) ergibt `404`. Kein Link zum Dashboard, keine Cookies, keine fremden Inhalte, strenge Content-Security-Policy, `noindex`. Name, Kontakt-E-Mail und Stand kommen aus der `.env` des Servers (`LEGAL_OPERATOR_NAME`, `LEGAL_CONTACT_EMAIL`, `LEGAL_UPDATED`) und stehen nicht im Repository. Text: `infrastructure/legal/index.html`.
+- Warum ein eigener Hostname statt eines freigegebenen Pfads: Der Hostname des Dashboards bleibt vollständig hinter Access, ohne Ausnahmeregel. Der Rechtstext-Hostname bekommt **keine** Access-Anwendung, zeigt im Tunnel aber nur auf `caddy:8081` und erreicht die Anwendung damit gar nicht.
+- **Variante 2** (Text extern, z. B. GitHub Pages) bleibt möglich, Google verlangt für die Links aber in der Regel eine autorisierte, eigene Domain ⚠️.
 
-Umgesetzt ist keine der beiden Varianten, weil du ausdrücklich keine öffentlichen Seiten möchtest. **Entscheidung nötig**, bevor YouTube auf „In production“ gestellt wird.
+Vor der Nutzung: Texte einmal lesen und bei Bedarf rechtlich prüfen lassen (keine Rechtsberatung).
 
 ## 5. Impressum
 
@@ -112,20 +113,21 @@ Kurzfassung; Schritt für Schritt erklärt, wenn wir es gemeinsam einrichten.
 1. Domain bei Cloudflare (Nameserver umstellen oder dort registrieren).
 2. Zero Trust aktivieren (Gratistarif), Team-Domain festlegen, Anmeldung per Einmal-Code (E-Mail) einschalten.
 3. Tunnel anlegen („cloudflared“, Docker). Token nur in `.env` auf dem Server als `CLOUDFLARE_TUNNEL_TOKEN`.
-4. Im Tunnel einen öffentlichen Hostnamen `gce.<domain>` auf `http://caddy:8080` zeigen lassen.
+4. Im Tunnel einen öffentlichen Hostnamen `gce.<domain>` auf `http://caddy:8080` zeigen lassen und einen zweiten, `rechtliches.<domain>`, auf `http://caddy:8081` (nur die Rechtstext-Seite).
 5. Access-Anwendung „Self-hosted“ für `gce.<domain>` anlegen, Regel „Allow“ nur für deine E-Mail-Adresse, Sitzungsdauer z. B. 24 h. AUD-Tag kopieren.
-6. `.env` auf dem Server: `ACCESS_GUARD=cloudflare`, `CF_ACCESS_TEAM_DOMAIN=<team>.cloudflareaccess.com`, `CF_ACCESS_AUD=<AUD>`, `CF_ACCESS_ALLOWED_EMAILS=<deine Adresse>`, `SINGLE_USER_MODE=true`, `CADDY_BIND=127.0.0.1`, `DOMAIN=localhost`.
+6. `.env` auf dem Server: `ACCESS_GUARD=cloudflare`, `CF_ACCESS_TEAM_DOMAIN=<team>.cloudflareaccess.com`, `CF_ACCESS_AUD=<AUD>`, `CF_ACCESS_ALLOWED_EMAILS=<deine Adresse>`, `SINGLE_USER_MODE=true`, `CADDY_BIND=127.0.0.1`, `DOMAIN=localhost`, `LEGAL_OPERATOR_NAME`, `LEGAL_CONTACT_EMAIL`, `LEGAL_UPDATED`.
 7. Server: `harden.sh --tunnel`; Hetzner Cloud Firewall eingehend nur Port 22, am besten nur von deiner IP.
 8. `./scripts/deploy.sh`, ersten Admin anlegen.
 9. Prüfen: Aufruf ohne Anmeldung zeigt die Cloudflare-Anmeldeseite; `curl http://<server-ip>` erreicht nichts; nach Neustart des Servers läuft alles wieder (`restart: unless-stopped`).
-10. Rückleitungs-URLs der Plattformen auf `https://gce.<domain>/api/oauth/<plattform>/callback`.
+10. Rückleitungs-URLs der Plattformen auf `https://gce.<domain>/api/oauth/<plattform>/callback`; Datenschutz-URL `https://rechtliches.<domain>/datenschutz`, Nutzungsbedingungen `https://rechtliches.<domain>/nutzungsbedingungen`.
+11. Prüfen: `https://rechtliches.<domain>/api/health` und `/login` antworten `404`.
 
 ## 7. Offene Punkte
 
 | Punkt | Wer | Prio |
 |---|---|---|
-| Upload in Teilstücken (< 100 MB) für große Gameplay-Dateien hinter Cloudflare | Coding-Agent | vor dem ersten großen Upload |
-| Entscheidung Rechtstext-Seite (Variante 1 oder 2) für Google und Meta | Betreiber | vor YouTube „In production“ |
+| ~~Upload in Teilstücken~~ ✅ umgesetzt ([UPLOADS.md](UPLOADS.md)) | – | – |
+| ~~Rechtstext-Seite~~ ✅ Variante 1 umgesetzt; Texte vor Nutzung lesen und Werte in `.env` setzen | Betreiber | vor YouTube „In production“ |
 | Meta: Live-Modus und Sichtbarkeit von Posts im Entwicklungsmodus im Dashboard bestätigen | Betreiber mit Agent | vor Instagram/Facebook |
 | Externe Überwachung hinter Access (Service-Token oder nur Push-Monitor) | bei Einrichtung | P2 |
 | TOTP für den Admin bleibt sinnvoll (zweite Schicht hinter Access) | Coding-Agent | P2 |

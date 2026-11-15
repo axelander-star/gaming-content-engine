@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Datenschutz und Nutzungsbedingungen</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1d1d1f; --muted: #5a5a60; --bg: #ffffff; --line: #e3e3e8; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #ececef; --muted: #a2a2aa; --bg: #121214; --line: #2c2c31; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.25rem; margin: 40px 0 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.02rem; margin: 24px 0 4px; }
+  p, li { color: var(--fg); }
+  .meta { color: var(--muted); font-size: .92rem; }
+  a { color: inherit; }
+  nav a { margin-right: 16px; }
+</style>
+</head>
+<body>
+<main>
+<!--
+  Static legal text for the platform apps (Google/YouTube, Meta). Served by Caddy on
+  its own entry point without any route to the application (see Caddyfile).
+  Name and contact come from the server's .env (LEGAL_OPERATOR_NAME,
+  LEGAL_CONTACT_EMAIL, LEGAL_UPDATED) and are never stored in the repository.
+-->
+<h1>Datenschutz und Nutzungsbedingungen</h1>
+<p class="meta">Privates Werkzeug „Gaming Content Engine“ · Stand: {{env "LEGAL_UPDATED"}}</p>
+<nav><a href="#datenschutz">Datenschutz</a><a href="#nutzungsbedingungen">Nutzungsbedingungen</a><a href="#english">English</a></nav>
+
+<h2 id="datenschutz">Datenschutzerklärung</h2>
+
+<h3>1. Verantwortlicher</h3>
+<p>{{env "LEGAL_OPERATOR_NAME"}}<br>E-Mail: {{env "LEGAL_CONTACT_EMAIL"}}</p>
+
+<h3>2. Was diese Anwendung ist</h3>
+<p>Die Gaming Content Engine ist ein privates Werkzeug, das ausschließlich vom Verantwortlichen selbst genutzt wird. Sie erstellt Kurzvideos aus eigenem bzw. lizenziertem Material und veröffentlicht sie auf den eigenen Kanälen des Verantwortlichen. Sie wird keinen anderen Personen angeboten; es gibt keine Registrierung und keine Konten für Dritte.</p>
+
+<h3>3. Welche Daten verarbeitet werden</h3>
+<ul>
+  <li><strong>Daten der eigenen Plattform-Konten</strong> über die offiziellen Schnittstellen: Kanal- bzw. Kontokennung und -name, eigene Videos und Beiträge, deren Status sowie Kennzahlen (z. B. Aufrufe, Wiedergabezeit, Interaktionen).</li>
+  <li><strong>Zugangs-Token</strong> der Plattformen, die beim Verbinden eines Kontos ausgestellt werden. Sie werden verschlüsselt gespeichert und nur für die genannten Zwecke verwendet.</li>
+  <li><strong>Öffentliche Trenddaten</strong> (z. B. beliebte Videos und Spiele), ohne Bezug zu einzelnen Personen.</li>
+</ul>
+<p>Es werden keine Daten anderer Nutzerinnen und Nutzer gesammelt, keine Profile gebildet, keine Daten verkauft und keine Daten an Dritte weitergegeben, außer an die unten genannten technischen Dienstleister.</p>
+
+<h3>4. YouTube API Services</h3>
+<p>Diese Anwendung nutzt die YouTube API Services. Es gelten die <a href="https://www.youtube.com/t/terms">Nutzungsbedingungen von YouTube</a> und die <a href="https://policies.google.com/privacy">Datenschutzerklärung von Google</a>. Der Zugriff auf das Google-Konto kann jederzeit unter <a href="https://security.google.com/settings/security/permissions">security.google.com/settings/security/permissions</a> widerrufen werden.</p>
+
+<h3>5. Meta (Instagram, Facebook)</h3>
+<p>Für Instagram und Facebook wird die offizielle Graph API von Meta genutzt. Es gilt die <a href="https://www.facebook.com/privacy/policy/">Datenschutzrichtlinie von Meta</a>. Der Zugriff kann in den Facebook-Einstellungen unter „Apps und Websites“ widerrufen werden.</p>
+
+<h3>6. Speicherort und Dienstleister</h3>
+<ul>
+  <li>Server: Hetzner Online GmbH, Rechenzentrum in Deutschland.</li>
+  <li>Netzwerk, Zugangsschutz und Speicher: Cloudflare, Inc. (Verbindung und Zugriffskontrolle; Medienspeicher mit Datenhaltung in der EU, soweit verfügbar).</li>
+</ul>
+<p>Mit den Dienstleistern bestehen bzw. werden Verträge zur Auftragsverarbeitung geschlossen.</p>
+
+<h3>7. Speicherdauer und Löschung</h3>
+<p>Zugangs-Token werden gelöscht, wenn ein Konto getrennt oder der Zugriff widerrufen wird. Kennzahlen und Inhalte werden nur so lange gespeichert, wie sie für die Planung und Auswertung der eigenen Veröffentlichungen gebraucht werden. Auf Anfrage an die oben genannte E-Mail-Adresse werden gespeicherte Daten gelöscht.</p>
+
+<h3>8. Ihre Rechte</h3>
+<p>Sie haben nach der DSGVO das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren. Wenden Sie sich dazu an die oben genannte E-Mail-Adresse.</p>
+
+<h3>9. Diese Seite</h3>
+<p>Diese Seite setzt keine Cookies, lädt keine fremden Inhalte und enthält keine Analyse- oder Tracking-Werkzeuge.</p>
+
+<h2 id="nutzungsbedingungen">Nutzungsbedingungen</h2>
+<ol>
+  <li>Die Gaming Content Engine ist ein privates Werkzeug des oben genannten Verantwortlichen. Sie wird Dritten weder angeboten noch zur Verfügung gestellt; ein Zugang für andere Personen ist nicht vorgesehen.</li>
+  <li>Die Anwendung greift nur auf Konten zu, die dem Verantwortlichen gehören oder die er verwaltet, und nur über die offiziellen Schnittstellen der Plattformen.</li>
+  <li>Für die Nutzung der YouTube API Services gelten zusätzlich die <a href="https://www.youtube.com/t/terms">Nutzungsbedingungen von YouTube</a>. Für Meta-Plattformen gelten die <a href="https://www.facebook.com/terms.php">Nutzungsbedingungen von Meta</a>.</li>
+  <li>Veröffentlicht werden nur eigene oder ordnungsgemäß lizenzierte Inhalte.</li>
+  <li>Kontakt: {{env "LEGAL_CONTACT_EMAIL"}}</li>
+</ol>
+
+<h2 id="english">English summary</h2>
+<p><strong>Privacy:</strong> Gaming Content Engine is a private tool used only by its operator ({{env "LEGAL_OPERATOR_NAME"}}, {{env "LEGAL_CONTACT_EMAIL"}}) to publish their own content on their own channels. It processes data of the operator's own accounts via official APIs (account identifiers, own videos and posts, their status and metrics) and stores platform access tokens encrypted. No data of other users is collected, sold or shared. This app uses YouTube API Services; see the <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> and the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>. Access can be revoked at <a href="https://security.google.com/settings/security/permissions">security.google.com/settings/security/permissions</a>. Hosting: Hetzner (Germany) and Cloudflare. Data is deleted on request or when access is revoked.</p>
+<p><strong>Terms:</strong> This is a private tool and is not offered to anyone else. It only accesses accounts owned or managed by the operator, through official APIs, and only publishes own or licensed content.</p>
+</main>
+</body>
+</html>

@@ -27,7 +27,7 @@ Diese Liste sagt, was bis zum 24/7-Betrieb auf einem Hetzner-Server noch fehlt. 
 ## 1. Kurzfassung
 
 1. **Das Grundgerüst für den Server ist fertig:** Dockerfiles, Docker Compose mit Neustarts und Healthchecks, Caddy mit automatischem HTTPS, Härtungs-Skript, Deploy-Skript mit Rücksprung, verschlüsselte tägliche Sicherung mit Wiederherstellungstest, Systemüberwachung mit Uptime Kuma.
-2. **Was der Code für den Betrieb noch braucht:** Ablage der Videos in Cloudflare R2, Kopie der Sicherungen außerhalb des Servers, automatisches Aufräumen alter Mediendateien, automatisches Deployment über GitHub Actions, Zwei-Faktor-Anmeldung, Upload in Teilstücken (Cloudflare lässt höchstens 100 MB je Anfrage durch), echte Anbieter für KI-Texte und Stimme, X/Twitter-Anbindung, TikTok-Entwurfsmodus, Instagram Login.
+2. **Was der Code für den Betrieb noch braucht:** Ablage der Videos in Cloudflare R2, Kopie der Sicherungen außerhalb des Servers, automatisches Aufräumen alter Mediendateien, automatisches Deployment über GitHub Actions, Zwei-Faktor-Anmeldung, echte Anbieter für KI-Texte und Stimme, X/Twitter-Anbindung, TikTok-Entwurfsmodus, Instagram Login.
 3. **Was nur du erledigen kannst:** Konten und Entwickler-Apps anlegen, Domain kaufen, Server bestellen, Zahlungsarten hinterlegen, Schlüssel erneuern, rechtliche Texte und Lizenzen beschaffen, Entscheidungen zu TikTok, X und den KI-Anbietern treffen.
 4. **Privater Zugang:** Cloudflare Tunnel + Cloudflare Access sind im Code vorbereitet (Zugangsprüfung im Backend, Einzelbenutzer-Modus, Tunnel-Dienst). Einrichtung erst nach deiner Prüfung, kostenlos ⚠️.
 5. **Sofort nötig:** YouTube-API-Key und Twitch-Client-Secret erneuern. Beide standen mehrfach in `.env.example` und sind damit in der Git-Historie sichtbar.
@@ -53,7 +53,7 @@ Diese Liste sagt, was bis zum 24/7-Betrieb auf einem Hetzner-Server noch fehlt. 
 | A9 | SSH-Schlüsselpaar auf deinem Rechner erzeugen (Ed25519, mit Passphrase), öffentlichen Teil bei Hetzner hinterlegen | eigener Rechner, Hetzner Cloud Console → Sicherheit → SSH-Keys | – | 0 € | P1 | ⬜ offen |
 | A10 | Cloudflare-Konto anlegen, R2 aktivieren (Freigabe nötig) | dash.cloudflare.com → R2 | Zahlungsart (Cloudflare verlangt sie auch im Freikontingent ⚠️) | 💶 0 € bis wenige €/Monat | P1 | ⬜ offen |
 | A11 | Entscheidung: Offsite-Backup in R2 (empfohlen) oder Hetzner Storage Box | – | Empfehlung in PR #17, Abschnitt 6 | R2 ≈ 0–1 €; BX11 3,20 € netto | P1 | ⬜ offen |
-| A12 | Google-OAuth-Client für YouTube-Uploads anlegen, Zustimmungsbildschirm einrichten, App auf **„In production“** stellen (sonst verfällt die Verbindung nach 7 Tagen); Google-Prüfung ist bei persönlicher Nutzung nicht nötig | Google Cloud Console → Google Auth Platform | Link zur Rechtstext-Seite (A30), Rückleitungs-URL `https://<domain>/api/oauth/youtube/callback`, eigenes Konto als Nutzer | 0 € | P2 | ⬜ offen |
+| A12 | Google-OAuth-Client für YouTube-Uploads anlegen, Zustimmungsbildschirm einrichten, App auf **„In production“** stellen (sonst verfällt die Verbindung nach 7 Tagen); Google-Prüfung ist bei persönlicher Nutzung nicht nötig | Google Cloud Console → Google Auth Platform | Link zur Rechtstext-Seite `https://rechtliches.<domain>/datenschutz` (A30), Rückleitungs-URL `https://<domain>/api/oauth/youtube/callback`, eigenes Konto als Nutzer | 0 € | P2 | ⬜ offen |
 | A13 | YouTube-Kanäle anlegen (DE, EN, je als Brand-Kanal) und per Telefon bestätigen | youtube.com, YouTube Studio | Telefonnummer | 0 € | P2 | ⬜ offen |
 | A14 | Meta: Entwicklerkonto, App vom Typ „Business“ anlegen; klären, ob Posts im Entwicklungsmodus öffentlich sichtbar sind, sonst Live-Modus ⚠️ | developers.facebook.com | Facebook-Konto, Kontakt-E-Mail, App-Icon; für den Live-Modus Nutzungsbedingungen-URL (A30) ⚠️ | 0 € | P2 | ⬜ offen |
 | A15 | Facebook-Seite(n) anlegen; Instagram-Konten in **Profikonten** (Business oder Creator) umstellen und mit der Seite verknüpfen | Facebook, Instagram-App → Einstellungen → Kontotyp | – | 0 € | P2 | ⬜ offen |
@@ -62,7 +62,7 @@ Diese Liste sagt, was bis zum 24/7-Betrieb auf einem Hetzner-Server noch fehlt. 
 | A18 | **Entscheidung X/Twitter:** anbinden ja/nein (Abschnitt 4.6) | – | Kosten je Post, Prepaid-Guthaben | 💶 nach Verbrauch | P3 | ⬜ offen |
 | A19 | **Entscheidung KI-Anbieter** für Texte, Stimme, Transkription (Abschnitt 5) | – | Kostenvergleich, Nutzungsrechte | 💶 nach Verbrauch | P2 | ⬜ offen |
 | A20 | KI-Konto anlegen (z. B. OpenAI oder Anthropic), Projekt nur für dieses System, **hartes Monatslimit** setzen | Plattform des Anbieters → Limits | Zahlungsart, Budgetbetrag | 💶 nach Verbrauch | P2 | ⬜ offen |
-| A21 | Rechtstexte: kurze Datenschutzerklärung und Nutzungsbedingungen für die Plattform-Apps (Google, Meta). **Kein Impressum für den Server nötig** (keine Dienste für andere); Impressum nur auf den Social-Media-Profilen, sobald sie monetarisiert werden | Generator (z. B. eRecht24) oder Anwalt | Name, Kontakt-E-Mail, Liste der Dienstleister | 0 € bis 💶 | P2 | ⬜ offen |
+| A21 | Rechtstexte prüfen: Entwurf von Datenschutzerklärung und Nutzungsbedingungen liegt in `infrastructure/legal/index.html` (B29); lesen, ggf. prüfen lassen, Name/E-Mail/Stand nur in `.env` setzen. **Kein Impressum für den Server nötig** (keine Dienste für andere); Impressum nur auf den Social-Media-Profilen, sobald sie monetarisiert werden | Generator (z. B. eRecht24) oder Anwalt | Name, Kontakt-E-Mail, Liste der Dienstleister | 0 € bis 💶 | P2 | ⬜ offen |
 | A22 | Auftragsverarbeitungsverträge (AVV/DPA) abschließen | Hetzner Konsole (AVV online), Cloudflare DPA, KI-Anbieter DPA | Firmendaten | 0 € | P2 | ⬜ offen |
 | A23 | Rechte am Gameplay klären und als Lizenz mit Nachweis im Dashboard erfassen | Publisher-Richtlinien, eigene Aufnahmen, Verträge; Dashboard → Rechte | Lizenztexte, Screenshots der Richtlinie, Verträge als PDF | 0 € bis 💶 | P2 | ⬜ offen |
 | A24 | Musik und Bildmaterial nur mit Lizenz für kommerzielle Social-Media-Nutzung | Musikbibliothek mit passender Lizenz | Lizenzurkunden | 0 € bis 💶 | P2 | ⬜ offen |
@@ -71,7 +71,7 @@ Diese Liste sagt, was bis zum 24/7-Betrieb auf einem Hetzner-Server noch fehlt. 
 | A27 | Bekannte Lücke in der Git-Historie bewerten: alte Schlüssel stehen weiter in alten Commits | – | nach Erneuerung (A1, A2) sind sie wertlos; eine Bereinigung der Historie ist dann nicht nötig | 0 € | P1 | ⬜ offen |
 | A28 | Pull Request #18 (Abnahmetest, Roadmap) prüfen und mergen lassen; #17 (Plattform-Recherche) ist gemergt | GitHub | – | 0 € | P1 | ⬜ offen |
 | A29 | Cloudflare Zero Trust aktivieren (Gratistarif), Domain auf Cloudflare-Nameserver, Tunnel und Access-Anwendung anlegen (Einrichtung gemeinsam, Schritt für Schritt) | dash.cloudflare.com → Zero Trust | Domain, deine E-Mail-Adresse | 0 € ⚠️ (evtl. Zahlungsart nötig) | P1 | ⬜ offen |
-| A30 | **Entscheidung Rechtstext-Seite:** Variante 1 eine einzige statische Textseite auf der eigenen Domain, als einziger Pfad von Access freigegeben (empfohlen), oder Variante 2 extern | – | [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md), Abschnitt 4 | 0 € | P2 | ⬜ offen |
+| A30 | **Entscheidung Rechtstext-Seite:** Variante 1, statische Seite auf eigenem Hostnamen `rechtliches.<domain>` ohne Verbindung zur Anwendung (Entscheidung vom 15.11.) | – | [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md), Abschnitt 4 | 0 € | P2 | ✅ entschieden |
 
 ### B. Was der Coding-Agent vorbereiten kann
 
@@ -106,8 +106,8 @@ Diese Punkte sind Programmierarbeit im Mock-Modus. Sie kosten nichts und brauche
 | B25 | Warnung im Dashboard, wenn das Tageslimit für Produktionsaufträge die Pipeline anhält | Dashboard (Roadmap A2) | – | 0 € | P2 | ⬜ offen |
 | B26 | KI-Kennzeichnung beim Upload setzen (YouTube „veränderte oder synthetische Inhalte“, TikTok „KI-generiert“, Meta „KI-Info“), wo die API es erlaubt ⚠️ | Publishing-Adapter | – | 0 € | P2 | ⬜ offen |
 | B27 | Betriebsanleitung um R2, Offsite-Backup und Deploy-Workflow ergänzen | `docs/OPERATIONS.md` | – | 0 € | P2 | ⬜ offen |
-| B28 | **Upload in Teilstücken** (< 100 MB je Anfrage), damit Gameplay-Dateien bis 4 GB durch Cloudflare passen | `api/rights.py`, Dashboard | – | 0 € | P1 | ⬜ offen |
-| B29 | Rechtstext-Seite nach Entscheidung A30 (eine statische Seite, ohne Verbindung zur Anwendung) | Caddy | Texte aus A21 | 0 € | P2 | ⬜ offen |
+| B28 | **Upload in Teilstücken** (16 MiB je Anfrage, fortsetzbar nach Verbindungsabbruch), damit Gameplay-Dateien bis 4 GB durch Cloudflare passen | `api/uploads.py`, `lib/upload.ts`, [UPLOADS.md](UPLOADS.md) | – | 0 € | P1 | ✅ erledigt |
+| B29 | Rechtstext-Seite nach Entscheidung A30 (eine statische Seite, eigener Caddy-Eingang `:8081` ohne Verbindung zur Anwendung) | Caddy, `infrastructure/legal/` | Werte `LEGAL_*` in `.env` | 0 € | P2 | ✅ erledigt |
 
 ### C. Was bei der Einrichtung des Hetzner-Servers erledigt wird
 
@@ -121,7 +121,7 @@ Reihenfolge wie in [OPERATIONS.md](OPERATIONS.md), Abschnitt 1. Die Schritte fü
 | C4 | Eigenen Benutzer mit `sudo` anlegen, SSH-Schlüssel hinterlegen, dann `harden.sh --tunnel --dry-run`, danach ohne `--dry-run` | Server (SSH) | SSH-Schlüssel aus A9 | 0 € | P1 | ⬜ offen |
 | C5 | Docker Engine mit Compose-Plugin nach offizieller Anleitung installieren; Benutzer `deploy` ohne sudo, nur Docker-Gruppe | Server | – | 0 € | P1 | ⬜ offen |
 | C6 | Repository auf den Server holen: **Deploy-Key nur mit Leserecht** für das private Repo | GitHub → Repo → Settings → Deploy keys | öffentlicher Schlüssel vom Server | 0 € | P1 | ⬜ offen |
-| C7 | `.env` aus `.env.example` erzeugen, alle Pflichtwerte setzen (`POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SECRET_KEY`, `CREDENTIALS_ENCRYPTION_KEY`, `BACKUP_PASSPHRASE`, `APP_ENV=production`) und für den privaten Betrieb `ACCESS_GUARD=cloudflare`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_ACCESS_ALLOWED_EMAILS`, `SINGLE_USER_MODE=true`, `CLOUDFLARE_TUNNEL_TOKEN`, `CADDY_BIND=127.0.0.1`; Dateirechte `600` | Server | zufällig erzeugte Werte; Kopie von `BACKUP_PASSPHRASE` und `CREDENTIALS_ENCRYPTION_KEY` in den Passwortmanager | 0 € | P1 | ⬜ offen |
+| C7 | `.env` aus `.env.example` erzeugen, alle Pflichtwerte setzen (`POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SECRET_KEY`, `CREDENTIALS_ENCRYPTION_KEY`, `BACKUP_PASSPHRASE`, `APP_ENV=production`) und für den privaten Betrieb `ACCESS_GUARD=cloudflare`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_ACCESS_ALLOWED_EMAILS`, `SINGLE_USER_MODE=true`, `CLOUDFLARE_TUNNEL_TOKEN`, `CADDY_BIND=127.0.0.1`, `LEGAL_OPERATOR_NAME`, `LEGAL_CONTACT_EMAIL`, `LEGAL_UPDATED`; Dateirechte `600` | Server | zufällig erzeugte Werte; Kopie von `BACKUP_PASSPHRASE` und `CREDENTIALS_ENCRYPTION_KEY` in den Passwortmanager | 0 € | P1 | ⬜ offen |
 | C8 | `./scripts/deploy.sh`, danach ersten Admin anlegen (`python -m app.create_admin`) | Server | E-Mail, starkes Passwort | 0 € | P1 | ⬜ offen |
 | C9 | GitHub Secrets für das automatische Deployment anlegen (nur SSH-Zugang, **keine** App-Schlüssel) | GitHub → Settings → Environments → production | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` | 0 € | P2 | ⬜ offen |
 | C10 | Uptime Kuma per SSH-Tunnel einrichten: interner HTTP-Monitor auf das Backend, Push-Monitor, Alarmkanal aus A26. Ein Monitor auf die öffentliche Adresse wird von Access blockiert (nur mit Access-Service-Token) | Server, `127.0.0.1:3001` | Push-URL nach `.env` | 0 € | P1 | ⬜ offen |
@@ -340,7 +340,7 @@ Keine Rechtsberatung. Vor der Monetarisierung der Kanäle von einer fachkundigen
 
 ## 12. Fehlende Voraussetzungen, an die man leicht nicht denkt
 
-1. **Eine Datenschutz-URL trotz privater Nutzung.** Google verlangt sie für „In production“ (ohne die nach 7 Tagen getrennte YouTube-Verbindung), Meta voraussichtlich für den Live-Modus. Eine einzige statische Textseite reicht (A30, B29).
+1. **Eine Datenschutz-URL trotz privater Nutzung.** Google verlangt sie für „In production“ (ohne die nach 7 Tagen getrennte YouTube-Verbindung), Meta voraussichtlich für den Live-Modus. Eine einzige statische Textseite reicht; sie ist vorbereitet (A30, B29).
 2. **Google-Refresh-Token im Testmodus nur 7 Tage gültig** ⚠️. Ohne Umstellung auf „In Produktion“ bricht der YouTube-Upload nach einer Woche ab.
 3. **Speicherplatz:** 80 GB auf dem CX33 laufen bei Gameplay-Rohmaterial schnell voll. Ohne R2-Anbindung (B14) und Aufräumregeln (B16) steht die Produktion irgendwann still.
 4. **Server-Verfügbarkeit:** CX33 war am 15.11. als nicht verfügbar markiert ⚠️. Alternative Standorte oder Modelle vorher festlegen.
@@ -354,7 +354,7 @@ Keine Rechtsberatung. Vor der Monetarisierung der Kanäle von einer fachkundigen
 12. **E-Mail-Adresse für das Projekt** (Support-Adresse in den Apps, ACME, Alarme), getrennt von der privaten.
 13. **Uhrzeit und Zeitzone:** `TZ=Europe/Berlin` in `.env`, damit Backup-Zeit und Planung stimmen.
 14. **Hetzner-Abuse-Kontakt:** Hetzner meldet Beschwerden per E-Mail an den Kontoinhaber und erwartet zügige Antwort; die Kontakt-E-Mail muss gelesen werden.
-15. **Uploads über 100 MB** scheitern hinter Cloudflare ohne Upload in Teilstücken (B28) ⚠️.
+15. ~~**Uploads über 100 MB**~~ gehen dank Upload in Teilstücken durch Cloudflare (B28 ✅).
 16. **Externe Überwachung** der öffentlichen Adresse wird von Access blockiert; Uptime Kuma prüft intern und per Push (C10).
 
 ---
@@ -371,12 +371,12 @@ Jeder Schritt mit 💶 wird erst nach deiner ausdrücklichen Freigabe ausgeführ
 
 ### Schritt 2 – Code für den Betrieb fertigstellen (Agent, 0 €)
 5. R2-Speicher, Offsite-Backup, Aufräumregeln (B14–B16).
-6. Zugangsschutz für private Nutzung (B18, ✅ vorbereitet), Upload in Teilstücken (B28), TOTP (B17).
+6. Zugangsschutz für private Nutzung (B18, ✅ vorbereitet), Upload in Teilstücken (B28 ✅), TOTP (B17).
 7. Deploy-Workflow für GitHub Actions (B13), Doku (B27).
 8. Abnahmetest und CI grün halten.
 
 ### Schritt 3 – Konten und Rechtliches (du, überwiegend 0 €)
-9. Kurze Datenschutzerklärung und Nutzungsbedingungen für Google/Meta (A21, A30), Projekt-E-Mail anlegen.
+9. Datenschutzerklärung und Nutzungsbedingungen für Google/Meta prüfen (A21; Seite vorbereitet, A30/B29), Projekt-E-Mail anlegen.
 10. Domain registrieren 💶 (A6).
 11. Hetzner-Konto mit Identitätsprüfung (A7), Cloudflare-Konto (A10, noch ohne R2-Aktivierung).
 12. Rechte für das erste Gameplay klären und erfassen (A23), Musikquelle festlegen (A24).

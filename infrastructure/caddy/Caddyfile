@@ -40,6 +40,36 @@
 	import app
 }
 
+# Static legal page (privacy policy and terms for the Google and Meta apps).
+# Separate entry point for its own hostname (e.g. rechtliches.<domain>, tunnel ->
+# http://caddy:8081). It serves exactly one static file and has no route to the
+# dashboard or the API, so it cannot open a way into the application.
+http://:8081 {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	@page {
+		method GET HEAD
+		path / /index.html /datenschutz /nutzungsbedingungen /privacy /terms
+	}
+	handle @page {
+		root * /srv/legal
+		rewrite * /index.html
+		templates
+		file_server
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
+
 # Internal entry point for Cloudflare Tunnel (cloudflared -> http://caddy:8080).
 # Not published on the host; TLS ends at Cloudflare, the tunnel itself is encrypted.
 http://:8080 {

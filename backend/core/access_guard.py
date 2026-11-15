@@ -26,6 +26,8 @@ COOKIE = "CF_Authorization"
 #: Paths reachable without the Access token: container health checks and Uptime Kuma
 #: call the backend directly inside the Docker network, not through Cloudflare.
 EXEMPT_PREFIXES = ("/api/health",)
+#: Tolerated clock difference between Cloudflare and the server.
+LEEWAY_S = 30
 
 
 class AccessDeniedError(Exception):
@@ -67,6 +69,7 @@ def verify(settings: Settings, token: str | None) -> dict[str, Any]:
             audience=settings.cf_access_aud.strip(),
             issuer=team_url(settings),
             options={"require": ["exp", "iat", "aud", "iss"]},
+            leeway=LEEWAY_S,
         )
     except (jwt.PyJWTError, OSError) as exc:
         raise AccessDeniedError(f"invalid Cloudflare Access token: {type(exc).__name__}") from exc

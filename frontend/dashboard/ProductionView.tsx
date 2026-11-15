@@ -9,6 +9,8 @@ import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/labels";
 import { FORMAT_LABELS, HOOK_LABELS } from "@/lib/creative";
 import { hasRole } from "@/lib/roles";
+import { resumableUpload } from "@/lib/upload";
+import type { UploadProgress } from "@/lib/upload";
 import type {
   Clip,
   Game,
@@ -133,6 +135,10 @@ function CapacityCards({ capacity }: { capacity: RenderCapacity }) {
   );
 }
 
+function mb(bytes: number): string {
+  return (bytes / 1_000_000).toFixed(1);
+}
+
 function UploadSection({
   licenses,
   games,
@@ -147,43 +153,67 @@ function UploadSection({
   const [gameId, setGameId] = useState("");
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const file = fileRef.current?.files?.[0];
     const lic = licenses.find((l) => l.id === Number(licenseId));
     if (!file || !lic) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
     setError(null);
     setMessage(null);
+    setProgress({ sent: 0, total: file.size, retrying: false });
     try {
-      const material = await api.uploadMaterial(file, {
-        source_id: lic.source_id,
-        license_id: lic.id,
-        game_id: gameId ? Number(gameId) : null,
-        title: title || undefined,
+      const done = await resumableUpload(file, {
+        purpose: "material",
+        params: {
+          source_id: lic.source_id,
+          license_id: lic.id,
+          game_id: gameId ? Number(gameId) : null,
+          ...(title ? { title } : {}),
+        },
+        onProgress: setProgress,
+        signal: controller.signal,
       });
       setMessage(
-        `Material #${material.id} hochgeladen (${seconds(material.duration_s)}). ` +
+        `Material #${String(done.result?.material_id ?? "?")} hochgeladen. ` +
           "Rechteprüfung, Szenenanalyse und Rendering laufen automatisch.",
       );
       setTitle("");
       if (fileRef.current) fileRef.current.value = "";
       await onDone();
     } catch (err) {
-      setError((err as Error).message);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError(
+          "Upload angehalten. Dieselbe Datei erneut wählen, um an derselben Stelle fortzusetzen.",
+        );
+      } else {
+        setError((err as Error).message);
+      }
     } finally {
+      abortRef.current = null;
       setBusy(false);
+      setProgress(null);
     }
   }
+
+  const percent =
+    progress && progress.total > 0 ? Math.floor((progress.sent / progress.total) * 100) : 0;
 
   return (
     <Section title="Gameplay hochladen">
       <p className="muted">
-        MP4, MOV oder MKV mit mindestens 720p. Die Datei wird technisch geprüft, bevor sie
-        gespeichert wird. Ohne freigegebene Lizenz und Spielzuordnung wird nichts geschnitten.
+        MP4, MOV oder MKV mit mindestens 720p. Große Dateien gehen in Teilstücken hoch; nach
+        einem Verbindungsabbruch oder Neuladen dieselbe Datei erneut wählen, dann geht es an der
+        letzten Stelle weiter. Die Datei wird technisch geprüft, bevor sie gespeichert wird. Ohne freigegebene Lizenz und Spielzuordnung wird nichts geschnitten.
       </p>
       <form className="inline-form" onSubmit={submit} aria-label="Gameplay hochladen">
         <input
@@ -223,7 +253,19 @@ function UploadSection({
         <button className="btn btn-primary" type="submit" disabled={busy}>
           {busy ? "Wird hochgeladen …" : "Hochladen"}
         </button>
+        {busy && (
+          <button className="btn" type="button" onClick={() => abortRef.current?.abort()}>
+            Anhalten
+          </button>
+        )}
       </form>
+      {progress && (
+        <div className="muted" role="status" aria-live="polite">
+          <progress max={100} value={percent} aria-label="Upload-Fortschritt" /> {percent} % (
+          {mb(progress.sent)} von {mb(progress.total)} MB)
+          {progress.retrying && " · Verbindung unterbrochen, neuer Versuch …"}
+        </div>
+      )}
       {message && (
         <p className="muted" role="status">
           {message}

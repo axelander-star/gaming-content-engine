@@ -10,16 +10,19 @@ the affected material back to the rights check.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Annotated, Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from api.deps import Admin, AppSettings, DbSession, Operator, Viewer, csrf_protect
+from core.config import Settings
 from core.enums import (
     AssetKind,
     Language,
@@ -40,7 +43,8 @@ from models.rights import (
     Source,
 )
 from models.trends import Game
-from services import audit, media, rights, storage
+from models.uploads import UploadSession
+from services import audit, media, rights, storage, uploads
 from services.trends import slugify
 
 router = APIRouter(tags=["rights"], dependencies=[Depends(csrf_protect)])
@@ -730,12 +734,9 @@ def upload_material(
     game_id: Annotated[int | None, Form()] = None,
     title: Annotated[str | None, Form(max_length=300)] = None,
 ) -> MaterialOut:
-    """Upload a licensed gameplay file. It is checked with ffprobe before it is stored."""
-    lic = _license(db, license_id)
-    if lic.source_id != source_id:
-        raise HTTPException(422, detail="License does not belong to this source")
-    if game_id is not None and db.get(Game, game_id) is None:
-        raise _404("Game")
+    """Upload a licensed gameplay file in one request (small files; large files use
+    the resumable ``/api/uploads`` with purpose ``material``). Checked with ffprobe."""
+    _check_material_refs(db, source_id, license_id, game_id)
     suffix = VIDEO_TYPES.get(file.content_type or "")
     if suffix is None:
         raise HTTPException(422, detail="Only MP4, MOV or MKV video files are accepted")
@@ -748,19 +749,48 @@ def upload_material(
                 if size > settings.max_upload_bytes:
                     raise HTTPException(413, detail="File too large")
                 out.write(chunk)
-        try:
-            probe = media.probe(settings, tmp)
-        except media.MediaError as exc:
-            raise HTTPException(422, detail="Not a readable video file") from exc
-        issues = media.technical_issues(settings, probe)
-        if issues:
-            raise HTTPException(422, detail="Technische Prüfung: " + "; ".join(issues))
-        digest = storage.sha256_file(tmp)
-        if db.scalar(select(GameplayFile.id).where(GameplayFile.sha256 == digest)):
-            raise HTTPException(409, detail="This file is already registered")
-        stored = storage.store_path(settings, tmp, "materials", suffix)
+        material = _register_gameplay(
+            db, settings, user.id, tmp, suffix, source_id, license_id, game_id, title
+        )
     finally:
         tmp.unlink(missing_ok=True)
+    db.commit()
+    return _material_out(db, material)
+
+
+def _check_material_refs(
+    db: DbSession, source_id: int, license_id: int, game_id: int | None
+) -> None:
+    lic = _license(db, license_id)
+    if lic.source_id != source_id:
+        raise HTTPException(422, detail="License does not belong to this source")
+    if game_id is not None and db.get(Game, game_id) is None:
+        raise _404("Game")
+
+
+def _register_gameplay(
+    db: DbSession,
+    settings: Settings,
+    user_id: int,
+    tmp: Path,
+    suffix: str,
+    source_id: int,
+    license_id: int,
+    game_id: int | None,
+    title: str | None,
+) -> GameplayFile:
+    """Probe a complete file, store it content-addressed and register it as material."""
+    try:
+        probe = media.probe(settings, tmp)
+    except media.MediaError as exc:
+        raise HTTPException(422, detail="Not a readable video file") from exc
+    issues = media.technical_issues(settings, probe)
+    if issues:
+        raise HTTPException(422, detail="Technische Prüfung: " + "; ".join(issues))
+    digest = storage.sha256_file(tmp)
+    if db.scalar(select(GameplayFile.id).where(GameplayFile.sha256 == digest)):
+        raise HTTPException(409, detail="This file is already registered")
+    stored = storage.store_path(settings, tmp, "materials", suffix)
     asset = Asset(
         source_id=source_id,
         license_id=license_id,
@@ -790,13 +820,75 @@ def upload_material(
     audit.record(
         db,
         "material.upload",
-        user_id=user.id,
+        user_id=user_id,
         entity_type="gameplay_files",
         entity_id=material.id,
         after={"sha256": stored.sha256, "size": stored.size, "probe": probe.as_dict()},
     )
-    db.commit()
-    return _material_out(db, material)
+    return material
+
+
+# --- Resumable upload consumer "material" (services/uploads.py) ---------------------
+
+
+class MaterialUploadParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: int
+    license_id: int
+    game_id: int | None = None
+    title: str | None = Field(default=None, max_length=300)
+
+
+def _http_to_upload_error(exc: HTTPException) -> uploads.UploadError:
+    return uploads.UploadError(exc.status_code, str(exc.detail))
+
+
+def _validate_material_upload(
+    db: Session, settings: Settings, user_id: int, params: dict[str, Any]
+) -> dict[str, Any]:
+    try:
+        clean = MaterialUploadParams.model_validate(params)
+    except ValidationError as exc:
+        raise uploads.UploadError(422, "Invalid material fields: " + str(exc.errors())) from exc
+    try:
+        _check_material_refs(db, clean.source_id, clean.license_id, clean.game_id)
+    except HTTPException as exc:
+        raise _http_to_upload_error(exc) from exc
+    return clean.model_dump()
+
+
+def _accept_material_upload(
+    db: Session, settings: Settings, session: UploadSession, path: Path
+) -> dict[str, Any]:
+    p = MaterialUploadParams.model_validate(session.params)
+    suffix = VIDEO_TYPES[session.content_type]
+    try:
+        _check_material_refs(db, p.source_id, p.license_id, p.game_id)
+        material = _register_gameplay(
+            db,
+            settings,
+            session.user_id,
+            path,
+            suffix,
+            p.source_id,
+            p.license_id,
+            p.game_id,
+            p.title or Path(session.filename).stem,
+        )
+    except HTTPException as exc:
+        raise _http_to_upload_error(exc) from exc
+    return {"material_id": material.id, "sha256": material.sha256}
+
+
+uploads.register_consumer(
+    "material",
+    uploads.Consumer(
+        allowed_types=VIDEO_TYPES,
+        validate=_validate_material_upload,
+        accept=_accept_material_upload,
+    ),
+)
 
 
 @router.get("/rights/criteria")

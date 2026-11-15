@@ -174,6 +174,11 @@ class Settings(BaseSettings):
     ffprobe_bin: str = "ffprobe"
     production_job_timeout_s: int = Field(default=3600, ge=60)
     max_upload_bytes: int = Field(default=4 * 1024**3, gt=0)  # one gameplay file
+    #: Resumable uploads: size of one part. Cloudflare passes at most 100 MB per
+    #: request on the free plan, so parts stay well below that.
+    upload_chunk_bytes: int = Field(default=16 * 1024**2, ge=256 * 1024, le=64 * 1024**2)
+    #: Unfinished upload sessions (and their partial files) are removed after this time.
+    upload_session_ttl_hours: int = Field(default=24, ge=1, le=24 * 14)
     min_material_s: float = Field(default=10.0, gt=0)
     max_material_s: float = Field(default=4 * 3600.0, gt=0)
     min_source_height: int = Field(default=720, ge=144)  # shorter side of the source

@@ -28,6 +28,7 @@ Cloudbasiertes KI-System, das Gaming-Trends erkennt, rechtlich freigegebenes Gam
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Entwicklungsplan nach Phase 15 (Phasen A–D) mit Kosten und Freigaben |
 | [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md) | Checkliste bis zum Produktivstart auf Hetzner (Betreiber, Agent, Server) |
 | [docs/PRIVATE_ACCESS.md](docs/PRIVATE_ACCESS.md) | Private Nutzung: Cloudflare Tunnel + Access, Einzelbenutzer, Datenschutz-URLs, Impressum |
+| [docs/UPLOADS.md](docs/UPLOADS.md) | Fortsetzbarer Upload großer Dateien in Teilstücken (Protokoll, Verbraucher) |
 | [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Aktueller Stand, offene Punkte |
 
 ## Projektstruktur

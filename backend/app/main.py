@@ -6,6 +6,7 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from redis.exceptions import RedisError
 
@@ -22,6 +23,7 @@ from api.rights import router as rights_router
 from api.settings import router as settings_router
 from api.system import router as system_router
 from api.trends import router as trends_router
+from api.uploads import router as uploads_router
 from api.users import router as users_router
 from core import access_guard
 from core.config import get_settings
@@ -59,6 +61,7 @@ def create_app() -> FastAPI:
         publishing_router,
         analytics_router,
         system_router,
+        uploads_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 
@@ -74,7 +77,9 @@ def create_app() -> FastAPI:
                     access_guard.COOKIE
                 )
                 try:
-                    access_guard.verify(settings, token)
+                    # Key lookup may hit the network (cached for an hour): keep it
+                    # off the event loop.
+                    await run_in_threadpool(access_guard.verify, settings, token)
                 except access_guard.AccessDeniedError as exc:
                     logging.getLogger(__name__).warning(
                         "access denied", extra={"path": request.url.path, "reason": str(exc)}

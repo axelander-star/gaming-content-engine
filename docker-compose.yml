@@ -186,6 +186,10 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-localhost}
       ACME_EMAIL: ${ACME_EMAIL:-}
+      # Static legal page (infrastructure/legal); values only in .env on the server.
+      LEGAL_OPERATOR_NAME: ${LEGAL_OPERATOR_NAME:-}
+      LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
+      LEGAL_UPDATED: ${LEGAL_UPDATED:-}
     ports:
       # Private operation behind Cloudflare Tunnel: CADDY_BIND=127.0.0.1 keeps 80/443
       # closed to the internet; cloudflared reaches Caddy internally on port 8080.
@@ -193,6 +197,7 @@ services:
       - "${CADDY_BIND:-0.0.0.0}:443:443"
     volumes:
       - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infrastructure/legal:/srv/legal:ro
       - caddy_data:/data
       - caddy_config:/config
     networks: [web]

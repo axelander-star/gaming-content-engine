@@ -25,6 +25,7 @@ from models.rights import (
     Source,
 )
 from models.trends import Game, Trend, TrendReport
+from models.uploads import UploadSession
 
 __all__ = [
     "AgentDecision",
@@ -59,6 +60,7 @@ __all__ = [
     "SystemSetting",
     "Trend",
     "TrendReport",
+    "UploadSession",
     "User",
     "Variant",
     "Voiceover",

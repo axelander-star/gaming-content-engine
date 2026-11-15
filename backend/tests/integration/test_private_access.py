@@ -90,7 +90,7 @@ def test_health_stays_reachable_for_container_checks(guarded: TestClient) -> Non
         pytest.param(lambda: _token(key=OTHER_KEY), id="foreign-signature"),
         pytest.param(lambda: _token(aud="other-app"), id="wrong-audience"),
         pytest.param(lambda: _token(iss="https://evil.cloudflareaccess.com"), id="wrong-issuer"),
-        pytest.param(lambda: _token(exp_offset=-60), id="expired"),
+        pytest.param(lambda: _token(exp_offset=-120), id="expired"),
         pytest.param(lambda: _token(email="stranger@example.com"), id="not-allow-listed"),
         pytest.param(lambda: "not-a-jwt", id="garbage"),
     ],
