@@ -408,8 +408,12 @@ def _run(
     st.result = "bestanden"
 
     st = proto.step(11, "Über autorisierte Plattformzugänge veröffentlichen", mode="simuliert")
+    # The test runs in one transaction, and the master's "due" filter uses SQL now(),
+    # which is the transaction start. Base "due" on that, not on the wall clock.
+    db_now = db.scalar(select(func.now()))
+    assert db_now is not None
     for j in jobs:
-        j.scheduled_for = datetime.now(UTC) - timedelta(minutes=1)
+        j.scheduled_for = db_now - timedelta(minutes=1)
     db.flush()
     executed = run_master(db, s, ticks=3)
     posts = list(db.scalars(select(Post).where(Post.channel_id == target.id)))
