@@ -6,6 +6,7 @@ from models.analytics import AnalyticsSnapshot, LearningVersion, Metric
 from models.assistant import ChatAction, ChatMessage
 from models.channels import Channel, ChannelCredential, Platform
 from models.control import AgentDecision, AgentRun, AgentState, Cost
+from models.library import LibraryItem, OwnProduction
 from models.planning import ContentFocus, EditorialDay
 from models.production import (
     Clip,
@@ -54,10 +55,12 @@ __all__ = [
     "GameplayFile",
     "Idea",
     "LearningVersion",
+    "LibraryItem",
     "License",
     "LicenseDocument",
     "Metric",
     "Notification",
+    "OwnProduction",
     "Platform",
     "Post",
     "PublisherPolicy",

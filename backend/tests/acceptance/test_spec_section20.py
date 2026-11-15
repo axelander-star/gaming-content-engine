@@ -60,7 +60,7 @@ from models.control import AgentRun
 from models.production import QualityCheck, Script, Subtitle, Voiceover
 from models.publishing import Post, PublishingJob, StrategyVersion
 from models.trends import Trend
-from services import media, orchestrator
+from services import media, orchestrator, strategy
 from services.controls import get_operations
 from tests.conftest import login
 
@@ -399,6 +399,15 @@ def _run(
     )
     assert version is not None
     jobs = list(db.scalars(select(PublishingJob).where(PublishingJob.channel_id == target.id)))
+    if not jobs:
+        # After the posting window has closed for today (evening runs, e.g. CI after
+        # 21:00 Berlin) there is no slot left; decide as at noon of the same day.
+        noon = datetime.now(strategy.timezone_for(target)).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+        agent(db, s, "publishing_strategy",
+              {"sweep": True, "channel_id": target.id, "now": noon.isoformat()})  # fmt: skip
+        jobs = list(db.scalars(select(PublishingJob).where(PublishingJob.channel_id == target.id)))
     assert jobs, "strategy planned nothing"
     st.evidence += [
         f"Kanal {target.name}: Strategie-Version {version.version}, "

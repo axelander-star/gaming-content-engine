@@ -68,6 +68,9 @@ class Consumer:
     validate: Callable[[Session, Settings, int, dict[str, Any]], dict[str, Any]]
     accept: Callable[[Session, Settings, UploadSession, Path], dict[str, Any]]
     max_bytes: Callable[[Settings], int] = field(default=lambda s: s.max_upload_bytes)
+    #: Called with the result after the completed upload was committed (e.g. to queue
+    #: follow-up work). Errors are logged and never undo the upload.
+    after_commit: Callable[[dict[str, Any]], None] | None = None
 
 
 _CONSUMERS: dict[str, Consumer] = {}
@@ -246,6 +249,19 @@ def complete(db: Session, settings: Settings, session: UploadSession) -> UploadS
     )
     db.flush()
     return session
+
+
+def run_after_commit(session: UploadSession) -> None:
+    """Follow-up of the consumer once the completed upload is committed."""
+    if session.status != UploadStatus.COMPLETED or not session.result:
+        return
+    hook = consumer_for(session.purpose).after_commit
+    if hook is None:
+        return
+    try:
+        hook(dict(session.result))
+    except Exception:
+        log.exception("upload follow-up failed", extra={"upload": session.id})
 
 
 def _fail(db: Session, settings: Settings, session: UploadSession, message: str) -> None:

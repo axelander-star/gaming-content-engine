@@ -47,6 +47,8 @@ Code: `backend/agents/base.py`, Registry `backend/agents/registry.py`.
 | 16 | Analytics | 14 | Plattform-Metriken | `metrics`, `analytics_snapshots`, Berichte | → `ANALYTICS_PENDING` → `ANALYZED` | API (kostenlos) |
 | 17 | Learning | 14 | Snapshots, Experimente | Erkenntnisse, Strategievorschläge | – | lokal |
 | 18 | Budget & Cost | 4 (Ausbau 14) | `costs`, Settings | Budgetstufe, Freigabe/Ablehnung | – | lokal |
+| 21 | Media Library | E7 | neue Mediathek-Dateien | Vorschau, 9:16-Fassung | `processing` → `ready`/`failed` | lokal |
+| 22 | Own Production | E7 | Skript, Stimme, eigene Bilder | Video 9:16 mit Untertiteln in der Mediathek | `queued` → `done`/`failed` | lokal (Stimme ggf. bezahlt) |
 
 ## Trend Research und Game Intelligence (umgesetzt in Phase 5)
 
@@ -148,6 +150,14 @@ Automatisch wählbar: Epische Szene, Überraschung, Unerwartete Wendung, Storyte
 **Research (Nr. 19, Queue `research`, alle `RESEARCH_SECONDS`):** Liest je aktivem Themenbereich die eingeschalteten RSS-/Atom-Feeds (`research_sources`) und speichert neue Einträge in `research_items` (doppelte werden über die GUID erkannt). Im Testmodus (`RESEARCH_SOURCES_MODE=mock`) gibt es keinen Netzabruf; jeder Bereich bekommt Beispiel-Feeds aus seinen Unterthemen. Live nur `http`/`https` auf öffentliche Adressen (auch nach Weiterleitungen geprüft), höchstens 2 MB, XML über `defusedxml`.
 
 **Idea Lab (Nr. 20, Queue `research`, alle `IDEAS_SECONDS`):** Macht aus unbenutzten Einträgen der letzten 7 Tage bis zu `IDEAS_PER_RUN` Ideen je Bereich (`ideas`), über die KI-Schicht (Sonnet, im Mock feste Testideen). Die KI liefert nur Titel, Kurzbeschreibung, Format und die verwendeten Einträge; die Bewertung rechnet der Code nachvollziehbar: Trend (Alter und Zahl der Quellen), Passung (Schwerpunkt +30, Unterthema +20), Aufwand (Format), Rechte-Risiko (Eigenproduktion 15, fremdes Material 70); Gesamt = 35 % Trend + 35 % Passung + 15 % (100 − Aufwand) + 15 % (100 − Risiko). Feed-Text ist fremder Text: Er steht im Prompt markiert als Material, der Schritt hat keine Werkzeuge und kann weder Plan noch Produktion ändern. Ideen warten im Ideenlabor; übernehmen (optional mit Tag im Redaktionsplan) oder verwerfen entscheidet der Mensch.
+
+## Media Library und Own Production (Erweiterung E7)
+
+**Media Library (Nr. 21, Queue `default`, nach jedem Upload und als Sammellauf alle `LIBRARY_SWEEP_SECONDS`):** Verarbeitet neue Dateien der Mediathek (`library_items` im Status `processing`): Vorschaubild, bei Bildern eine 9:16-JPEG-Fassung, bei Videos eine 9:16-MP4-Fassung (unscharfer Hintergrund, Codecs wie bei Clips). Videos, die schon Hochformat-H.264 sind, verwenden das Original; Videos über `LIBRARY_MAX_RENDITION_S` behalten nur das Original. **Das Original wird nie verändert.** Läufe ohne Arbeit gelten als übersprungen und zählen nicht gegen das tägliche Produktionslimit. Nutzt die Render-Slots wie Clip Production.
+
+**Own Production (Nr. 22, Queue `default`, nur auf Auftrag aus dem Dashboard):** Rendert eine Eigenproduktion (`own_productions`): Stimme je Abschnitt über den eingestellten Sprachanbieter (nur Anbieter mit Freigabe für kommerzielle Nutzung; Standard `mock` ist stumm und kostenlos, bezahlte Stimmen fragen vorher das Budget), Zeitplan (Abschnitt = Stimme + 0,5 s, mindestens `PRODUCTION_MIN_SEGMENT_S`), je Abschnitt ein eigenes Bild aus der Mediathek **desselben Themenbereichs** oder eine Farbfläche, Überschrift oben, Untertitel unten im sicheren Bereich, 1080×1920 H.264/AAC mit faststart, dazu SRT und WebVTT. Ergebnis ist ein Mediathek-Eintrag „selbst erzeugt“ mit Herkunftsnachweis (Stimme, Bilder, kein fremdes Video). Veröffentlicht wird nichts; das Freigabecenter (E8) macht daraus Beiträge.
+
+Das Skript entsteht vorher im Dashboard über die KI-Schicht (Sonnet, im Mock ein festes Testskript) aus einer übernommenen Idee oder einem Thema. Idee und Beschreibung stehen im Prompt als markiertes Material; die KI hat keine Werkzeuge und darf keine Bilder wählen.
 
 ## Grenzen und Pflichten einzelner Agenten
 

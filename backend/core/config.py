@@ -232,6 +232,16 @@ class Settings(BaseSettings):
     #: Ideas the idea lab drafts per topic area and run.
     ideas_per_run: int = Field(default=5, ge=1, le=20)
 
+    # --- Media library and own production (extension phase E7) ---
+    #: Longer uploads keep only the original; the production cuts them later.
+    library_max_rendition_s: float = Field(default=180.0, gt=0)
+    library_max_image_bytes: int = Field(default=25 * 1024**2, gt=0)
+    #: Sweep for library files whose rendition is still missing.
+    library_sweep_seconds: int = Field(default=600, ge=60)
+    production_max_segments: int = Field(default=12, ge=1, le=30)
+    production_min_segment_s: float = Field(default=2.5, gt=0)
+    production_max_s: float = Field(default=180.0, gt=0)
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy URL for psycopg 3."""

@@ -41,7 +41,7 @@ Teildateien liegen unter `MEDIA_ROOT/tmp/uploads/<id>.part`.
 
 ## Neue Verbraucher anschließen
 
-Ein Verbraucher entscheidet, was mit der fertigen Datei passiert (heute `material`: lizenziertes Gameplay registrieren, `api/rights.py`). Weitere, etwa eine Medienbibliothek, werden genauso angeschlossen:
+Ein Verbraucher entscheidet, was mit der fertigen Datei passiert: `material` registriert lizenziertes Gameplay (`api/rights.py`), `library` legt eigene Videos, Bilder oder Tonaufnahmen in der Mediathek ab (`api/library.py`, ab E7; Pflichtangaben `project_id` und `rights_confirmed: true`, danach erzeugt der Agent Media Library Vorschau und 9:16-Fassung). Mit `after_commit` kann ein Verbraucher nach dem gespeicherten Abschluss Folgearbeit anstoßen; Fehler darin brechen den Upload nicht ab. Weitere Verbraucher werden genauso angeschlossen:
 
 ```python
 uploads.register_consumer(

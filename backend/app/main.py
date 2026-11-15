@@ -20,6 +20,7 @@ from api.calendar import router as calendar_router
 from api.channels import oauth_router
 from api.channels import router as channels_router
 from api.health import router as health_router
+from api.library import router as library_router
 from api.overview import router as overview_router
 from api.production import router as production_router
 from api.projects import router as projects_router
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
         planning_router,
         research_router,
         calendar_router,
+        library_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 

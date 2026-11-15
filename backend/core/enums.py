@@ -187,3 +187,32 @@ class IdeaStatus(StrEnum):
     NEW = "new"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
+
+
+class LibraryKind(StrEnum):
+    """What a media library file is (extension phase E7)."""
+
+    VIDEO = "video"
+    IMAGE = "image"
+    AUDIO = "audio"
+
+
+class LibraryOrigin(StrEnum):
+    UPLOAD = "upload"  # own recording or own file, rights confirmed on upload
+    GENERATED = "generated"  # made by the own production (text, voice, own images)
+
+
+class LibraryStatus(StrEnum):
+    PROCESSING = "processing"  # stored, rendition and preview still to be made
+    READY = "ready"
+    FAILED = "failed"
+
+
+class ProductionStatus(StrEnum):
+    """An own production: script -> voice -> picture/text video -> subtitles (E7)."""
+
+    DRAFT = "draft"
+    QUEUED = "queued"
+    RENDERING = "rendering"
+    DONE = "done"
+    FAILED = "failed"

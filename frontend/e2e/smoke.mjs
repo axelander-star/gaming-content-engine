@@ -73,14 +73,14 @@ try {
     }
   });
 
-  await step("Agentenseite zeigt alle 20 Agenten", async () => {
+  await step("Agentenseite zeigt alle 22 Agenten", async () => {
     await page.getByRole("link", { name: "Agenten", exact: true }).click();
     await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
     await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
     const rows = page.locator("table").first().locator("tbody tr");
-    await rows.nth(19).waitFor();
-    assert.equal(await rows.count(), 20);
-    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 20 agents are built
+    await rows.nth(21).waitFor();
+    assert.equal(await rows.count(), 22);
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 22 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -645,6 +645,55 @@ try {
     await targetCell.getByRole("button", { name: "Eintrag Gaming" }).waitFor({ state: "detached" });
     await page.getByRole("tab", { name: "Monat" }).click();
     await page.locator(".cal-month").waitFor();
+  });
+
+  await step("Mediathek und Eigenproduktion: Bild hochladen, Video erzeugen", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "gce-e2e-lib-"));
+    const image = join(dir, `kueche-${rightsTag}.png`);
+    const ff = spawnSync("ffmpeg", [
+      "-v",
+      "error",
+      "-y",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=s=800x600",
+      "-frames:v",
+      "1",
+      image,
+    ]);
+    assert.equal(ff.status, 0, String(ff.stderr));
+    await page.getByRole("link", { name: "Mediathek", exact: true }).click();
+    await page.getByRole("heading", { name: "Mediathek", level: 1 }).waitFor();
+    const form = page.getByRole("form", { name: "Datei hochladen" });
+    await form.getByRole("combobox").selectOption({ label: "Ernährung E2E" });
+    await form.getByLabel("Datei", { exact: true }).setInputFiles(image);
+    await form.getByLabel("Titel (optional)").fill("Küchenbild");
+    await form.getByRole("checkbox").check();
+    await form.getByRole("button", { name: "Hochladen" }).click();
+    await page.getByText(/gespeichert\. Vorschau und Hochformat/).waitFor({ timeout: 30000 });
+    const card = page.getByRole("article", { name: "Datei Küchenbild" });
+    await card.getByText("Hochformat 9:16 fertig", { exact: false }).waitFor({ timeout: 30000 });
+    await card.locator(".lib-thumb img").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/mediathek.png`, fullPage: true });
+
+    await page.getByRole("link", { name: "Eigenproduktion", exact: true }).click();
+    await page.getByRole("heading", { name: "Eigenproduktion", level: 1 }).waitFor();
+    const create = page.getByRole("form", { name: "Neue Produktion" });
+    await create.getByLabel("Themenbereich").selectOption({ label: "Ernährung E2E" });
+    await create.getByRole("textbox", { name: "Thema" }).fill("Haferflocken richtig lagern");
+    await create.getByRole("button", { name: "Skript erstellen" }).click();
+    const first = page.getByRole("listitem", { name: "Abschnitt 1" });
+    await first.getByLabel("Überschrift im Bild").waitFor();
+    await first.getByRole("combobox").selectOption({ label: "Küchenbild" });
+    await page.getByRole("button", { name: "Video erzeugen" }).click();
+    await page.getByLabel("Fertiges Video").waitFor({ timeout: 90000 });
+    await page.getByText(/gerendert in/).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/eigenproduktion.png`, fullPage: true });
+
+    await page.getByRole("link", { name: "Mediathek", exact: true }).click();
+    await page.getByRole("article", { name: "Datei Haferflocken richtig lagern" })
+      .getByText("Selbst erzeugt").waitFor();
   });
 
   await step("Abmelden", async () => {

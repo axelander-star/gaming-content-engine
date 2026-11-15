@@ -39,6 +39,14 @@ import type {
   ChatAction,
   Idea,
   IdeaStatus,
+  LibraryInfo,
+  LibraryItem,
+  LibraryKind,
+  LibraryOrigin,
+  LibraryStatus,
+  Production,
+  ProductionInput,
+  ProductionSegment,
   ResearchItem,
   ResearchSource,
   ResearchSources,
@@ -208,6 +216,52 @@ export const api = {
     note?: string | null;
   }) => request<CalendarFocus>("/planning/focus", { method: "POST", body: json(body) }),
   deleteFocus: (id: number) => request<void>(`/planning/focus/${id}`, { method: "DELETE" }),
+
+  libraryInfo: () => request<LibraryInfo>("/library/info"),
+  library: (
+    filters: {
+      projectId?: number;
+      kind?: LibraryKind;
+      origin?: LibraryOrigin;
+      status?: LibraryStatus;
+      archived?: boolean;
+    } = {},
+  ) => {
+    const q = new URLSearchParams();
+    if (filters.projectId) q.set("project_id", String(filters.projectId));
+    if (filters.kind) q.set("kind", filters.kind);
+    if (filters.origin) q.set("origin", filters.origin);
+    if (filters.status) q.set("status", filters.status);
+    if (filters.archived) q.set("archived", "true");
+    return request<LibraryItem[]>(`/library?${q.toString()}`);
+  },
+  libraryItem: (id: number) => request<LibraryItem>(`/library/${id}`),
+  updateLibraryItem: (id: number, changes: { title?: string; note?: string | null; tags?: string[] }) =>
+    request<LibraryItem>(`/library/${id}`, { method: "PATCH", body: json(changes) }),
+  archiveLibraryItem: (id: number) =>
+    request<LibraryItem>(`/library/${id}/archive`, { method: "POST" }),
+  restoreLibraryItem: (id: number) =>
+    request<LibraryItem>(`/library/${id}/restore`, { method: "POST" }),
+  reprocessLibraryItem: (id: number) =>
+    request<LibraryItem>(`/library/${id}/reprocess`, { method: "POST" }),
+  libraryFileUrl: (id: number, which: "original" | "rendition" | "thumb" = "rendition") =>
+    `/api/library/${id}/file?which=${which}`,
+
+  productions: (projectId?: number) =>
+    request<Production[]>(`/productions${projectId ? `?project_id=${projectId}` : ""}`),
+  production: (id: number) => request<Production>(`/productions/${id}`),
+  createProduction: (body: ProductionInput) =>
+    request<Production>("/productions", { method: "POST", body: json(body) }),
+  updateProduction: (
+    id: number,
+    changes: { title?: string; language?: Language; segments?: ProductionSegment[] },
+  ) => request<Production>(`/productions/${id}`, { method: "PATCH", body: json(changes) }),
+  renderProduction: (id: number) =>
+    request<Production>(`/productions/${id}/render`, { method: "POST" }),
+  deleteProduction: (id: number) =>
+    request<void>(`/productions/${id}`, { method: "DELETE" }),
+  productionSubtitlesUrl: (id: number, format: "srt" | "vtt") =>
+    `/api/productions/${id}/subtitles?fmt=${format}`,
 
   settings: () => request<SettingsResponse>("/settings"),
   updateControls: (

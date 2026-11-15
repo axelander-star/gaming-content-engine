@@ -247,6 +247,8 @@ def render(
     end_s: float,
     focus_x: float | None,
     spread: float,
+    *,
+    folder: str = "clips",
 ) -> RenderResult:
     p = plan(settings, source, start_s, end_s, focus_x, spread)
     tmp = storage.work_dir(settings) / f"render-{uuid.uuid4().hex}.mp4"
@@ -261,7 +263,7 @@ def render(
         if issues:
             raise RenderError("; ".join(issues))
         fp = fingerprint(settings, tmp)
-        stored = storage.store_path(settings, tmp, "clips", ".mp4")
+        stored = storage.store_path(settings, tmp, folder, ".mp4")
     finally:
         tmp.unlink(missing_ok=True)
     return RenderResult(stored, out, p, round(took, 2), fp)

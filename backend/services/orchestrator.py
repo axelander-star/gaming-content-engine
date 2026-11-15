@@ -54,6 +54,8 @@ def job_key(agent_name: str, payload: dict[str, Any]) -> str:
 
 
 RESEARCH_AGENTS = {"research", "idea_lab"}
+#: Library and own production render like the pipeline stages (E7).
+LIBRARY_AGENTS = {"media_library", "own_production"}
 
 
 def queue_for(spec: AgentSpec, priority: bool) -> str:
@@ -61,6 +63,8 @@ def queue_for(spec: AgentSpec, priority: bool) -> str:
         return "research"  # own queue: research never delays production (E5)
     if priority or spec.name in {"master", "budget_cost"}:
         return "high"
+    if spec.name in LIBRARY_AGENTS:
+        return "default"
     return "low" if spec.stage is None else "default"
 
 
