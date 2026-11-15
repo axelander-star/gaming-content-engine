@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E9 (Tests, Sicherheitsprüfung, Doku) abgeschlossen · **Nächster Schritt:** Erweiterung Phase E10 (Vorbereitung Hetzner, ohne Deployment) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E10 (Vorbereitung Hetzner) abgeschlossen, damit alle zehn Erweiterungsphasen fertig · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -43,7 +43,49 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E7 | Mediathek und Eigenproduktion | ✅ abgeschlossen |
 | E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | ✅ abgeschlossen |
 | E9 | Tests, Sicherheitsprüfung, Doku | ✅ abgeschlossen |
-| E10 | Vorbereitung Hetzner | offen |
+| E10 | Vorbereitung Hetzner | ✅ abgeschlossen |
+
+### Phase E10 – Bericht
+
+**1. Was wurde erstellt?**
+
+Nur Unterlagen und Skripte. **Nichts wurde bestellt oder deployt, es entstehen keine Kosten.**
+
+- **[HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md):** Speicherbedarf mit Richtwerten je Videominute und Hochrechnung für ein Jahr, Aufräumregeln, offene Speicher-Entscheidungen, Checkliste je Plattform-App (YouTube, Instagram, TikTok, Facebook, Twitch, Claude, Cloudflare) mit Bereichen, Rückleitungen und `.env`-Werten, Ablauf am Tag der Bestellung.
+- **Ergebnis Speicher:** Die Eigenproduktion braucht kaum Platz (einige GB im Jahr); der CX33 reicht dafür lange. Eigene Videoaufnahmen sind der einzige große Posten: 30 Minuten 1080p je Woche füllen den Server in etwa zwei Monaten. Vorher ist eine Entscheidung nötig (Originale nach Frist löschen oder nach R2 auslagern).
+- **`python -m app.housekeeping report`:** zeigt die Belegung je Ordner, Sicherungen, Datenbank und archivierte Dateien und rechnet mit dem gemessenen Durchschnitt je Videominute hoch.
+- **`python -m app.housekeeping cleanup`:** findet Arbeitsdateien älter als 6 h und Dateien, auf die keine Datenbankzeile mehr verweist (älter als 7 Tage; JSON-Felder werden mitgelesen). **Probelauf ist Standard**, gelöscht wird nur mit `--apply`. Verweist die Datenbank auf gar keine Datei, rührt das Skript keine verwaiste Datei an (Schutz gegen eine falsch angeschlossene Datenbank).
+- **`infrastructure/server/preflight.sh`:** prüft einen neuen Server, ohne etwas zu ändern: Ubuntu, CPU, RAM, freier Speicher, Swap, Docker, Uhrzeit, von außen offene Datenbank-/App-Ports, `.env` (Pflichtwerte, Rechte 600, sichere Standardwerte, Cloudflare Access).
+- **`scripts/deploy.sh`** räumt nach einem erfolgreichen Update alte Docker-Bauschichten weg.
+- Produktionscheckliste: neue Punkte C7a (Vorabprüfung) und C18 (Aufräumen einplanen), B16 teilweise erledigt, TikTok-Bereiche präzisiert (die Verbindung fragt `video.upload`, `video.publish` und `video.list` an).
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/services/housekeeping.py`, `backend/app/housekeeping.py`, `backend/tests/integration/test_housekeeping.py`, `infrastructure/server/preflight.sh`, `docs/HETZNER_VORBEREITUNG.md`
+- Geändert: `scripts/deploy.sh`, `README.md`, `docs/{PROJECT_STATUS,OPERATIONS,PRODUCTION_CHECKLIST,BEDIENUNGSANLEITUNG}.md`
+
+**3. Durchgeführte Tests**
+
+- 4 neue Tests: Probelauf löscht nichts; mit `--apply` nur alte Arbeitsdateien und alte verwaiste Dateien; Dateien mit Verweis (Spalte oder JSON), junge Dateien und Upload-Teilstücke bleiben; Schutz bei leerer Datenbank; Bericht je Ordner mit Hochrechnung; Kommandozeile für beide Befehle
+- `preflight.sh` in der Entwicklungsumgebung mit absichtlich unvollständiger `.env` (erkennt Rechte 644, leere Pflichtwerte, fehlende Cloudflare-Werte, nicht synchronisierte Uhr); `bash -n` für `deploy.sh`
+- `scripts/test_backend.sh`, `alembic check`, Frontend `typecheck` und `build`, E2E, `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 516 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund
+- E2E: 26 Schritte bestanden
+- `verify_phase1.sh`: 70 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- Die Videogrößen je Minute für Handy- und Gameplay-Aufnahmen sind Richtwerte, keine Messung an echten Dateien; `housekeeping report` ersetzt sie nach den ersten Uploads.
+- Noch nicht gebaut: Auslagerung nach R2 (B14), Löschfristen für Originale und Annahmestopp ab 85 % Speicher (Rest von B16). Beides hängt an deiner Entscheidung S1/S2.
+- Die Aufräumregel läuft nicht von selbst; sie wird auf dem Server per Cron eingeplant (C18), nachdem einige Probeläufe angesehen wurden.
+- `preflight.sh` ist nur in der Entwicklungsumgebung gelaufen, nicht auf einem Hetzner-Server.
+
+**6. Nächster Schritt**
+
+Alle zehn Erweiterungsphasen sind fertig. Weiter geht es mit deinen Entscheidungen (Stimme, TikTok-Weg, Speicher S1/S2) und den Freigaben für Server, R2 und Claude-Schlüssel. Danach Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md), Abschnitt 6.
 
 ### Phase E9 – Bericht
 
