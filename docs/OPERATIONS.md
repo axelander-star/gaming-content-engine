@@ -8,7 +8,7 @@ Stand: Phase 15. Dieses Dokument beschreibt den Betrieb auf dem Server: Einricht
 2. Härtung ausführen (Abschnitt 6): `sudo ./infrastructure/server/harden.sh --tunnel --dry-run`, dann ohne `--dry-run`. `--tunnel` für den privaten Betrieb hinter Cloudflare Tunnel (nur SSH offen, siehe [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md)); ohne Tunnel die Option weglassen.
 3. Docker Engine mit Compose-Plugin nach der offiziellen Docker-Anleitung installieren.
 4. Repository klonen, `.env` aus `.env.example` erstellen und alle Pflichtwerte setzen: `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SECRET_KEY`, `CREDENTIALS_ENCRYPTION_KEY`, `BACKUP_PASSPHRASE`, `APP_ENV=production`; für den privaten Betrieb zusätzlich `ACCESS_GUARD=cloudflare`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, `CF_ACCESS_ALLOWED_EMAILS`, `SINGLE_USER_MODE=true`, `CLOUDFLARE_TUNNEL_TOKEN`, `CADDY_BIND=127.0.0.1` (ohne Tunnel stattdessen `DOMAIN` und `ACME_EMAIL`). Die Sicherheitsschalter bleiben auf ihren Standardwerten (`AUTO_PUBLISH_ENABLED=false`, `PUBLISHING_MODE=mock`).
-5. `./scripts/deploy.sh` ausführen.
+5. Vorabprüfung: `./infrastructure/server/preflight.sh --env .env` (ändert nichts), bis alle Punkte „OK“ sind. Dann `./scripts/deploy.sh` ausführen.
 6. Ersten Admin anlegen: `docker compose run --rm backend python -m app.create_admin`.
 7. Uptime Kuma einrichten (Abschnitt 3).
 
@@ -55,6 +55,16 @@ Das Ergebnis steht im Dashboard unter **System**. Wird eine Prüfung schlechter,
 3. **Push-Monitor** (Intervall z. B. 120 s). Die Push-URL kommt als `UPTIME_KUMA_PUSH_URL` in `.env`. Die Zeitsteuerung meldet dann bei jeder Prüfung „up“ oder „down“, sobald eine Prüfung kritisch ist; der Grund steht in der Meldung. Bleiben die Meldungen aus, ist die Zeitsteuerung selbst ausgefallen, und Uptime Kuma schlägt ebenfalls Alarm.
 
 **Protokolle:** Alle Dienste schreiben JSON-Zeilen mit maskierten Geheimnissen nach stdout (`docker compose logs -f backend worker scheduler backup`). Docker rotiert sie (10 MB × 5 je Dienst).
+
+## 3a. Speicherplatz und Aufräumen (Erweiterung E10)
+
+```bash
+docker compose exec -T backend python -m app.housekeeping report            # was liegt wo, Hochrechnung 1 Jahr
+docker compose exec -T backend python -m app.housekeeping cleanup           # Probelauf: zeigt nur
+docker compose exec -T backend python -m app.housekeeping cleanup --apply   # löscht
+```
+
+Gelöscht werden nur Arbeitsdateien in `media/tmp` (älter als 6 h, ohne `tmp/uploads`) und gespeicherte Dateien, auf die keine Datenbankzeile mehr verweist (älter als 7 Tage). Regeln, Speicherbedarf und Cron-Vorschlag: [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md).
 
 ## 4. Datensicherung
 

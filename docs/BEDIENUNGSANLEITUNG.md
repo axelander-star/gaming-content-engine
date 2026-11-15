@@ -114,7 +114,8 @@ Bevor irgendetwas echt läuft, fehlen noch folgende Punkte. Die Nummern verweise
 | A17 TikTok | Entwurf über die API oder halbautomatisch ohne App | Entwurf zuerst in der Sandbox testen |
 | A18 X/Twitter | anbinden ja/nein | erst nach YouTube und Instagram |
 | A11 Sicherungen | Offsite-Kopie in R2 oder Storage Box | R2 |
-| Server | Hetzner bestellen (kostet ca. 9 €/Monat) | erst nach Phase E10 und deiner Freigabe |
+| Server | Hetzner bestellen (CX33 ca. 10,70 €/Monat brutto) | nach deiner Freigabe; Ablauf in [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) |
+| Speicher | Originale eigener Aufnahmen nach Frist löschen oder nach R2 auslagern | [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md), Abschnitt 4 |
 
 **Freigaben für Kosten (erst nach deinem ausdrücklichen OK)**
 

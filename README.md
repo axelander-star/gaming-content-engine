@@ -30,6 +30,7 @@ Cloudbasiertes KI-System, das Gaming-Trends erkennt, rechtlich freigegebenes Gam
 | [docs/PRIVATE_ACCESS.md](docs/PRIVATE_ACCESS.md) | Private Nutzung: Cloudflare Tunnel + Access, Einzelbenutzer, Datenschutz-URLs, Impressum |
 | [docs/UPLOADS.md](docs/UPLOADS.md) | Fortsetzbarer Upload großer Dateien in Teilstücken (Protokoll, Verbraucher) |
 | [docs/CONTENT_PLATFORM_PLAN.md](docs/CONTENT_PLATFORM_PLAN.md) | Erweiterung zur KI-Content-Plattform (Themenbereiche, Chat, Phasen E1–E10) |
+| [docs/HETZNER_VORBEREITUNG.md](docs/HETZNER_VORBEREITUNG.md) | Vorbereitung Hetzner: Speicherbedarf, Aufräumregeln, Checkliste je Plattform-App, Ablauf am Bestelltag |
 | [docs/BEDIENUNGSANLEITUNG.md](docs/BEDIENUNGSANLEITUNG.md) | Bedienung der neuen Seiten und gesammelte offene Freigaben |
 | [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Aktueller Stand, offene Punkte |
 

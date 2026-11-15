@@ -68,6 +68,9 @@ for _ in $(seq 1 60); do
   if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
     echo "Backend bereit: $HEALTH_URL"
     "${COMPOSE[@]}" ps
+    # Only dangling layers of earlier builds; a rollback rebuilds from git anyway.
+    docker image prune -f >/dev/null || true
+    docker builder prune -f --filter "until=168h" >/dev/null || true
     echo
     echo "Fertig. Zurück zur vorherigen Version: ./scripts/deploy.sh $PREVIOUS"
     exit 0
