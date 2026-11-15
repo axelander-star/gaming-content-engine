@@ -39,7 +39,9 @@ class OperationsSettings(BaseModel):
     """
 
     monthly_budget_eur: float = Field(default=50.0, ge=0, le=100_000)
-    max_daily_production_jobs: int = Field(default=10, ge=0, le=10_000)
+    #: One material in DE and EN needs about 16 production jobs; 50 leaves room for
+    #: about three materials per day (acceptance test, 15.11.2026).
+    max_daily_production_jobs: int = Field(default=50, ge=0, le=10_000)
     max_parallel_render_jobs: int = Field(default=1, ge=1, le=64)
     min_quality_score: float = Field(default=0.7, ge=0, le=1)
     min_publish_interval_minutes: int = Field(default=60, ge=0, le=7 * 24 * 60)
