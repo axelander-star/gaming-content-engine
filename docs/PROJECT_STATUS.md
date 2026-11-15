@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 14.11.2026 · **Aktuelle Phase:** 15 abgeschlossen (alle 15 Phasen) · **Nächster Schritt:** Abnahmetest nach Spezifikation Abschnitt 20 und Inbetriebnahme auf dem Server
+**Stand:** 15.11.2026 · **Aktuelle Phase:** 15 abgeschlossen, Abnahmetest nach Abschnitt 20 durchgeführt · **Nächster Schritt:** Phase B laut [ROADMAP.md](ROADMAP.md) (2FA, gültige Zugangsdaten, Backup nach Freigabe, Server-Vorbereitung)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -23,6 +23,10 @@
 | 13 | TikTok, Instagram, Facebook | ✅ abgeschlossen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
+
+## Abnahmetest nach Abschnitt 20 (15.11.2026)
+
+Alle 15 Schritte laufen in einem zusammenhängenden Durchlauf ohne Fehler (`backend/tests/acceptance/test_spec_section20.py`, ca. 55 s, Teil der CI). **Echt** funktionieren Rechteprüfung, Analyse, Szenenerkennung, Schnitt, DE/EN-Varianten, Untertitel, Qualitätskontrolle, Strategieentscheidung, Lernlogik und Dashboard. **Simuliert** sind Trenddaten, Materialbeschaffung (Testvideo), Stimme, Veröffentlichung und Kennzahlen; echte Plattformverbindungen sind damit nicht bewiesen. Befund: Der Standardwert `max_daily_production_jobs = 10` hält schon ein Material in zwei Sprachen an (ca. 16 Aufträge nötig). Bericht mit Abweichungen, offenen Problemen und Inbetriebnahme-Voraussetzungen: [ACCEPTANCE_TEST.md](ACCEPTANCE_TEST.md). Weiterer Plan in Phasen A–D (2FA, Content-Projekte, mehrere Accounts, Regel-Steuerung, Clip Generator, Inbetriebnahme): [ROADMAP.md](ROADMAP.md).
 
 ## Einschub: Live-Anbindung YouTube und Twitch (14.11.2026)
 
