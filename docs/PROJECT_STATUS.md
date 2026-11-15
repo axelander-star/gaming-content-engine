@@ -39,11 +39,47 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E3 | KI-Schicht (Mock/Claude, Budget, Kostenbuchung) | ✅ abgeschlossen |
 | E4 | Chat-Assistent mit Aktionen | ✅ abgeschlossen |
 | E5 | Recherche und Ideenlabor | ✅ abgeschlossen |
-| E6 | Redaktionsplan und Kalender | offen |
+| E6 | Redaktionsplan und Kalender | ✅ abgeschlossen |
 | E7 | Mediathek und Eigenproduktion | offen |
 | E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | offen |
 | E9 | Tests, Sicherheitsprüfung, Doku | offen |
 | E10 | Vorbereitung Hetzner | offen |
+
+### Phase E6 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **Redaktionsplan wirkt auf die Publishing-Strategie:** Hat ein Tag Einträge, planen nur Kanäle der eingetragenen Themenbereiche an diesem Tag Videos; schon geplante, noch nicht fällige Videos anderer Bereiche werden mit Begründung zurückgenommen. Ein Tag ohne Eintrag bleibt für alle offen (bisheriges Verhalten). **Die Menge je Kanal bleibt dynamisch** beim Strategie-Agenten, der Plan setzt keine Zahl.
+- **Schwerpunkte zählen bei der Auswahl:** Videos, deren Spiel oder Titel zu einem aktiven Schwerpunkt passt (z. B. „GTA 6“), bekommen einen kleinen Vorrang (+0,1 auf den Qualitätswert) und die Begründung „Schwerpunkt GTA 6“ in der Entscheidung.
+- **Kalender-API:** `GET /api/planning/calendar` (Woche oder Monat, bis 62 Tage, je Tag Einträge und die geplanten Videos aus der Strategie), `POST/PATCH/DELETE /api/planning/days` (einplanen, verschieben, Notiz, entfernen), `POST/DELETE /api/planning/focus`.
+- **Seite „Redaktionsplan“** (Steuerung): Wochen- und Monatsansicht, blättern, Filter je Bereich, „+“ je Tag zum Einplanen, Einträge per Ziehen oder über ein Bearbeitungsfeld verschieben, Notizen, entfernen, geplante Videos mit Uhrzeit, Kanal und Status, Schwerpunkte setzen und entfernen; auf dem Handy als Liste.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/api/calendar.py`, `backend/tests/integration/test_calendar.py`, `frontend/dashboard/CalendarView.tsx`, `frontend/app/(dashboard)/redaktionsplan/page.tsx`
+- Geändert: `backend/services/{planning,strategy}.py`, `backend/agents/publishing_strategy.py`, `backend/app/main.py`, `frontend/lib/{api,types}.ts`, `frontend/components/{AppShell,icons}.tsx`, `frontend/app/globals.css`, `frontend/e2e/smoke.mjs`, `docs/{PROJECT_STATUS,AGENTS}.md`
+
+**3. Durchgeführte Tests**
+
+- 8 neue Tests: Tag für anderen Bereich verplant → keine Posts, Menge trotzdem aus den Daten; Tag für den eigenen Bereich → normal; Planänderung nimmt geplante Posts zurück; Schwerpunkt gewinnt gegen etwas höhere Qualität; Tag ohne Eintrag offen; Kalender mit Einträgen, Videos und Filter, Zeitraum-Grenze; Einplanen, Dublette, Verschieben, Konflikt beim Verschieben, Notiz, zu weit voraus, Entfernen, Rollen; Schwerpunkt anlegen, ungültiger Zeitraum, löschen
+- Alle bisherigen Strategie-Tests unverändert grün
+- `scripts/test_backend.sh`, Frontend `typecheck` und `build`, E2E mit neuem Schritt „Redaktionsplan“, `scripts/verify_phase1.sh`
+
+**4. Erfolgreiche Tests**
+
+- 476 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund (keine Schemaänderung)
+- E2E: 24 Schritte bestanden
+- `verify_phase1.sh`: 69 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- Der Plan gilt je Kalendertag in der Zeitzone des Kanals; Kanäle in anderen Zeitzonen sehen den Tag versetzt.
+- Ziehen und Ablegen funktioniert mit der Maus; auf dem Handy wird über das Bearbeitungsfeld verschoben.
+- Einzelne Videos lassen sich im Kalender noch nicht verschieben; das kommt mit dem Freigabecenter (E8), wo Termine je Video gesetzt werden.
+
+**6. Nächster Schritt**
+
+Phase E7: Mediathek (Upload, Erkennung von Länge, Auflösung und Format, Hochformat-Fassungen, Original bleibt erhalten) und Eigenproduktion ohne Fremdvideo (Skript → Stimme → Bild-/Textvideo → Untertitel).
 
 ### Phase E5 – Bericht
 

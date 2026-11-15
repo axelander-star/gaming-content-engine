@@ -612,6 +612,41 @@ try {
     await page.getByRole("list", { name: "Wochenplan" }).locator(".is-today .chip").first().waitFor();
   });
 
+  await step("Redaktionsplan: Bereich einplanen, verschieben, entfernen", async () => {
+    await page.getByRole("link", { name: "Redaktionsplan", exact: true }).click();
+    await page.getByRole("heading", { name: "Redaktionsplan", level: 1 }).waitFor();
+    const label = (d) =>
+      new Intl.DateTimeFormat("de-DE", {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+        timeZone: "UTC",
+      }).format(new Date(`${d}T12:00:00Z`));
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+    const t = new Date(`${today}T12:00:00Z`);
+    t.setUTCDate(t.getUTCDate() + (t.getUTCDay() === 1 ? 1 : -1)); // stay in this week
+    const target = t.toISOString().slice(0, 10);
+    const todayCell = page.getByRole("group", { name: label(today) });
+    await todayCell.getByRole("button", { name: "Eintrag Ernährung E2E" }).waitFor();
+    await todayCell.getByRole("button", { name: /einplanen$/ }).click();
+    await todayCell.getByRole("combobox").selectOption({ label: "Gaming" });
+    await todayCell.getByRole("button", { name: "Einplanen", exact: true }).click();
+    await todayCell.getByRole("button", { name: "Eintrag Gaming" }).click();
+    const editor = page.getByRole("form", { name: "Gaming bearbeiten" });
+    await editor.getByLabel("Verschieben auf").fill(target);
+    await editor.getByRole("button", { name: "Speichern" }).click();
+    const targetCell = page.getByRole("group", { name: label(target) });
+    await targetCell.getByRole("button", { name: "Eintrag Gaming" }).waitFor();
+    await todayCell.getByRole("button", { name: "Eintrag Gaming" }).waitFor({ state: "detached" });
+    await page.locator("section").filter({ hasText: "Schwerpunkte" }).getByText("GTA 6").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/redaktionsplan.png`, fullPage: true });
+    await targetCell.getByRole("button", { name: "Eintrag Gaming" }).click();
+    await page.getByRole("button", { name: "Aus dem Plan nehmen" }).click();
+    await targetCell.getByRole("button", { name: "Eintrag Gaming" }).waitFor({ state: "detached" });
+    await page.getByRole("tab", { name: "Monat" }).click();
+    await page.locator(".cal-month").waitFor();
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");

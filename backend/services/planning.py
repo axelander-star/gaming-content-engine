@@ -187,3 +187,52 @@ def add_focus(
     session.add(focus)
     session.flush()
     return focus
+
+
+# --- effect on the Publishing Strategy Agent (E6) -------------------------------------
+
+
+def day_block(session: Session, day: date, project_id: int) -> str | None:
+    """Why a channel of ``project_id`` gets no posts on ``day`` according to the plan.
+
+    A day without any plan entry is open for every topic area. Once a day has
+    entries, only the planned topic areas post that day. The *amount* per channel
+    is never set here; it stays with the Publishing Strategy Agent.
+    """
+    names = list(
+        session.execute(
+            select(EditorialDay.content_project_id, ContentProject.name)
+            .join(ContentProject, ContentProject.id == EditorialDay.content_project_id)
+            .where(EditorialDay.day == day)
+            .order_by(ContentProject.priority, ContentProject.id)
+        ).all()
+    )
+    if not names or any(pid == project_id for pid, _ in names):
+        return None
+    planned = ", ".join(name for _, name in names)
+    return f"Redaktionsplan: am {format_day(day)} nur {planned}"
+
+
+def focus_topics(session: Session, day: date, project_id: int) -> list[str]:
+    """Focus topics of a topic area that apply on ``day``."""
+    return [f.topic for f in focus_between(session, day, day) if f.project_id == project_id]
+
+
+def move_day(
+    session: Session, settings: Settings, entry: EditorialDay, new_day: date
+) -> EditorialDay:
+    """Move a plan entry to another day (refused if the area is already planned there)."""
+    check_day(settings, new_day)
+    if new_day == entry.day:
+        return entry
+    clash = session.scalar(
+        select(EditorialDay.id).where(
+            EditorialDay.day == new_day,
+            EditorialDay.content_project_id == entry.content_project_id,
+        )
+    )
+    if clash is not None:
+        raise PlanningError(f"Am {format_day(new_day)} ist der Bereich schon eingeplant")
+    entry.day = new_day
+    session.flush()
+    return entry
