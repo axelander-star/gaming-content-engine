@@ -30,7 +30,7 @@ Phase C kann zum Teil parallel zu B laufen, weil sie im Mock-Modus entwickelt wi
 | Nr. | Aufgabe | Ergebnis |
 |---|---|---|
 | A1 | Abnahmetest nach Spezifikation Abschnitt 20 als automatischer Test | ✅ erledigt, läuft in jeder CI ([ACCEPTANCE_TEST.md](ACCEPTANCE_TEST.md)) |
-| A2 | Standard für `max_daily_production_jobs` anheben (Vorschlag 50) und im Dashboard warnen, wenn das Limit die Pipeline anhält | offen |
+| A2 | Standard für `max_daily_production_jobs` anheben und im Dashboard warnen, wenn das Limit die Pipeline anhält | Standard 50 ✅, Warnung offen |
 | A3 | Zugangsdaten bereinigen: echte Werte aus `.env.example` entfernen (PR #17), betroffene Schlüssel beim Anbieter **rotieren** | PR offen; Rotation durch den Betreiber |
 | A4 | Zugangsdaten prüfen: YouTube-Schlüssel neu, Twitch-Token **und** Helix-Abfrage, in einer neuen Sitzung mit den Umgebungsvariablen | offen (Schlüssel ungültig bzw. Variablen erst in neuer Sitzung) |
 | A5 | Dieser Plan | ✅ |

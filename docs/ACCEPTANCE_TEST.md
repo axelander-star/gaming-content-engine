@@ -45,7 +45,7 @@ Wie gewünscht wird nichts als erfolgreich bezeichnet, was nur simuliert wurde. 
 
 | Befund | Auswirkung | Umgang |
 |---|---|---|
-| Standardwert `max_daily_production_jobs = 10` ist zu niedrig | Schon **ein** Material in DE und EN braucht rund 16 Produktionsaufträge (Analyse, Szenen, Clip, Skripte, Stimme, Untertitel, QC je Variante). Mit dem Standardwert bleibt die Pipeline am ersten Tag stehen, ohne Fehlermeldung, nur mit „Tageslimit erreicht“ im Agentenprotokoll. | Im Test auf 200 gesetzt. **Empfehlung:** Wert im Dashboard unter Einstellungen → Betrieb auf ca. 50 setzen (≈ 3 Materialien/Tag) und im Plan Phase B den Standard anheben sowie eine deutliche Warnung im Dashboard einbauen. Bewusst nicht still geändert, weil der Wert eine Kostenbremse ist. |
+| Standardwert `max_daily_production_jobs = 10` war zu niedrig | Schon **ein** Material in DE und EN braucht rund 16 Produktionsaufträge (Analyse, Szenen, Clip, Skripte, Stimme, Untertitel, QC je Variante). Mit dem Standardwert bleibt die Pipeline am ersten Tag stehen, ohne Fehlermeldung, nur mit „Tageslimit erreicht“ im Agentenprotokoll. | **Behoben:** Standard auf 50 angehoben (≈ 3 Materialien/Tag). Der Abnahmetest läuft jetzt mit dem Standardwert. Änderbar im Dashboard unter **Einstellungen → „Max. tägliche Produktionsjobs“** (nur Admins). Offen: eine sichtbare Warnung im Dashboard, wenn das Limit die Pipeline anhält (Plan A2). |
 | Neue Kanäle starten pausiert | Ohne aktiven Kanal plant die Strategie nichts. | Kein Fehler, sondern gewollt (Sicherheit). Im Test wurden der erste DE- und EN-Kanal entpausiert. In der Inbetriebnahme-Checkliste aufgenommen. |
 
 Weitere Fehler im Programmcode wurden nicht gefunden. Die übrigen Anpassungen am Test betrafen nur den Test selbst (Feldnamen, Zugriffspfade).
@@ -69,7 +69,7 @@ Weitere Fehler im Programmcode wurden nicht gefunden. Die übrigen Anpassungen a
 | Kein echter Upload | Auf keiner Plattform wurde jemals echt hochgeladen; alle Publisher sind nur gegen Mocks getestet. |
 | Keine Zwei-Faktor-Anmeldung | Admins melden sich nur mit Passwort an (siehe [SECURITY.md](SECURITY.md) Abschnitt 10). |
 | Kein externes Backup | Sicherungen liegen nur auf dem Server. Empfehlung Cloudflare R2, wartet auf Freigabe. |
-| Standard-Tageslimit | siehe „Fehler“ oben. |
+| Warnung beim Tageslimit | Standard ist behoben; eine Warnung im Dashboard fehlt noch. |
 
 ## Voraussetzungen für den Livebetrieb
 

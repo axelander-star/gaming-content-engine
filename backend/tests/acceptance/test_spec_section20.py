@@ -61,7 +61,7 @@ from models.production import QualityCheck, Script, Subtitle, Voiceover
 from models.publishing import Post, PublishingJob, StrategyVersion
 from models.trends import Trend
 from services import media, orchestrator
-from services.controls import update_operations
+from services.controls import get_operations
 from tests.conftest import login
 
 pytestmark = [
@@ -183,9 +183,9 @@ def _run(
     from services.seed import seed_base_data
 
     seed_base_data(db)  # what the "migrate" service does on every deployment
-    # The default of 10 production jobs per day is not enough for one material in
-    # two languages (about 16 jobs); the operator raises it in the settings.
-    update_operations(db, None, {"max_daily_production_jobs": 200})
+    # Runs on the default daily production limit on purpose: it must cover one
+    # material in two languages (the old default of 10 stalled the pipeline).
+    assert get_operations(db).max_daily_production_jobs >= 16
     make_user("admin@example.com", UserRole.ADMIN)
     h = login(c, "admin@example.com")
 
