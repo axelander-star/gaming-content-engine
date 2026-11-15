@@ -127,6 +127,47 @@ Geprüft am 14.11.2026 gegen die offizielle Meta-Dokumentation (Graph API **v25.
 - **Meta einrichten:** App vom Typ „Business“ unter developers.facebook.com mit „Facebook Login for Business“, gültige OAuth-Weiterleitungs-URI `https://<Dashboard-Domain>/api/oauth/meta/callback`, die genannten Berechtigungen (für fremde Konten ist App-Review nötig). `META_APP_ID`, `META_APP_SECRET`, `META_OAUTH_REDIRECT_URI` als Umgebungsvariablen setzen.
 - Danach im Dashboard je Kanal „Mit TikTok/Instagram/Facebook verbinden“ (nur Admin). Veröffentlicht wird erst mit `PUBLISHING_MODE=live`, `AUTO_PUBLISH_ENABLED=true`, Dashboard-Freigabe, autorisiertem Kanal und ausdrücklicher Freigabe des Betreibers.
 
+### Erweiterung E8: Freigabecenter und neue Veröffentlichungswege (15.11.2026)
+
+Geprüft am 15.11.2026 gegen die offizielle Dokumentation. Wo eine Seite für automatisches Abrufen gesperrt war, steht ⚠️; diese Punkte vor dem ersten echten Post im Browser nachlesen.
+
+**YouTube (videos.insert, Seiten „videos.insert“ und „Videos resource“, YouTube-Hilfe 15424877)**
+- Je Beitrag wählbar: `status.privacyStatus` (`private`, `unlisted`, `public`; Standard im Freigabecenter **privat**), `status.publishAt` (ISO 8601; nur zusammen mit `privacyStatus=private`, das Video wird zu diesem Zeitpunkt öffentlich ⚠️ Regel aus dem zusammengefassten Teil der Seite), `status.selfDeclaredMadeForKids`, `snippet.categoryId` (Standard 22, Gaming-Clips weiter 20), `snippet.tags` aus den Hashtags.
+- `status.containsSyntheticMedia` bleibt an die KI-Stimme gebunden.
+- **Short oder normales Video:** Die API hat kein Shorts-Feld. Ein quadratisches oder hochformatiges Video bis 3 Minuten wird von YouTube selbst als Short eingeordnet. Die Formatwahl im Freigabecenter steuert deshalb nur die Prüfung (Short: Hochformat, ≤ 3 min) und den Link (`/shorts/` oder `/watch?v=`).
+- Quote: die Seite nennt „100 calls per day“ für das Upload-Kontingent ⚠️ (Wortlaut mehrdeutig; vor Live-Betrieb im Quota Calculator nachsehen).
+
+**TikTok als Entwurf (Seiten „Content Posting API – Upload“, „Get Started – Upload Content“, „Get Post Status“)**
+- `POST https://open.tiktokapis.com/v2/post/publish/inbox/video/init/` mit `source_info` (`FILE_UPLOAD`, `video_size`, `chunk_size`, `total_chunk_count`), Scope `video.upload`, 6 Anfragen/min je Token. Antwort `publish_id` und `upload_url` (1 h gültig).
+- Datei per `PUT` an `upload_url` mit `Content-Type`, `Content-Length`, `Content-Range` (gleich wie Direct Post).
+- `POST /v2/post/publish/status/fetch/` bis `SEND_TO_USER_INBOX`: Die Person bekommt eine Benachrichtigung in der TikTok-App und schließt Text und Veröffentlichung dort ab. Erst danach meldet TikTok `PUBLISH_COMPLETE`.
+- Höchstens **5 offene Entwürfe in 24 h** (`spam_risk_too_many_pending_share`, wird als „später erneut“ behandelt).
+- Standard ist jetzt `TIKTOK_POST_MODE=inbox`. Direct Post bleibt als Option je Beitrag (`direct`, ohne Audit nur `SELF_ONLY`).
+- Offen ⚠️: Die Doku sagt nicht ausdrücklich, ob nicht geprüfte Apps den Entwurfsweg ohne Einschränkung nutzen dürfen; sie verlangt nur die Freigabe des Scopes `video.upload`.
+
+**Instagram mit Instagram-Login, ohne Facebook-Seite (Seiten „Instagram API with Instagram Login“, „Content Publishing“, Referenz „oauth/authorize“ und „me“)**
+- Für Instagram-Profikonten (Business oder Creator); laut Doku „does not require a Facebook Page“.
+- Anmeldung: `https://api.instagram.com/oauth/authorize` mit `client_id`, `redirect_uri`, `response_type=code`, `scope` (Komma-getrennt), `state`. Meta hängt `#_` an die Weiterleitung an; das gehört nicht zum Code. Codes gelten 1 h und einmal.
+- Scopes: `instagram_business_basic`, `instagram_business_content_publish` (die alten Namen `business_*` sind seit 27.01.2025 abgekündigt).
+- Konto: `GET https://graph.instagram.com/v25.0/me`.
+- Code → Kurzzeit-Token `POST https://api.instagram.com/oauth/access_token`, Langzeit-Token (60 Tage) `GET https://graph.instagram.com/access_token?grant_type=ig_exchange_token`, Verlängerung `GET https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token` (Token mindestens 24 h alt). ⚠️ Diese drei Seiten ließen sich am 15.11. nicht automatisch abrufen; die Adressen entsprechen der bekannten Meta-Doku und müssen vor dem ersten Verbinden im Browser bestätigt werden.
+- Veröffentlichen: `POST /<IG_ID>/media` mit `media_type=REELS`, `video_url`, `caption`, `share_to_feed` → `GET /<container>?fields=status_code` (`IN_PROGRESS`, `FINISHED`, `ERROR`, `EXPIRED`, `PUBLISHED`; höchstens einmal pro Minute, höchstens 5 Minuten) → `POST /<IG_ID>/media_publish?creation_id=…`.
+- **Wichtig:** Der fortsetzbare Upload (`upload_type=resumable`) ist laut Doku nur für Apps mit Facebook-Login. Mit Instagram-Login muss Meta das Video von einer **öffentlich erreichbaren Adresse** holen. Dashboard und API bleiben privat (Cloudflare Access); das Video wird deshalb kurz in einen privaten **Cloudflare-R2-Bucket** gelegt, Meta bekommt eine signierte Adresse, die nach `R2_PRESIGN_SECONDS` (Standard 900 s) verfällt, und die Datei wird danach gelöscht. Ohne R2 meldet der Kanal „nicht eingerichtet“, es wird nichts versucht.
+- Limit: 100 API-Posts je 24 h laut Hauptabschnitt (ein anderer Abschnitt nennt 50 ⚠️); geprüft über `content_publishing_limit`. Eigene Obergrenze weiter `INSTAGRAM_DAILY_POST_LIMIT`.
+- Kennzahlen über Instagram-Login (`instagram_business_manage_insights`) sind noch nicht angebunden ⚠️; Statistik-Abrufe melden „nicht verfügbar“.
+- Der bisherige Weg über eine Facebook-Seite bleibt mit `INSTAGRAM_LOGIN=facebook` nutzbar.
+
+**Cloudflare R2 (S3-API)**
+- Signatur AWS Signature Version 4 (Region `auto`, Dienst `s3`), Query-String-Variante. Umsetzung ohne SDK in `services/r2.py`, geprüft gegen das offizielle AWS-Beispiel für signierte Adressen (Test `test_r2_presign_matches_the_aws_example`).
+- Endpunkt `https://<ACCOUNT_ID>.r2.cloudflarestorage.com/<BUCKET>/<KEY>`; Bucket bleibt privat.
+
+**Twitch**
+- Die Twitch-API (Referenz, geprüft 15.11.2026) hat **keinen Upload-Endpunkt** für Videos. Unter „Videos“ gibt es nur „Get Videos“ und „Delete Videos“; „Clips“ erstellt Clips aus Streams. Twitch bleibt Trendquelle und Livestream-Kanal; das Freigabecenter sagt das offen.
+
+**Code:** `services/approval.py`, `api/approval.py` (`/api/approval…`), `services/instagram.py`, `services/r2.py`, Erweiterungen in `services/tiktok.py`, `services/youtube.py`, `services/publishers.py`; Rückleitung `GET /api/oauth/instagram/callback`.
+
+**Einrichtung Instagram-Login (erst bei Freigabe eines echten Tests):** In der Meta-App das Produkt „Instagram“ → „API setup with Instagram login“ hinzufügen, Weiterleitungs-URI `https://<Dashboard-Domain>/api/oauth/instagram/callback`, `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_OAUTH_REDIRECT_URI` setzen; zusätzlich R2 (`R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) mit einem Schlüssel, der nur diesen Bucket schreiben darf.
+
 ## Kennzahlen je Plattform (Phase 14)
 
 Geprüft am 14.11.2026 gegen die offizielle Dokumentation („videos.list“, „YouTube Analytics reports.query“ und „Metrics“, TikTok „Query Videos“ und „Scopes“, Instagram „Media Insights“, Facebook „Video Insights“). Umsetzung: `services/metrics.py`, Agent `analytics`.
@@ -183,7 +224,7 @@ Entscheidung des Betreibers (15.11.2026): Claude, harte Obergrenze 20 $ je Monat
 
 ## Speicher
 
-- **Cloudflare R2** (S3-kompatibel) über boto3/S3-Client. Mock: lokales Verzeichnis. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.
+- **Cloudflare R2** (S3-kompatibel). Seit E8 nur für kurzlebige Video-Adressen beim Instagram-Login genutzt (`services/r2.py`, eigene SigV4-Signatur, kein SDK). Ablage der Medien sonst weiter lokal. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.
 
 ## Offene Punkte
 

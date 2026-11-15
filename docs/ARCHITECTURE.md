@@ -104,6 +104,7 @@ Zusätzlich auf beiden Ebenen:
 - `FAILED`: Fehler mit Ursache (`failed_step`, `error_message`, `retry_count`); erneute Verarbeitung setzt auf den letzten gültigen Status zurück.
 - `QUALITY_REJECTED`: von QC abgelehnt, zurück zu `EDITING` oder `ARCHIVED`.
 - `READY_TO_PUBLISH` bleibt bestehen, wenn die Plattform nicht autorisiert ist (Spezifikation Abschnitt 11).
+- **Beiträge aus der Mediathek (Erweiterung E8):** Ein fertiges eigenes Video wird im Freigabecenter je Kanal zu einer Variante mit `library_item_id` statt `clip_id` (genau eines von beiden ist gesetzt, Check `ck_variants_one_source`). Sie startet nach einer technischen Prüfung direkt in `QUALITY_APPROVED` (Audit „NEW → QUALITY_APPROVED“) und durchläuft die Clip-Pipeline nie (Gate `library_video`). Erst die Freigabe durch eine Person führt nach `READY_TO_PUBLISH`; ab dort plant die Veröffentlichungsstrategie wie bei Clips. Neu ist der Übergang `READY_TO_PUBLISH → QUALITY_APPROVED` (Freigabe zurückgezogen; ein geplanter Auftrag wird vorher storniert).
 
 Erlaubte Übergänge stehen zentral in `backend/core/states.py` und werden von `backend/services/workflow.py` erzwungen (`transition`, `mark_failed`, `retry`). Jeder Übergang erzeugt einen Eintrag in `audit_logs`. Ein Video kann nur aus `SCHEDULED` veröffentlicht werden, und `SCHEDULED` ist nur über `QUALITY_APPROVED → READY_TO_PUBLISH` erreichbar; Material erreicht `ANALYZED` nur über `RIGHTS_APPROVED`.
 

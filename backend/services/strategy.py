@@ -359,6 +359,7 @@ FOCUS_BONUS = 0.1
 @dataclass(frozen=True)
 class Candidate:
     variant_id: int
+    #: One key per source (clip id, or the negative library item id, see gates.source_key).
     clip_id: int
     quality: float
     ready_since: datetime
@@ -552,7 +553,7 @@ def load_history(
                 post_id=post.id,
                 published_at=post.published_at,
                 windows=metrics.get(post.id, {}),
-                game=games.get(variant.clip_id),
+                game=games.get(variant.clip_id) if variant.clip_id else None,
                 video_format=variant.video_format,
                 hook_type=variant.hook_type,
             )
@@ -560,7 +561,10 @@ def load_history(
     return out
 
 
-def games_for_clips(session: Session, clip_ids: list[int]) -> dict[int, str]:
+def games_for_clips(session: Session, clip_ids: Sequence[int | None]) -> dict[int, str]:
+    clip_ids = [c for c in clip_ids if c is not None]
+    if not clip_ids:
+        return {}
     rows = session.execute(
         select(Clip.id, Game.name)
         .join(Scene, Scene.id == Clip.scene_id)

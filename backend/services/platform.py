@@ -61,8 +61,15 @@ def json_of(res: httpx.Response) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def provider_for(platform: PlatformCode) -> str:
-    """OAuth provider of a platform: Instagram and Facebook share the Meta login."""
+def provider_for(platform: PlatformCode, settings: Settings | None = None) -> str:
+    """OAuth provider of a platform: Facebook (and Instagram via a Page) use the Meta
+    login; with ``INSTAGRAM_LOGIN=instagram`` Instagram has its own login (E8)."""
+    if (
+        platform == PlatformCode.INSTAGRAM
+        and settings is not None
+        and settings.instagram_login == "instagram"
+    ):
+        return "instagram"
     if platform in (PlatformCode.INSTAGRAM, PlatformCode.FACEBOOK):
         return "meta"
     return platform.value

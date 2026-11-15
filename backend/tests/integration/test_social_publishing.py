@@ -71,6 +71,10 @@ def settings(base_settings: Settings) -> Settings:
             "meta_app_secret": SecretStr("meta-secret"),
             "meta_oauth_redirect_uri": "https://gce.example/api/oauth/meta/callback",
             "publish_status_interval_seconds": 0,
+            # Phase 13 covers Direct Post and Instagram via a Facebook Page; the E8 paths
+            # (TikTok drafts, Instagram Login) are tested in test_approval.
+            "tiktok_post_mode": "direct",
+            "instagram_login": "facebook",
         }
     )
 
@@ -126,7 +130,7 @@ def test_tiktok_authorization_url(settings: Settings) -> None:
     url = urlparse(tiktok.authorization_url(settings, "st"))
     q = parse_qs(url.query)
     assert url.netloc == "www.tiktok.com" and url.path == "/v2/auth/authorize/"
-    assert q["client_key"] == ["tt-key"] and q["scope"] == ["video.publish,video.list"]
+    assert q["client_key"] == ["tt-key"] and q["scope"] == ["video.publish,video.upload,video.list"]
     assert q["response_type"] == ["code"] and q["state"] == ["st"]
 
 

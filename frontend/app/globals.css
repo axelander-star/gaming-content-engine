@@ -1847,3 +1847,146 @@ details summary {
 .prod-pick.is-active .feed-title {
   color: var(--accent-2);
 }
+
+/* --- approval center (E8) --- */
+.appr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.appr-card {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr;
+  gap: 16px;
+  padding: 14px;
+  min-width: 0;
+}
+.appr-media video,
+.appr-poster {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  background: #000;
+  border-radius: 8px;
+}
+.appr-poster {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.appr-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.appr-play {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 16px;
+}
+.appr-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.appr-body p {
+  margin: 0;
+}
+.appr-form,
+.appr-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.appr-form label,
+.appr-options > label:not(.check-label) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.appr-form textarea {
+  resize: vertical;
+}
+.appr-form .btn {
+  align-self: flex-start;
+}
+.appr-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.appr-title {
+  font-weight: 600;
+}
+.appr-details summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+}
+.appr-checks {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  font-size: 13px;
+}
+.appr-checks .ok {
+  color: var(--ok, #3fb950);
+}
+.appr-checks .bad,
+.appr-problems {
+  color: var(--danger, #f85149);
+}
+.appr-problems {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.appr-preview-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 0;
+}
+.appr-channels {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.appr-channels legend {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.appr-twitch {
+  margin-top: 12px;
+}
+@media (max-width: 640px) {
+  .appr-card {
+    grid-template-columns: 1fr;
+  }
+  .appr-media {
+    max-width: 220px;
+  }
+}

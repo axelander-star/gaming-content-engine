@@ -99,13 +99,19 @@ class Clip(IdMixin, TimestampMixin, Base):
 
 
 class Variant(IdMixin, TimestampMixin, FailureMixin, Base):
-    """A finished video for one channel and language. Follows the video workflow."""
+    """A finished video for one channel and language. Follows the video workflow.
+
+    Made either from a gameplay clip (pipeline) or, since E8, from a media library
+    video (own upload or own production) prepared in the approval center.
+    """
 
     __tablename__ = "variants"
     __table_args__ = (
         UniqueConstraint(
             "clip_id", "channel_id", "variant_label", name="uq_variants_clip_chan_lbl"
         ),
+        UniqueConstraint("library_item_id", "channel_id", name="uq_variants_item_channel"),
+        CheckConstraint("(clip_id IS NULL) <> (library_item_id IS NULL)", name="one_source"),
         UniqueConstraint("id", "content_project_id", name="uq_variants_id_project"),
         # The channel must belong to the same content project as the video.
         ForeignKeyConstraint(
@@ -116,7 +122,13 @@ class Variant(IdMixin, TimestampMixin, FailureMixin, Base):
         ),
     )
 
-    clip_id: Mapped[int] = mapped_column(ForeignKey("clips.id", ondelete="RESTRICT"), index=True)
+    clip_id: Mapped[int | None] = mapped_column(
+        ForeignKey("clips.id", ondelete="RESTRICT"), index=True
+    )
+    #: Media library video this post is made of (E8); exclusive with ``clip_id``.
+    library_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("library_items.id", ondelete="RESTRICT"), index=True
+    )
     channel_id: Mapped[int] = mapped_column(
         ForeignKey("channels.id", ondelete="RESTRICT"), index=True
     )
@@ -138,9 +150,13 @@ class Variant(IdMixin, TimestampMixin, FailureMixin, Base):
     fingerprint: Mapped[str | None] = mapped_column(Text)
     title: Mapped[str | None] = mapped_column(String(300))
     description: Mapped[str | None] = mapped_column(Text)
+    #: Hashtags without "#", added to the caption by the publishers (E8).
+    hashtags: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    #: Platform options chosen in the approval center (E8), e.g. YouTube visibility.
+    publish_options: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
     quality_score: Mapped[float | None] = mapped_column(Float)
 
-    clip: Mapped[Clip] = relationship()
+    clip: Mapped[Clip | None] = relationship()
 
 
 class Script(IdMixin, TimestampMixin, Base):

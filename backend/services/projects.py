@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from core.enums import ContentProjectStatus, Language
 from models.channels import Channel
+from models.library import LibraryItem
 from models.production import Clip, GameplayFile, Scene, Variant
 from models.projects import DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG, ContentProject
 from models.publishing import Post, PublishingJob
@@ -125,6 +126,9 @@ def guard(session: Session) -> None:
                 _fill_or_check(obj, channel_project, "der Kanal")
                 if obj.clip_id is not None:
                     _fill_or_check(obj, material_project_id(session, obj), "das Ausgangsmaterial")
+                if obj.library_item_id is not None:
+                    item = session.get(LibraryItem, obj.library_item_id)
+                    _fill_or_check(obj, item.content_project_id if item else None, "das Video")
         for obj in pending:
             if isinstance(obj, PublishingJob) and obj.variant_id is not None:
                 variant = session.get(Variant, obj.variant_id)

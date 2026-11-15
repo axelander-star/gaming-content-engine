@@ -13,6 +13,7 @@ from redis.exceptions import RedisError
 from api.agents import router as agents_router
 from api.ai import router as ai_router
 from api.analytics import router as analytics_router
+from api.approval import router as approval_router
 from api.assistant import planning_router
 from api.assistant import router as assistant_router
 from api.auth import router as auth_router
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
         research_router,
         calendar_router,
         library_router,
+        approval_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 

@@ -4,6 +4,12 @@
 
 import type {
   Agent,
+  ApprovalInfo,
+  ApprovalPost,
+  PostChanges,
+  PostTexts,
+  PostTextsInput,
+  VideoStatus,
   AgentDecision,
   AgentRun,
   Budget,
@@ -262,6 +268,33 @@ export const api = {
     request<void>(`/productions/${id}`, { method: "DELETE" }),
   productionSubtitlesUrl: (id: number, format: "srt" | "vtt") =>
     `/api/productions/${id}/subtitles?fmt=${format}`,
+
+  // approval center (extension E8)
+  approvalInfo: () => request<ApprovalInfo>("/approval/info"),
+  approvalPosts: (filter: { projectId?: number; itemId?: number; status?: VideoStatus } = {}) => {
+    const q = new URLSearchParams();
+    if (filter.projectId) q.set("project_id", String(filter.projectId));
+    if (filter.itemId) q.set("item_id", String(filter.itemId));
+    if (filter.status) q.set("status", filter.status);
+    const qs = q.toString();
+    return request<ApprovalPost[]>(`/approval${qs ? `?${qs}` : ""}`);
+  },
+  suggestPostTexts: (itemId: number, channelId: number) =>
+    request<PostTexts>("/approval/suggest", {
+      method: "POST",
+      body: json({ item_id: itemId, channel_id: channelId }),
+    }),
+  preparePosts: (itemId: number, channelIds: number[], texts: Record<number, PostTextsInput> = {}) =>
+    request<ApprovalPost[]>("/approval/prepare", {
+      method: "POST",
+      body: json({ item_id: itemId, channel_ids: channelIds, texts }),
+    }),
+  updatePost: (id: number, changes: PostChanges) =>
+    request<ApprovalPost>(`/approval/${id}`, { method: "PATCH", body: json(changes) }),
+  approvePost: (id: number) => request<ApprovalPost>(`/approval/${id}/approve`, { method: "POST" }),
+  withdrawPost: (id: number) =>
+    request<ApprovalPost>(`/approval/${id}/withdraw`, { method: "POST" }),
+  discardPost: (id: number) => request<ApprovalPost>(`/approval/${id}/discard`, { method: "POST" }),
 
   settings: () => request<SettingsResponse>("/settings"),
   updateControls: (
