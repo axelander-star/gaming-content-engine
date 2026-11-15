@@ -1,6 +1,6 @@
 # Checkliste für den Produktivstart auf Hetzner Cloud
 
-**Stand:** 15.11.2026 · **Grundlage:** Code auf `main` (Phase 15), [OPERATIONS.md](OPERATIONS.md), [SECURITY.md](SECURITY.md), [API_INTEGRATIONS.md](API_INTEGRATIONS.md), die Plattform-Recherche `docs/PLATFORM_PUBLISHING_REVIEW.md` (PR #17) sowie `docs/ACCEPTANCE_TEST.md` und `docs/ROADMAP.md` (PR #18).
+**Stand:** 15.11.2026 · **Grundlage:** Code auf `main` (Phase 15), [OPERATIONS.md](OPERATIONS.md), [SECURITY.md](SECURITY.md), [API_INTEGRATIONS.md](API_INTEGRATIONS.md), die Plattform-Recherche [PLATFORM_PUBLISHING_REVIEW.md](PLATFORM_PUBLISHING_REVIEW.md) (PR #17) sowie `docs/ACCEPTANCE_TEST.md` und `docs/ROADMAP.md` (PR #18).
 
 Diese Liste sagt, was bis zum 24/7-Betrieb auf einem Hetzner-Server noch fehlt. Sie wiederholt keine Recherche, sondern baut auf den genannten Dokumenten auf. Was im Code schon gebaut ist, steht als **erledigt** da und wird nicht neu gefordert.
 
@@ -66,7 +66,7 @@ Diese Liste sagt, was bis zum 24/7-Betrieb auf einem Hetzner-Server noch fehlt. 
 | A25 | Gewerbe und Steuern klären, sobald Einnahmen geplant sind (Partnerprogramme, Werbung) | Gewerbeamt, Finanzamt, Steuerberatung | Personalausweis | 💶 Gebühr Gewerbeamt | P3 | ⬜ offen |
 | A26 | Alarmkanal für Uptime Kuma festlegen (E-Mail oder Telegram) | Telegram-Bot oder SMTP-Zugang | Bot-Token bzw. SMTP-Daten | 0 € | P1 | ⬜ offen |
 | A27 | Bekannte Lücke in der Git-Historie bewerten: alte Schlüssel stehen weiter in alten Commits | – | nach Erneuerung (A1, A2) sind sie wertlos; eine Bereinigung der Historie ist dann nicht nötig | 0 € | P1 | ⬜ offen |
-| A28 | Pull Requests #17 (Plattform-Recherche) und #18 (Abnahmetest, Roadmap) prüfen und mergen lassen | GitHub | – | 0 € | P1 | ⬜ offen |
+| A28 | Pull Request #18 (Abnahmetest, Roadmap) prüfen und mergen lassen; #17 (Plattform-Recherche) ist gemergt | GitHub | – | 0 € | P1 | ⬜ offen |
 
 ### B. Was der Coding-Agent vorbereiten kann
 
@@ -354,7 +354,7 @@ Jeder Schritt mit 💶 wird erst nach deiner ausdrücklichen Freigabe ausgeführ
 ### Schritt 1 – Aufräumen und absichern (diese Woche, 0 €)
 1. YouTube-API-Key und Twitch-Secret erneuern, neue Werte nur in Passwortmanager und Cloud-Umgebung (A1–A3).
 2. 2FA auf allen Konten, Passwortmanager einrichten (A4, A5).
-3. PR #17 und #18 mergen (A28).
+3. PR #18 mergen (A28).
 4. Entscheidungen treffen: Backup-Ziel (A11), TikTok-Weg (A17), KI-Anbieter (A19), X ja/nein (A18).
 
 ### Schritt 2 – Code für den Betrieb fertigstellen (Agent, 0 €)
