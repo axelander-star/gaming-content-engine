@@ -127,7 +127,8 @@ def put_file(settings: Settings, key: str, path: Path, content_type: str = "vide
         try:
             res = client.put(url, content=fh.read(), headers={"Content-Type": content_type})
         except Exception as exc:  # network problems: try again later
-            raise platform.TransientError(f"R2-Upload: {exc}") from exc
+            # no exception text: it may contain the signed address
+            raise platform.TransientError("R2-Upload: Verbindung fehlgeschlagen") from exc
     if res.status_code >= 500:
         raise platform.TransientError(f"R2-Upload: {res.status_code}", res.status_code)
     if res.status_code >= 400:

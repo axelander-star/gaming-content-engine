@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E8 (Freigabecenter und Plattformen) abgeschlossen · **Nächster Schritt:** Erweiterung Phase E9 (Tests, Sicherheitsprüfung, Doku) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E9 (Tests, Sicherheitsprüfung, Doku) abgeschlossen · **Nächster Schritt:** Erweiterung Phase E10 (Vorbereitung Hetzner, ohne Deployment) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -42,8 +42,45 @@ Der Betreiber hat das Ziel am 15.11.2026 erweitert: kein reines Gaming-System me
 | E6 | Redaktionsplan und Kalender | ✅ abgeschlossen |
 | E7 | Mediathek und Eigenproduktion | ✅ abgeschlossen |
 | E8 | Freigabecenter und Plattformen (Instagram Login, TikTok-Entwurf, YouTube Shorts/Video) | ✅ abgeschlossen |
-| E9 | Tests, Sicherheitsprüfung, Doku | offen |
+| E9 | Tests, Sicherheitsprüfung, Doku | ✅ abgeschlossen |
 | E10 | Vorbereitung Hetzner | offen |
+
+### Phase E9 – Bericht
+
+**1. Was wurde erstellt?**
+
+- **Erweiterter Abnahmetest** über die ganze Erweiterung: zwei Themenbereiche (Ernährung, Gaming) mit je zwei Kanälen, von der Idee über Redaktionsplan, Eigenproduktion, Mediathek, Freigabecenter und Strategie bis zum Mock-Beitrag. Die Regel „Ein Ernährungsvideo darf niemals versehentlich auf dem Gaming-Kanal veröffentlicht werden“ wird auf jeder Ebene geprüft, die sie brechen könnte, und am Ende noch einmal über die ganze Datenbank. Einstufung echt/simuliert je Schritt in [ACCEPTANCE_TEST.md](ACCEPTANCE_TEST.md).
+- **Sicherheitsprüfung** aller neuen Endpunkte und Abläufe ([SECURITY.md](SECURITY.md), Abschnitt 11): Ein neuer Test liest alle 132 API-Routen ein und schlägt fehl, sobald eine Route ohne Rollenprüfung oder eine ändernde Route ohne CSRF-Schutz dazukommt. Weitere neue Tests: OAuth-Tokens erscheinen in keiner API-Antwort; KI-Textvorschläge können keine Aktionen, Kanäle oder Sichtbarkeit einschmuggeln und werden auf Plattformlängen gekürzt.
+- **Zwei Befunde behoben:** Die Fehlermeldung beim R2-Upload konnte die signierte Adresse enthalten (jetzt neutrale Meldung). Der Link zum veröffentlichten Beitrag im Freigabecenter wird nur noch angezeigt, wenn er mit `https://` beginnt.
+- **Abhängigkeiten:** `pip-audit` und `npm audit --omit=dev` ohne Befund.
+- **Bedienungsanleitung** für die neuen Seiten mit der **gesammelten Liste offener Freigaben und Voraussetzungen**: [BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md).
+- **Produktionscheckliste** an E8 angepasst: Instagram ohne Facebook-Seite (neue Punkte A15a Instagram-App, A15b R2), TikTok-Entwurf mit Scope `video.upload` (A16, A17 neu gefasst), KI-Entscheidung Claude mit 20 $/Monat (A19, A20), B19 erledigt.
+
+**2. Geänderte Dateien**
+
+- Neu: `backend/tests/acceptance/test_content_platform.py`, `backend/tests/unit/test_route_security.py`, `docs/BEDIENUNGSANLEITUNG.md`
+- Geändert: `backend/services/r2.py`, `backend/tests/integration/test_approval.py`, `frontend/dashboard/ApprovalView.tsx`, `README.md`, `docs/{PROJECT_STATUS,SECURITY,ACCEPTANCE_TEST,PRODUCTION_CHECKLIST}.md`
+
+**3. Durchgeführte Tests**
+
+- Neuer Abnahmetest (echtes Rendern mit FFmpeg, Mock-KI, Mock-Veröffentlichung), Routen-Inventar, Token-Leck-Test, Test mit feindlicher KI-Ausgabe
+- `scripts/test_backend.sh` (ruff, Format, mypy, alle Tests mit Abdeckung), `alembic check`, Frontend `typecheck` und `build`, E2E, `scripts/verify_phase1.sh`, `pip-audit`, `npm audit --omit=dev`
+
+**4. Erfolgreiche Tests**
+
+- 512 Backend-Tests bestanden (96 % Abdeckung); ruff, mypy und `alembic check` ohne Befund
+- E2E: 26 Schritte bestanden
+- `verify_phase1.sh`: 70 bestanden, 0 fehlgeschlagen
+
+**5. Bestehende Fehler / Einschränkungen**
+
+- Alle Plattformwege sind nur gegen Attrappen und im Mock-Modus geprüft. Ob YouTube, Instagram und TikTok die Beiträge echt annehmen, zeigt sich erst mit eingerichteten Apps und deiner Freigabe.
+- Offen bleiben die ⚠️-Punkte aus E8 (drei Instagram-Token-Adressen, TikTok-Entwurf ohne Audit) und die Entscheidung über eine echte Stimme.
+- Zwei-Faktor-Anmeldung für Admins fehlt weiterhin (SECURITY.md, Abschnitt 10).
+
+**6. Nächster Schritt**
+
+Phase E10: Vorbereitung Hetzner (Speicherbedarf, Aufräumregeln, Checkliste je Plattform-App), nur Doku und Skripte, nichts wird bestellt oder deployt.
 
 ### Phase E8 – Bericht
 
