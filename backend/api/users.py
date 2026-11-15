@@ -51,6 +51,11 @@ def list_users(_: Admin, db: DbSession) -> list[User]:
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(body: UserCreate, admin: Admin, db: DbSession, settings: AppSettings) -> User:
+    if settings.single_user_mode:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Single-user mode: no further accounts can be created",
+        )
     email = body.email.lower()
     if db.scalar(select(User.id).where(User.email == email)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Email already exists")

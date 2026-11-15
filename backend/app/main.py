@@ -6,6 +6,8 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 from redis.exceptions import RedisError
 
 from api.agents import router as agents_router
@@ -21,7 +23,9 @@ from api.rights import router as rights_router
 from api.settings import router as settings_router
 from api.system import router as system_router
 from api.trends import router as trends_router
+from api.uploads import router as uploads_router
 from api.users import router as users_router
+from core import access_guard
 from core.config import get_settings
 from core.logging import configure_logging
 from services.monitoring import count_http_error
@@ -57,8 +61,31 @@ def create_app() -> FastAPI:
         publishing_router,
         analytics_router,
         system_router,
+        uploads_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
+
+    if settings.access_guard == "cloudflare":
+
+        @app.middleware("http")
+        async def require_cloudflare_access(
+            request: Request, call_next: Callable[[Request], Awaitable[Response]]
+        ) -> Response:
+            """Second check behind Cloudflare Access (private operation)."""
+            if not access_guard.is_exempt(request.url.path):
+                token = request.headers.get(access_guard.HEADER) or request.cookies.get(
+                    access_guard.COOKIE
+                )
+                try:
+                    # Key lookup may hit the network (cached for an hour): keep it
+                    # off the event loop.
+                    await run_in_threadpool(access_guard.verify, settings, token)
+                except access_guard.AccessDeniedError as exc:
+                    logging.getLogger(__name__).warning(
+                        "access denied", extra={"path": request.url.path, "reason": str(exc)}
+                    )
+                    return JSONResponse({"detail": "Access denied"}, status_code=403)
+            return await call_next(request)
 
     @app.middleware("http")
     async def count_server_errors(
@@ -81,6 +108,8 @@ def create_app() -> FastAPI:
             "publishing_mode": settings.publishing_mode,
             "auto_publish_enabled": settings.auto_publish_enabled,
             "emergency_stop": settings.emergency_stop,
+            "access_guard": settings.access_guard,
+            "single_user_mode": settings.single_user_mode,
         },
     )
     return app

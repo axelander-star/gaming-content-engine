@@ -32,6 +32,16 @@ class UserRole(StrEnum):
     VIEWER = "viewer"
 
 
+class UploadStatus(StrEnum):
+    """Resumable upload session (services/uploads.py)."""
+
+    UPLOADING = "UPLOADING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
 class MaterialStatus(StrEnum):
     """Lifecycle of gameplay material (see docs/ARCHITECTURE.md section 4)."""
 

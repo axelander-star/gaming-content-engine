@@ -17,7 +17,7 @@ from types import FrameType
 from core.config import Settings, get_settings
 from core.logging import configure_logging
 from database.session import get_sessionmaker
-from services import monitoring
+from services import monitoring, uploads
 from services.controls import effective_controls
 from services.orchestrator import submit
 from services.queue import get_redis
@@ -97,6 +97,8 @@ class Monitor:
         self.last_check = now
         with get_sessionmaker()() as session:
             monitoring.run(session, settings, redis)
+        with get_sessionmaker()() as session, session.begin():
+            uploads.purge_expired(session, settings)
         return True
 
 

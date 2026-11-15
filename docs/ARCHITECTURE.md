@@ -8,7 +8,7 @@ Dieses Dokument beschreibt die Zielarchitektur der Gaming Content Engine. Verbin
                           ┌──────────────────────────────┐
                           │   Dashboard (Next.js, TS)    │
                           └──────────────┬───────────────┘
-                                         │ HTTPS (Caddy)
+                                         │ HTTPS: Cloudflare Access + Tunnel → Caddy
                           ┌──────────────▼───────────────┐
                           │     Backend API (FastAPI)    │
                           │  Auth · REST · Settings ·    │
@@ -33,7 +33,9 @@ Dieses Dokument beschreibt die Zielarchitektur der Gaming Content Engine. Verbin
                                 └────────────────┘   └───────────────────────┘
 ```
 
-**Dienste (Docker Compose):** `postgres`, `redis`, `migrate` (Migration + Seed), `backend` (API), `worker` (Queue, Agenten ab Phase 4), `frontend` (Dashboard), `caddy` (`/api` → backend, Rest → frontend), optional `n8n` und `uptime-kuma`.
+**Dienste (Docker Compose):** `postgres`, `redis`, `migrate` (Migration + Seed), `backend` (API), `worker` (Queue, Agenten ab Phase 4), `frontend` (Dashboard), `caddy` (`/api` → backend, Rest → frontend), optional `cloudflared` (Tunnel), `n8n` und `uptime-kuma`.
+
+**Private Nutzung (Entscheidung 15.11.2026):** Die Anwendung ist nur für den Betreiber bestimmt. Erreichbar ist sie nur über Cloudflare Access; der Server baut einen Cloudflare Tunnel nach außen auf und hat keine offenen Web-Ports. Das Backend prüft das Access-Token zusätzlich selbst, es gibt nur ein Benutzerkonto (`SINGLE_USER_MODE`). Details: [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md).
 
 **Steuerung in zwei Ebenen:** Die Serverkonfiguration (`.env`) ist die Obergrenze; das Dashboard schaltet innerhalb dieser Grenze (Tabelle `system_settings`, Service `services/controls.py`). Not-Aus gilt, wenn eine der beiden Ebenen ihn setzt; Auto-Publish nur, wenn beide es erlauben und der Modus `live` ist. Details zur Anmeldung: [SECURITY.md](SECURITY.md).
 
@@ -51,6 +53,7 @@ Dieses Dokument beschreibt die Zielarchitektur der Gaming Content Engine. Verbin
 | A8 | **Gate-Prüfungen im Code, nicht nur in Agenten.** Rechte-, Qualitäts-, Budget- und Not-Aus-Prüfung sind zentrale Services, die vor jedem Statuswechsel und jedem externen Aufruf erzwungen werden. | Geschäftsregeln 1, 2, 8, 9 dürfen nicht von einem einzelnen Agenten abhängen. |
 | A9 | **Veröffentlichungsmenge wird nie als Konstante programmiert.** Es gibt nur pro Kanal konfigurierte Sicherheitsgrenzen (min/max); die Menge berechnet der Publishing Strategy Agent. | CLAUDE.md, Spezifikation Abschnitt 3. |
 | A10 | **Enums als VARCHAR + CHECK-Constraint** statt nativer PostgreSQL-Enums. | Neue Statuswerte lassen sich per einfacher Migration ergänzen; die Datenbank lehnt trotzdem ungültige Werte ab. |
+| A11 | **Privater Zugang über Cloudflare Tunnel + Access** statt offener Ports. Das Backend prüft das Access-Token (JWT) selbst; nur ein Benutzerkonto. | Nur der Betreiber nutzt das System; keine Angriffsfläche aus dem Internet, keine Zertifikatsverwaltung, Zugriff von jedem Gerät ohne VPN-App, kostenlos. |
 
 ## 3. Datenfluss (Pipeline)
 
@@ -179,4 +182,4 @@ Jeder kostenpflichtige Adapter ruft vor dem Aufruf `ctx.authorize_cost(geschätz
 
 ## 9. Deployment-Ziel
 
-Hetzner Cloud CX33 (4 vCPU, 8 GB RAM, 80 GB, Ubuntu 24.04 LTS), Docker Compose, Caddy mit automatischem TLS. Renderjobs werden über `max_parallel_render_jobs` begrenzt, damit API und Datenbank reaktionsfähig bleiben. Gemessene Renderzeiten stehen in `PROJECT_STATUS.md` (Phase 7); im Betrieb misst das System jede Renderzeit selbst (`GET /api/production/capacity`), und der Publishing Strategy Agent plant damit.
+Hetzner Cloud CX33 (4 vCPU, 8 GB RAM, 80 GB, Ubuntu 24.04 LTS), Docker Compose, Caddy hinter Cloudflare Tunnel (HTTPS bei Cloudflare, keine offenen Web-Ports); der bisherige Weg mit Let’s Encrypt bleibt als Alternative möglich. Renderjobs werden über `max_parallel_render_jobs` begrenzt, damit API und Datenbank reaktionsfähig bleiben. Gemessene Renderzeiten stehen in `PROJECT_STATUS.md` (Phase 7); im Betrieb misst das System jede Renderzeit selbst (`GET /api/production/capacity`), und der Publishing Strategy Agent plant damit.
