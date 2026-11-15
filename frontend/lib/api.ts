@@ -33,6 +33,10 @@ import type {
   AIStatus,
   AIUsage,
   AITestResult,
+  ChatAction,
+  ChatExchange,
+  ChatMessage,
+  WeekPlan,
   PolicyStatus,
   PublisherPolicy,
   Readiness,
@@ -143,6 +147,14 @@ export const api = {
   aiUsage: (limit = 20) => request<AIUsage>(`/ai/usage?limit=${limit}`),
   aiTest: (prompt: string, tier: "text" | "reasoning") =>
     request<AITestResult>("/ai/test", { method: "POST", body: json({ prompt, tier }) }),
+
+  chatMessages: (limit = 50) => request<ChatMessage[]>(`/assistant/messages?limit=${limit}`),
+  sendChat: (text: string) =>
+    request<ChatExchange>("/assistant/messages", { method: "POST", body: json({ text }) }),
+  undoChatAction: (id: number) =>
+    request<ChatAction>(`/assistant/actions/${id}/undo`, { method: "POST" }),
+  weekPlan: (start?: string) =>
+    request<WeekPlan>(`/planning/week${start ? `?start=${encodeURIComponent(start)}` : ""}`),
 
   settings: () => request<SettingsResponse>("/settings"),
   updateControls: (

@@ -29,6 +29,7 @@ commits the session after reserving and after booking.
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -103,7 +104,9 @@ class AIFailedError(AIError):
 @dataclass(frozen=True)
 class AIMessage:
     role: Literal["user", "assistant"]
-    content: str
+    #: Plain text, or content blocks (tool use: the assistant's blocks unchanged,
+    #: then a user message with ``tool_result`` blocks).
+    content: str | list[dict[str, Any]]
 
 
 @dataclass
@@ -120,6 +123,9 @@ class AIRequest:
     user_id: int | None = None
     #: Lower effort for short texts and chat keeps thinking and cost small.
     effort: Literal["low", "medium", "high"] = "low"
+    #: Client tools (JSON schema definitions). The AI layer never runs them; the
+    #: caller executes ``tool_use`` blocks and sends results in the next request.
+    tools: list[dict[str, Any]] | None = None
     meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -132,6 +138,13 @@ class AIResult:
     input_tokens: int
     output_tokens: int
     cost_usd: Decimal
+    #: Response content blocks as dicts (text, tool_use, thinking …).
+    content: list[dict[str, Any]] = field(default_factory=list)
+    stop_reason: str = "end_turn"
+
+    @property
+    def tool_uses(self) -> list[dict[str, Any]]:
+        return [b for b in self.content if b.get("type") == "tool_use"]
 
 
 @dataclass(frozen=True)
@@ -181,8 +194,13 @@ def cost_usd(
     return _q(total)
 
 
+def _chars(content: str | list[dict[str, Any]]) -> int:
+    return len(content) if isinstance(content, str) else len(json.dumps(content))
+
+
 def prompt_chars(req: AIRequest) -> int:
-    return len(req.system) + sum(len(m.content) for m in req.messages)
+    tools = len(json.dumps(req.tools)) if req.tools else 0
+    return len(req.system) + tools + sum(_chars(m.content) for m in req.messages)
 
 
 def estimate_input_tokens(req: AIRequest) -> int:
@@ -304,6 +322,14 @@ class _Reply:
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
     request_id: str | None = None
+    content: tuple[dict[str, Any], ...] = ()
+    stop_reason: str = "end_turn"
+
+
+def _block_dict(block: Any) -> dict[str, Any]:
+    if hasattr(block, "to_dict"):
+        return dict(block.to_dict())
+    return dict(vars(block))
 
 
 def _mock_reply(req: AIRequest, model: str) -> _Reply:
@@ -311,12 +337,14 @@ def _mock_reply(req: AIRequest, model: str) -> _Reply:
         answer = req.mock(req)
     else:
         last = req.messages[-1].content if req.messages else ""
-        answer = f"[Testantwort] {req.purpose}: {' '.join(last.split())[:160]}"
+        last_text = last if isinstance(last, str) else json.dumps(last)
+        answer = f"[Testantwort] {req.purpose}: {' '.join(last_text.split())[:160]}"
     return _Reply(
         text=answer,
         model=model,
         input_tokens=estimate_input_tokens(req),
         output_tokens=max(1, len(answer) // _CHARS_PER_TOKEN),
+        content=({"type": "text", "text": answer},),
     )
 
 
@@ -349,6 +377,8 @@ def _claude_reply(settings: Settings, req: AIRequest, model: str) -> _Reply:
     }
     if req.system:
         params["system"] = req.system
+    if req.tools:
+        params["tools"] = req.tools
     try:
         if model == "claude-sonnet-5-5":
             response = client.beta.messages.create(
@@ -378,6 +408,8 @@ def _claude_reply(settings: Settings, req: AIRequest, model: str) -> _Reply:
         cache_read_tokens=int(getattr(usage, "cache_read_input_tokens", 0) or 0),
         cache_write_tokens=int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
         request_id=getattr(response, "_request_id", None),
+        content=tuple(_block_dict(b) for b in response.content),
+        stop_reason=str(response.stop_reason or "end_turn"),
     )
     if response.stop_reason == "refusal":
         raise _RefusalError(reply)
@@ -453,7 +485,15 @@ def generate(session: Session, settings: Settings, req: AIRequest) -> AIResult:
         session.add(call)
         session.commit()
         return AIResult(
-            reply.text, MOCK, model, call.id, reply.input_tokens, reply.output_tokens, Decimal(0)
+            reply.text,
+            MOCK,
+            model,
+            call.id,
+            reply.input_tokens,
+            reply.output_tokens,
+            Decimal(0),
+            list(reply.content),
+            reply.stop_reason,
         )
 
     problem = _live_problem(session, settings)
@@ -517,6 +557,8 @@ def generate(session: Session, settings: Settings, req: AIRequest) -> AIResult:
         reply.input_tokens,
         reply.output_tokens,
         call.cost_usd,
+        list(reply.content),
+        reply.stop_reason,
     )
 
 

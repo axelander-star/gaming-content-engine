@@ -23,7 +23,8 @@ export type IconName =
   | "clock"
   | "upload"
   | "sun"
-  | "moon";
+  | "moon"
+  | "chat";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -133,6 +134,7 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   moon: <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />,
+  chat: <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />,
 };
 
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {

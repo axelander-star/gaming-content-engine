@@ -557,6 +557,37 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/themenbereiche.png`, fullPage: true });
   });
 
+  await step("Plan per Chat ändern: Bereich fortsetzen, Tag einplanen, rückgängig", async () => {
+    await page.getByRole("link", { name: "Assistent", exact: true }).click();
+    await page.getByRole("heading", { name: "Assistent", level: 1 }).waitFor();
+    await page.getByText("Test (Mock): Befehlserkennung, keine Kosten").waitFor();
+    const input = page.getByLabel("Nachricht an den Assistenten");
+    const log = page.locator(".chat-log");
+    const plan = page.getByRole("list", { name: "Wochenplan" });
+
+    await input.fill("Ernährung E2E fortsetzen");
+    await page.getByRole("button", { name: "Senden" }).click();
+    await log.getByText("Themenbereich Ernährung E2E fortgesetzt").first().waitFor();
+
+    await input.fill("Heute zusätzlich Ernährung E2E");
+    await input.press("Enter");
+    const card = page.getByRole("group", { name: "Aktion" }).filter({ hasText: "eingeplant" });
+    await card.waitFor();
+    await plan.getByText("Ernährung E2E").waitFor();
+    await card.getByRole("button", { name: "Rückgängig" }).click();
+    await card.getByText("Rückgängig gemacht").waitFor();
+    await plan.getByText("Ernährung E2E").waitFor({ state: "detached" });
+
+    await input.fill("Diese Woche GTA 6");
+    await input.press("Enter");
+    await page.locator(".focus-list").getByText("GTA 6").waitFor();
+
+    await input.fill("Veröffentliche das Video jetzt");
+    await input.press("Enter");
+    await log.getByText(/Veröffentlichen kann ich nicht/).last().waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/assistent.png`, fullPage: true });
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");
