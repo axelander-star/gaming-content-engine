@@ -1,4 +1,4 @@
-"""Registry of all 18 agents from PROJECT_SPEC section 6.
+"""Registry of the 18 agents from PROJECT_SPEC section 6 plus research and idea lab (E5).
 
 Each entry describes the agent (for the dashboard), the phase in which it is
 implemented, how it can cause costs, and its pipeline stage. Agents whose
@@ -137,6 +137,18 @@ def _publishing_strategy() -> Agent:
     return PublishingStrategyAgent()
 
 
+def _research() -> Agent:
+    from agents.research import ResearchAgent
+
+    return ResearchAgent()
+
+
+def _idea_lab() -> Agent:
+    from agents.research import IdeaLabAgent
+
+    return IdeaLabAgent()
+
+
 def _publishing() -> Agent:
     from agents.publishing import PublishingAgent
 
@@ -203,6 +215,12 @@ _SPECS: tuple[AgentSpec, ...] = (
     AgentSpec("budget_cost", 18, "Budget & Cost",
               "Überwacht Kosten und Budgetstufen, begrenzt teure Aufgaben.", 4, CostKind.LOCAL,
               factory=_budget),
+    AgentSpec("research", 19, "Research",
+              "Sammelt je Themenbereich neue Einträge aus RSS- und News-Feeds.", 15,
+              CostKind.FREE_API, factory=_research),
+    AgentSpec("idea_lab", 20, "Idea Lab",
+              "Macht aus Recherche-Einträgen bewertete Videoideen mit Quellen.", 15,
+              CostKind.PAID, factory=_idea_lab),
 )  # fmt: skip
 
 _registry: dict[str, AgentSpec] = {s.name: s for s in _SPECS}

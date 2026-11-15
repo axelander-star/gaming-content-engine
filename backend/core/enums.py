@@ -179,3 +179,11 @@ class ChatActionStatus(StrEnum):
     DONE = "done"
     UNDONE = "undone"
     FAILED = "failed"
+
+
+class IdeaStatus(StrEnum):
+    """An idea in the idea lab (extension phase E5)."""
+
+    NEW = "new"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"

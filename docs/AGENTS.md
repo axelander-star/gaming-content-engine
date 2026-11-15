@@ -143,6 +143,12 @@ Automatisch wählbar: Epische Szene, Überraschung, Unerwartete Wendung, Storyte
 
 **Budget & Cost:** Fixkosten (`SERVER_MONTHLY_EUR`, `OTHER_FIXED_MONTHLY_EUR`) zählen von Monatsbeginn an voll gegen das Budget. Die Seite „Kosten“ zeigt Kosten nach Bereich, Speicher, API-Nutzung heute, Kosten pro produziertem und veröffentlichtem Video und pro 1.000 Aufrufe (nur echte Posts).
 
+## Research und Idea Lab (Erweiterung E5)
+
+**Research (Nr. 19, Queue `research`, alle `RESEARCH_SECONDS`):** Liest je aktivem Themenbereich die eingeschalteten RSS-/Atom-Feeds (`research_sources`) und speichert neue Einträge in `research_items` (doppelte werden über die GUID erkannt). Im Testmodus (`RESEARCH_SOURCES_MODE=mock`) gibt es keinen Netzabruf; jeder Bereich bekommt Beispiel-Feeds aus seinen Unterthemen. Live nur `http`/`https` auf öffentliche Adressen (auch nach Weiterleitungen geprüft), höchstens 2 MB, XML über `defusedxml`.
+
+**Idea Lab (Nr. 20, Queue `research`, alle `IDEAS_SECONDS`):** Macht aus unbenutzten Einträgen der letzten 7 Tage bis zu `IDEAS_PER_RUN` Ideen je Bereich (`ideas`), über die KI-Schicht (Sonnet, im Mock feste Testideen). Die KI liefert nur Titel, Kurzbeschreibung, Format und die verwendeten Einträge; die Bewertung rechnet der Code nachvollziehbar: Trend (Alter und Zahl der Quellen), Passung (Schwerpunkt +30, Unterthema +20), Aufwand (Format), Rechte-Risiko (Eigenproduktion 15, fremdes Material 70); Gesamt = 35 % Trend + 35 % Passung + 15 % (100 − Aufwand) + 15 % (100 − Risiko). Feed-Text ist fremder Text: Er steht im Prompt markiert als Material, der Schritt hat keine Werkzeuge und kann weder Plan noch Produktion ändern. Ideen warten im Ideenlabor; übernehmen (optional mit Tag im Redaktionsplan) oder verwerfen entscheidet der Mensch.
+
 ## Grenzen und Pflichten einzelner Agenten
 
 - **Rights & License:** Prüft alle Kriterien aus Spezifikation Abschnitt 5 (kommerziell, Bearbeitung, Kurzvideo, Plattformen, Sprachen, Gültigkeit, Monetarisierung, Musik/Bestandteile). Ein fehlendes Kriterium bedeutet Ablehnung, nicht Annahme. Publisher-Policies (z. B. GTA 6) werden als Regeln gepflegt; keine pauschale Freigabe.

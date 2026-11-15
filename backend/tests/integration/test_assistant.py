@@ -23,6 +23,7 @@ from models.ai import AICall
 from models.assistant import ChatAction
 from models.planning import ContentFocus, EditorialDay
 from models.projects import ContentProject
+from models.research import Idea
 from services import ai, assistant, planning
 from services.controls import update_operations
 from services.seed import seed_base_data
@@ -258,18 +259,46 @@ def test_start_research(
 
     def fake_submit(name: str, payload: dict[str, Any], **_: Any) -> Any:
         submitted.append((name, payload))
-        return SimpleNamespace(id="job-1")
+        return SimpleNamespace(id=f"job-{len(submitted)}")
 
     monkeypatch.setattr("services.orchestrator.submit", fake_submit)
     headers = _admin(api, make_user)
     [action] = _chat(api, headers, "Starte eine Trendrecherche")["actions"]
     assert action["status"] == "done" and action["undoable"] is False
-    assert action["args"]["job_id"] == "job-1"
-    assert submitted == [("trend_research", {})]
+    gaming_id = projects["gaming"].id
+    assert submitted == [
+        ("trend_research", {}),
+        ("research", {"project_id": gaming_id}),
+        ("idea_lab", {"project_id": gaming_id}),
+    ]
+    assert action["args"]["jobs"]["idea_lab"] == "job-3"
 
-    [failed] = _chat(api, headers, "Recherchiere Trends für Ernährung")["actions"]
-    assert failed["status"] == "failed" and "nur für Gaming" in failed["error"]
-    assert len(submitted) == 1
+    submitted.clear()
+    [food] = _chat(api, headers, "Recherchiere für Ernährung")["actions"]
+    assert food["status"] == "done"
+    assert [n for n, _ in submitted] == ["research", "idea_lab"]
+
+    projects["food"].status = ContentProjectStatus.PAUSED
+    [failed] = _chat(api, headers, "Recherchiere für Ernährung")["actions"]
+    assert failed["status"] == "failed" and "pausiert" in failed["error"]
+
+
+def test_list_ideas_in_chat(
+    api: TestClient, make_user: MakeUser, db: Session, projects: dict[str, ContentProject]
+) -> None:
+    headers = _admin(api, make_user)
+    assert "keine offenen Ideen" in _chat(api, headers, "Zeig mir die Ideen")["text"]
+    db.add(
+        Idea(
+            content_project_id=projects["food"].id, title="Meal Prep in 5 Minuten",
+            pitch="Test", format="short", trend_score=90, fit_score=70, effort_score=30,
+            rights_risk=15, score=78, reasoning="Test", provider="mock",
+        )
+    )  # fmt: skip
+    db.flush()
+    answer = _chat(api, headers, "Welche Ideen gibt es für Ernährung?")
+    assert "Meal Prep in 5 Minuten (Bewertung 78)" in answer["text"]
+    assert answer["actions"] == []
 
 
 def test_history_is_per_user(

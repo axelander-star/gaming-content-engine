@@ -101,9 +101,15 @@ TOOLS: list[dict[str, Any]] = [
     ),
     _tool(
         "start_research",
-        "Startet sofort eine Trendrecherche. Derzeit nur für den Themenbereich Gaming. "
-        "Nur für Admins.",
+        "Startet sofort Recherche und Ideenlabor für einen Themenbereich (bei Gaming "
+        "zusätzlich die Trendrecherche). Neue Ideen landen im Ideenlabor. Nur für Admins.",
         {"project": _PROJECT},
+    ),
+    _tool(
+        "list_ideas",
+        "Liest die besten offenen Ideen aus dem Ideenlabor mit Bewertung. Ändert nichts. "
+        "Leerer Text bei project bedeutet alle Themenbereiche.",
+        {"project": {"type": "string", "description": "Themenbereich oder leerer Text"}},
     ),
 ]
 
@@ -333,23 +339,51 @@ def _start_research(ctx: Context, args: dict[str, Any]) -> Outcome:
     from services.orchestrator import submit
 
     project = _active_project(ctx, args.get("project"))
-    if project.slug != DEFAULT_PROJECT_SLUG:
-        raise ToolError(f"Trendrecherche gibt es bisher nur für Gaming, nicht für {project.name}")
     if project.status != ContentProjectStatus.ACTIVE:
         raise ToolError(f"{project.name} ist pausiert")
-    spec = get_spec("trend_research")
-    if spec is None or not spec.implemented:
-        raise ToolError("Der Trend-Agent ist nicht verfügbar")
+    names = ["research", "idea_lab"]
+    if project.slug == DEFAULT_PROJECT_SLUG:
+        names.insert(0, "trend_research")
+    for name in names:
+        spec = get_spec(name)
+        if spec is None or not spec.implemented:
+            raise ToolError(f"Agent {name} ist nicht verfügbar")
     if effective_controls(ctx.session, ctx.settings).emergency_stop:
         raise ToolError("Der Not-Aus ist aktiv")
-    if not agent_control.is_enabled(ctx.session, "trend_research"):
-        raise ToolError("Der Trend-Agent ist pausiert")
+    paused = [n for n in names if not agent_control.is_enabled(ctx.session, n)]
+    if paused:
+        raise ToolError(f"Pausiert: {', '.join(paused)}")
     if ctx.redis is None:
         raise ToolError("Warteschlange nicht erreichbar")
-    job = submit("trend_research", {}, priority=True, connection=ctx.redis)
-    summary = f"Trendrecherche für {project.name} gestartet"
-    action = _record(ctx, "start_research", {**args, "job_id": job.id}, summary)
+    jobs = {}
+    for name in names:
+        payload: dict[str, Any] = {} if name == "trend_research" else {"project_id": project.id}
+        jobs[name] = submit(name, payload, priority=True, connection=ctx.redis).id
+    summary = f"Recherche und Ideenlabor für {project.name} gestartet"
+    action = _record(ctx, "start_research", {**args, "jobs": jobs}, summary)
     return Outcome(True, {"done": summary, "action_id": action.id}, summary)
+
+
+def _list_ideas(ctx: Context, args: dict[str, Any]) -> Outcome:
+    from services.ideas import top_ideas
+
+    name = str(args.get("project") or "").strip()
+    project = _active_project(ctx, name) if name and _fold(name) != "alle" else None
+    found = top_ideas(ctx.session, project.id if project else None, limit=5)
+    data = {
+        "ideas": [
+            {"id": i.id, "title": i.title, "score": i.score, "format": i.format,
+             "pitch": i.pitch[:300]}
+            for i in found
+        ]
+    }  # fmt: skip
+    where = f" für {project.name}" if project else ""
+    if not found:
+        return Outcome(True, data, f"Im Ideenlabor gibt es{where} gerade keine offenen Ideen.")
+    lines = [f"Beste offene Ideen{where}:"]
+    lines += [f"• {i.title} (Bewertung {i.score})" for i in found]
+    lines.append("Übernehmen oder verwerfen kannst du sie im Ideenlabor.")
+    return Outcome(True, data, "\n".join(lines))
 
 
 _HANDLERS = {
@@ -358,6 +392,7 @@ _HANDLERS = {
     "plan_day": _plan_day,
     "set_project_status": _set_project_status,
     "start_research": _start_research,
+    "list_ideas": _list_ideas,
 }
 
 
@@ -468,7 +503,8 @@ _HELP = (
     "• „Diese Woche GTA 6“ – Schwerpunkt setzen\n"
     "• „Mittwoch zusätzlich Ernährung“ oder „Freitag kein Gaming“ – Plan ändern\n"
     "• „Ernährung pausieren“ / „Ernährung fortsetzen“\n"
-    "• „Starte eine Trendrecherche“\n"
+    "• „Recherchiere für Ernährung“ – Recherche und Ideenlabor starten\n"
+    "• „Zeig mir die Ideen“ – beste offene Ideen\n"
     "Veröffentlichen kann ich nicht; das bleibt bei dir."
 )
 REFUSE_PUBLISH = (
@@ -556,6 +592,10 @@ def parse(session: Session, settings: Settings, text: str) -> _Parsed:
         projects = _mentioned_projects(session, sentence)
         if _PUBLISH.search(folded) or _PUBLISH.search(sentence.lower()):
             replies.append(REFUSE_PUBLISH)
+            continue
+        if re.search(r"\bideen?\b", folded) and not re.search(r"recherch", folded):
+            target = projects[0].name if projects else ""
+            calls.append(("list_ideas", {"project": target}))
             continue
         if re.search(r"recherch|trends? (such|find)", folded):
             target = projects[0].name if projects else "Gaming"

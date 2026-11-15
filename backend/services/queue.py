@@ -17,7 +17,7 @@ from rq.job import Job
 
 from core.config import get_settings
 
-QUEUE_NAMES = ("high", "default", "low")
+QUEUE_NAMES = ("high", "default", "low", "research")
 _JOB_ID_INVALID = re.compile(r"[^A-Za-z0-9_-]")
 
 

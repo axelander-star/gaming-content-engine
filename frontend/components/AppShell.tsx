@@ -27,6 +27,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/", label: "Übersicht", icon: "home" },
       { href: "/assistent", label: "Assistent", icon: "chat" },
+      { href: "/ideen", label: "Ideenlabor", icon: "bulb" },
       { href: "/themenbereiche", label: "Themenbereiche", icon: "layers" },
     ],
   },

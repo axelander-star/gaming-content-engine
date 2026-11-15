@@ -73,14 +73,14 @@ try {
     }
   });
 
-  await step("Agentenseite zeigt alle 18 Agenten", async () => {
+  await step("Agentenseite zeigt alle 20 Agenten", async () => {
     await page.getByRole("link", { name: "Agenten", exact: true }).click();
     await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
     await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
     const rows = page.locator("table").first().locator("tbody tr");
-    await rows.nth(17).waitFor();
-    assert.equal(await rows.count(), 18);
-    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 18 agents are built
+    await rows.nth(19).waitFor();
+    assert.equal(await rows.count(), 20);
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 20 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -586,6 +586,30 @@ try {
     await input.press("Enter");
     await log.getByText(/Veröffentlichen kann ich nicht/).last().waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/assistent.png`, fullPage: true });
+  });
+
+  await step("Ideenlabor: Recherche starten, Idee übernehmen", async () => {
+    await page.getByRole("link", { name: "Ideenlabor", exact: true }).click();
+    await page.getByRole("heading", { name: "Ideenlabor", level: 1 }).waitFor();
+    await page.getByText("Test: Beispiel-Feeds, kein Abruf").waitFor();
+    await page.getByRole("button", { name: "Recherche starten" }).click();
+    await page.getByText(/Recherche und Ideenlabor laufen/).waitFor();
+    const cards = page.getByRole("article", { name: /^Idee / });
+    await cards.first().waitFor({ timeout: 30000 });
+    const card = cards.first();
+    const title = (await card.getByRole("heading").textContent()).trim();
+    await card.getByText("Rechte-Risiko", { exact: true }).waitFor();
+    await card.getByText("Quellen (1)").click();
+    await card.getByRole("link").first().waitFor();
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+    await card.getByLabel("Tag im Plan (optional)").fill(today);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/ideenlabor.png`, fullPage: true });
+    await card.getByRole("button", { name: "Übernehmen" }).click();
+    await page.getByRole("article", { name: `Idee ${title}` }).waitFor({ state: "detached" });
+    await page.getByRole("tab", { name: "Übernommen" }).click();
+    await page.getByRole("article", { name: `Idee ${title}` }).getByText(/Übernommen für/).waitFor();
+    await page.getByRole("link", { name: "Assistent", exact: true }).click();
+    await page.getByRole("list", { name: "Wochenplan" }).locator(".is-today .chip").first().waitFor();
   });
 
   await step("Abmelden", async () => {
