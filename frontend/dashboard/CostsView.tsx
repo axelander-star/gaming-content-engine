@@ -6,6 +6,7 @@ import { Badge, ErrorText, PageHeader, Section, StatCard } from "@/components/ui
 import { api } from "@/lib/api";
 import type { CostSummary } from "@/lib/types";
 
+import { AIUsagePanel } from "./AIUsagePanel";
 import { BarList } from "./charts";
 
 const eur = (v: number | null | undefined, digits = 2) =>
@@ -89,6 +90,7 @@ export function CostsView() {
           aktuellen Anbieterpreise gesetzt; bis dahin zählen sie mit 0 €.
         </p>
       )}
+      <AIUsagePanel />
       <Section title="Kosten nach Bereich">
         <BarList
           title="Kosten im Monat"

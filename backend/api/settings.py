@@ -62,11 +62,19 @@ def change_controls(
 
 
 @router.patch("/operations", response_model=OperationsSettings)
-def change_operations(body: dict[str, Any], admin: Admin, db: DbSession) -> OperationsSettings:
+def change_operations(
+    body: dict[str, Any], admin: Admin, db: DbSession, settings: AppSettings
+) -> OperationsSettings:
     unknown = set(body) - set(OperationsSettings.model_fields)
     if unknown:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Unknown settings: {sorted(unknown)}"
+        )
+    cap = body.get("ai_monthly_cap_usd")
+    if isinstance(cap, int | float) and cap > settings.ai_monthly_cap_usd_max:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"AI cap above the server maximum of {settings.ai_monthly_cap_usd_max} $",
         )
     try:
         result = update_operations(db, admin.id, body)

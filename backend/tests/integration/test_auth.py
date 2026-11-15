@@ -83,7 +83,10 @@ def test_tampered_token_rejected(api: TestClient, make_user: MakeUser) -> None:
     make_user()
     login(api, "admin@example.com")
     token = api.cookies["gce_session"]
-    api.cookies.set("gce_session", token[:-2] + ("AA" if token[-2:] != "AA" else "BB"))
+    tampered = token[:-2] + ("AA" if token[-2:] != "AA" else "BB")
+    # replace, not add: with httpx2 a second cookie of the same name would be sent too
+    api.cookies.clear()
+    api.cookies.set("gce_session", tampered)
     assert api.get("/api/auth/me").status_code == 401
 
 

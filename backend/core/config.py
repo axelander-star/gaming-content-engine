@@ -111,6 +111,22 @@ class Settings(BaseSettings):
     #: Storage price per GB and month (e.g. object storage), for the cost estimate.
     storage_eur_per_gb_month: float = Field(default=0.0, ge=0)
 
+    # --- AI layer (extension phase E3) ---
+    #: Claude API key. Only in the server environment or a secrets manager, never in git.
+    anthropic_api_key: SecretStr = SecretStr("")
+    #: Hard monthly ceiling for AI calls in US dollars (operator decision 15.11.2026).
+    #: The dashboard can lower the cap, never raise it above this value.
+    ai_monthly_cap_usd_max: float = Field(default=20.0, ge=0, le=1000)
+    #: Cheap model for short texts (titles, descriptions, hooks).
+    ai_model_text: str = "claude-haiku-5-5"
+    #: Model for chat, ideas and planning.
+    ai_model_reasoning: str = "claude-sonnet-5-5"
+    #: Conversion for booking AI costs into the EUR budget; update when the rate moves.
+    eur_per_usd: float = Field(default=0.92, gt=0, le=10)
+    #: Longest prompt (characters) one call may send; keeps every call small and bounded.
+    ai_max_input_chars: int = Field(default=60_000, ge=1000, le=400_000)
+    ai_request_timeout_s: float = Field(default=60.0, gt=0, le=600)
+
     # --- PostgreSQL ---
     postgres_host: str = "localhost"
     postgres_port: int = 5432

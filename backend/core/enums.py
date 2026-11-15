@@ -161,3 +161,13 @@ class NotificationLevel(StrEnum):
     WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
+
+
+class AICallStatus(StrEnum):
+    """One call of the AI layer (extension phase E3)."""
+
+    RESERVED = "reserved"  # cost reserved under the cap, call running
+    SUCCEEDED = "succeeded"
+    REFUSED = "refused"  # the model declined (stop_reason "refusal")
+    FAILED = "failed"  # API or network error
+    BLOCKED = "blocked"  # not sent: cap, budget, switch or missing key

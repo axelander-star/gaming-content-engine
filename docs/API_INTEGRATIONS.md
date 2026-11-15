@@ -155,10 +155,22 @@ Geprüft am 14.11.2026 gegen die offizielle Dokumentation („videos.list“, �
 | Szenenerkennung | PySceneDetect, OpenCV (lokal) | – |
 | Schnitt/Export | FFmpeg (lokal) | – |
 | Transkription | lokales Whisper-Modell, falls CPU-Leistung reicht | externer Dienst |
-| Texte/Hooks/Lokalisierung | – | LLM-API (Anbieter offen) |
+| Texte/Hooks/Lokalisierung | Vorlagen (lokal) | Claude über die KI-Schicht (siehe unten) |
 | Sprachausgabe (TTS) | lokales TTS mit kommerzieller Lizenz, falls Qualität reicht | TTS-API mit kommerziellen Nutzungsrechten |
 
 Auswahl der Anbieter erfolgt erst nach Preisprüfung zum Zeitpunkt der Einrichtung (Spezifikation Abschnitt 13) und Freigabe durch den Betreiber.
+
+## KI-Schicht: Claude (Erweiterung E3)
+
+Entscheidung des Betreibers (15.11.2026): Claude, harte Obergrenze 20 $ je Monat.
+
+- **Schnittstelle:** Claude Messages API über das offizielle Python-SDK `anthropic` (≥ 2.8). Kein Browser, keine inoffiziellen Wege.
+- **Modelle:** `claude-haiku-5-5` für kurze Texte (0,10 $ / 0,50 $ je 1 Mio. Ein-/Ausgabe-Tokens, über 100.000 Prompt-Tokens 0,50 $ / 2,50 $), `claude-sonnet-5-5` für Chat, Ideen und Planung (2 $ / 10 $). Preise Stand 03.11.2026; vor der Freischaltung gegen die aktuelle Preisliste prüfen ⚠️.
+- **Sonnet-Absicherung:** Lehnt Sonnet 5.5 eine Anfrage aus Sicherheitsgründen ab, wiederholt die API sie im selben Aufruf mit `claude-sonnet-5` (Beta `server-side-fallback-2026-07-01`, gleicher Preis). Haiku hat keine solche Absicherung; eine Ablehnung wird als „abgelehnt“ gemeldet und gebucht.
+- **Aufwand:** `output_config.effort = low` als Standard (kurze Antworten, wenig Denkzeit), je Aufruf erhöhbar.
+- **Kostenkontrolle:** Vor jedem echten Aufruf wird der ungünstigste Fall (geschätzter Prompt plus alle erlaubten Ausgabe-Tokens) unter einer PostgreSQL-Sperre gegen die Monatsgrenze reserviert; danach ersetzt der echte Verbrauch die Reservierung und wird in Euro ins Budget gebucht. Jeder Aufruf steht in `ai_calls`.
+- **Freischaltung (alles nötig):** `ANTHROPIC_API_KEY` auf dem Server, `PAID_API_CALLS_ENABLED=true`, Anbieter „Claude“ in den Einstellungen, kein Not-Aus, Euro-Budget nicht erschöpft. Fehlt etwas, wird der Aufruf blockiert und protokolliert, nie still durch Testdaten ersetzt.
+- **Offen:** API-Schlüssel in der Anthropic-Konsole anlegen, dort zusätzlich ein Ausgabenlimit setzen (zweite Sicherung), Freigabe durch den Betreiber.
 
 ## Speicher
 

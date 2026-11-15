@@ -447,6 +447,20 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kosten.png`, fullPage: true });
   });
 
+  await step("KI-Schicht: Monatsgrenze sichtbar, Testaufruf im Mock-Modus kostenlos", async () => {
+    const panel = page.locator("section").filter({ hasText: "KI-Nutzung (Claude)" });
+    await panel.getByText("Test (Mock): keine Kosten").waitFor();
+    await panel.getByText(/von 20,00\s\$ Monatsgrenze/).waitFor();
+    await panel.getByText("claude-haiku-5-5").first().waitFor();
+    await panel.getByText("claude-sonnet-5-5").first().waitFor();
+    await panel.getByRole("button", { name: "KI testen" }).click();
+    await panel.getByText("Testantwort (Mock)").waitFor();
+    await panel.getByText(/\[Testantwort\] test:/).waitFor();
+    await panel.getByText("Letzte Aufrufe").click();
+    await panel.getByText("Testaufruf · claude-haiku-5-5 · Test").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/ki-nutzung.png`, fullPage: true });
+  });
+
   await step("System: Prüfungen, Datensicherung und Skalierung", async () => {
     await page.getByRole("link", { name: "System", exact: true }).click();
     await page.getByRole("heading", { name: "System", level: 1 }).waitFor();
