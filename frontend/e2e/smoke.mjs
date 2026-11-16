@@ -96,14 +96,14 @@ try {
     }
   });
 
-  await step("Agentenseite zeigt alle 23 Agenten", async () => {
+  await step("Agentenseite zeigt alle 24 Agenten", async () => {
     await page.getByRole("link", { name: "Agenten", exact: true }).click();
     await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
     await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
     const rows = page.locator("table").first().locator("tbody tr");
-    await rows.nth(21).waitFor();
-    assert.equal(await rows.count(), 23);
-    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 23 agents are built
+    await rows.nth(22).waitFor();
+    assert.equal(await rows.count(), 24);
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 24 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -757,7 +757,12 @@ try {
     const form = page.getByRole("form", { name: "Neue Kampagne" });
     await form.getByLabel("Name", { exact: true }).fill("Streamer E2E Highlights");
     await form.getByLabel("Kampagnenseite (Content Rewards)").fill("https://contentrewards.com/e2e");
-    await form.getByLabel("Themenbereich").selectOption({ label: "Gaming" });
+    // The project list may load after the first pick and reset it; pick until it sticks.
+    const ytEn = form.getByLabel(/YouTube Shorts EN \(/);
+    for (let i = 0; i < 5 && !(await ytEn.count()); i++) {
+      await form.getByLabel("Themenbereich").selectOption({ label: "Gaming" });
+      await page.waitForTimeout(300);
+    }
     await form.getByLabel("$ pro 1.000 Aufrufe").fill("1,5");
     await form.getByLabel("Pflicht-Hashtags").fill("#StreamerE2E");
     await form.getByLabel(/YouTube Shorts EN \(/).check();
@@ -871,6 +876,49 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/hinweise.png` });
     await page.keyboard.press("Escape");
     await panel.waitFor({ state: "detached" });
+  });
+
+  await step("Redaktionsplan: feste Regel, eigener Termin; Konkurrenz-Radar prüfen", async () => {
+    await page.getByRole("link", { name: "Redaktionsplan", exact: true }).click();
+    await page.getByRole("heading", { name: "Redaktionsplan", level: 1 }).waitFor();
+    await page.getByRole("tab", { name: "Woche" }).click();
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+    const weekday = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7; // 0 = Monday
+    const names = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+    const ruleForm = page.getByRole("form", { name: "Neue Regel" });
+    await ruleForm.getByLabel("Themenbereich").selectOption({ label: "Gaming" });
+    await ruleForm.getByLabel("Wochentag").selectOption({ label: names[weekday] });
+    await ruleForm.getByRole("button", { name: "Regel anlegen" }).click();
+    await page
+      .getByRole("list", { name: "Feste Regeln" })
+      .getByText(`jeden ${names[weekday]}: Gaming`)
+      .waitFor();
+    await page.getByRole("button", { name: "Eintrag Gaming (Regel)" }).first().waitFor();
+
+    const evForm = page.getByRole("form", { name: "Eigener Termin" });
+    await evForm.getByLabel("Termin").fill("E2E Uhrenmesse");
+    await evForm.getByLabel("Datum").fill(today);
+    await evForm.getByRole("button", { name: "Termin eintragen" }).click();
+    await page.locator(".cal-grid .cal-event", { hasText: "E2E Uhrenmesse" }).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/redaktionsplan-regeln.png`, fullPage: true });
+
+    await page.getByRole("link", { name: "Konkurrenz-Radar", exact: true }).click();
+    await page.getByRole("heading", { name: "Konkurrenz-Radar", level: 1 }).waitFor();
+    const form = page.getByRole("form", { name: "Kanal beobachten" });
+    await form.getByLabel("Themenbereich").selectOption({ label: "Gaming" });
+    await form.getByLabel("YouTube-Kanal").fill("https://www.youtube.com/@e2ekanal");
+    await form.getByRole("button", { name: "Beobachten" }).click();
+    await page.getByRole("list", { name: "Beobachtete Kanäle" }).getByText("@e2ekanal").first().waitFor();
+    await page.getByRole("button", { name: "Jetzt prüfen" }).click();
+    await page.getByText(/Prüfung gestartet/).waitFor();
+    const standouts = page.getByRole("list", { name: "Auffällige Videos" });
+    for (let i = 0; i < 30 && !(await standouts.count()); i++) {
+      await page.waitForTimeout(1000);
+      await page.reload();
+      await page.getByRole("heading", { name: "Konkurrenz-Radar", level: 1 }).waitFor();
+    }
+    await standouts.getByText("Im Ideenlabor").first().waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/konkurrenz.png`, fullPage: true });
   });
 
   await step("Abmelden", async () => {

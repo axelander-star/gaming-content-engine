@@ -61,6 +61,8 @@ import type {
   CalendarFocus,
   ChatAction,
   ChatAttachment,
+  CompetitorChannel,
+  CompetitorRadar,
   Idea,
   IdeaStatus,
   LibraryInfo,
@@ -69,6 +71,8 @@ import type {
   LibraryOrigin,
   LibraryStatus,
   NotificationList,
+  Occasion,
+  PlanRule,
   Production,
   PushSettings,
   ProductionInput,
@@ -269,6 +273,29 @@ export const api = {
     note?: string | null;
   }) => request<CalendarFocus>("/planning/focus", { method: "POST", body: json(body) }),
   deleteFocus: (id: number) => request<void>(`/planning/focus/${id}`, { method: "DELETE" }),
+  planRules: () => request<PlanRule[]>("/planning/rules"),
+  addPlanRule: (body: { project_id: number; weekday: number; every_weeks?: number }) =>
+    request<PlanRule>("/planning/rules", { method: "POST", body: json(body) }),
+  deletePlanRule: (id: number) => request<void>(`/planning/rules/${id}`, { method: "DELETE" }),
+  occasions: (start: string, end: string) =>
+    request<Occasion[]>(`/planning/events?start=${start}&end=${end}`),
+  addOccasion: (body: {
+    name: string;
+    day: string;
+    languages: string[];
+    project_id?: number | null;
+  }) => request<Occasion>("/planning/events", { method: "POST", body: json(body) }),
+  deleteOccasion: (id: number) => request<void>(`/planning/events/${id}`, { method: "DELETE" }),
+  competitorRadar: (projectId?: number) =>
+    request<CompetitorRadar>(`/competitors${projectId ? `?project_id=${projectId}` : ""}`),
+  addCompetitor: (projectId: number, handle: string) =>
+    request<CompetitorChannel>("/competitors", {
+      method: "POST",
+      body: json({ project_id: projectId, handle }),
+    }),
+  removeCompetitor: (id: number) => request<void>(`/competitors/${id}`, { method: "DELETE" }),
+  runCompetitorRadar: () =>
+    request<{ job_id: string | null }>("/competitors/run", { method: "POST" }),
 
   libraryInfo: () => request<LibraryInfo>("/library/info"),
   library: (

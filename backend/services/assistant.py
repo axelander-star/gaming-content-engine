@@ -94,6 +94,29 @@ TOOLS: list[dict[str, Any]] = [
         },
     ),
     _tool(
+        "weekly_rule",
+        "Legt eine wiederkehrende Planung an (add), z. B. jeden Donnerstag Uhren, oder "
+        "beendet sie (remove). Der Plan füllt sich dann für die nächsten vier Wochen "
+        "selbst. Andere Bereiche dürfen an dem Tag trotzdem posten. Meldet fehlende "
+        "Kanäle des Bereichs.",
+        {
+            "project": _PROJECT,
+            "weekday": {
+                "type": "string",
+                "enum": [
+                    "montag",
+                    "dienstag",
+                    "mittwoch",
+                    "donnerstag",
+                    "freitag",
+                    "samstag",
+                    "sonntag",
+                ],
+            },
+            "change": {"type": "string", "enum": ["add", "remove"]},
+        },
+    ),
+    _tool(
         "set_project_status",
         "Pausiert einen Themenbereich oder setzt ihn fort. Pausierte Bereiche produzieren "
         "und veröffentlichen nichts. Nur für Admins.",
@@ -311,6 +334,70 @@ def _plan_day(ctx: Context, args: dict[str, Any]) -> Outcome:
     raise ToolError("change muss add oder remove sein")
 
 
+def _missing_channels(ctx: Context, project: ContentProject) -> str:
+    from services import channel_setup
+
+    missing = channel_setup.coverage(ctx.session, project).missing
+    if not missing:
+        return ""
+    label = {"youtube": "YouTube", "tiktok": "TikTok", "instagram": "Instagram"}
+    names = ", ".join(
+        f"{label.get(s.platform.value, s.platform.value)} ({s.language.value.upper()})"
+        for s in missing
+    )
+    return (
+        f" Für {project.name} fehlen noch Kanäle: {names}. Im Kanal-Assistenten bereite ich "
+        "Name, Bio, Bilder und E-Mail mit einem Klick vor."
+    )
+
+
+def _weekly_rule(ctx: Context, args: dict[str, Any]) -> Outcome:
+    from models.planning import PlanRule
+    from services import plan_rules
+
+    project = _active_project(ctx, args.get("project"))
+    weekday = _WEEKDAYS.get(_fold(str(args.get("weekday") or "")))
+    if weekday is None:
+        raise ToolError("Unbekannter Wochentag")
+    day_name = planning.WEEKDAYS_DE[weekday]
+    if args.get("change") == "remove":
+        rule = ctx.session.scalar(
+            select(PlanRule).where(
+                PlanRule.content_project_id == project.id,
+                PlanRule.weekday == weekday,
+                PlanRule.active.is_(True),
+            )
+        )
+        if rule is None:
+            text = f"Es gibt keine Regel „jeden {day_name}: {project.name}“"
+            return Outcome(True, {"unchanged": text}, text)
+        removed = plan_rules.stop(ctx.session, ctx.settings, rule)
+        summary = f"Regel „jeden {day_name}: {project.name}“ beendet ({removed} Tage entfernt)"
+        action = _record(ctx, "weekly_rule", args, summary, entity=("plan_rules", rule.id))
+        return Outcome(True, {"done": summary, "action_id": action.id}, summary)
+    if args.get("change") != "add":
+        raise ToolError("change muss add oder remove sein")
+    if project.status != ContentProjectStatus.ACTIVE:
+        raise ToolError(f"{project.name} ist pausiert; erst fortsetzen, dann planen")
+    rule, created = plan_rules.create(
+        ctx.session, ctx.settings, project, weekday, user_id=ctx.user.id
+    )
+    hint = _missing_channels(ctx, project)
+    if not created:
+        text = f"Die Regel „jeden {day_name}: {project.name}“ gibt es schon.{hint}"
+        return Outcome(True, {"unchanged": text}, text)
+    summary = f"Ab jetzt jeden {day_name} {project.name}: für vier Wochen eingeplant"
+    action = _record(
+        ctx, "weekly_rule", args, summary, undoable=True,
+        undo={"rule_id": rule.id}, entity=("plan_rules", rule.id),
+    )  # fmt: skip
+    data: dict[str, Any] = {"done": summary, "action_id": action.id}
+    if hint:
+        data["missing_channels"] = hint.strip()
+    # The action card shows the summary; the hint about channels goes into the answer.
+    return Outcome(True, data, hint.strip())
+
+
 def _set_project_status(ctx: Context, args: dict[str, Any]) -> Outcome:
     project = _active_project(ctx, args.get("project"))
     try:
@@ -390,6 +477,7 @@ _HANDLERS = {
     "get_overview": _get_overview,
     "set_focus": _set_focus,
     "plan_day": _plan_day,
+    "weekly_rule": _weekly_rule,
     "set_project_status": _set_project_status,
     "start_research": _start_research,
     "list_ideas": _list_ideas,
@@ -457,6 +545,17 @@ def undo(session: Session, settings: Settings, user: User, action_id: int) -> Ch
                     created_by_user_id=user.id,
                 )
             )
+    elif action.tool == "weekly_rule":
+        from models.planning import PlanRule
+        from services import plan_rules
+
+        rule = session.get(PlanRule, data.get("rule_id"))
+        if rule is not None and rule.active:
+            plan_rules.stop(session, settings, rule)
+            for entry in session.scalars(
+                select(EditorialDay).where(EditorialDay.rule_id == rule.id)
+            ):
+                session.delete(entry)
     elif action.tool == "set_project_status":
         project = session.get(ContentProject, data.get("project_id"))
         if project is None:
@@ -502,6 +601,7 @@ _HELP = (
     "• „Status“ – Überblick über Themenbereiche und Plan\n"
     "• „Diese Woche GTA 6“ – Schwerpunkt setzen\n"
     "• „Mittwoch zusätzlich Ernährung“ oder „Freitag kein Gaming“ – Plan ändern\n"
+    "• „Jeden Donnerstag Uhren“ – feste Regel, der Plan füllt sich selbst\n"
     "• „Ernährung pausieren“ / „Ernährung fortsetzen“\n"
     "• „Recherchiere für Ernährung“ – Recherche und Ideenlabor starten\n"
     "• „Zeig mir die Ideen“ – beste offene Ideen\n"
@@ -612,6 +712,26 @@ def parse(session: Session, settings: Settings, text: str) -> _Parsed:
                 replies.append("Welchen Themenbereich soll ich fortsetzen?")
             for p in projects:
                 calls.append(("set_project_status", {"project": p.name, "status": "active"}))
+            continue
+        every = re.search(
+            r"\b(jeden|jede|immer|ab jetzt)\b.*?\b(montag|dienstag|mittwoch|donnerstag|freitag|"
+            r"samstag|sonntag)s?\b|\b(montag|dienstag|mittwoch|donnerstag|freitag|samstag|"
+            r"sonntag)s\b",
+            folded,
+        )
+        if every and projects:
+            word = every.group(2) or every.group(3)
+            change = "remove" if _REMOVE.search(folded) else "add"
+            for p in projects:
+                calls.append(
+                    ("weekly_rule", {"project": p.name, "weekday": word, "change": change})
+                )
+            continue
+        if every:
+            replies.append(
+                "Diesen Themenbereich kenne ich noch nicht. Leg ihn unter Themenbereiche an "
+                "(z. B. „Uhren“), dann plane ich ihn fest ein und prüfe die Kanäle."
+            )
             continue
         days = _days_in(sentence, today)
         if days and projects:
@@ -784,6 +904,8 @@ def _mock_answer(ctx: Context, text: str) -> str:
         outcome = run_tool(ctx, name, args)
         if len(ctx.actions) > before:
             carded += 1  # the action card already says what happened
+            if outcome.data.get("missing_channels"):
+                lines.append(str(outcome.data["missing_channels"]))
             continue
         lines.append(outcome.text if outcome.ok else f"Nicht ausgeführt: {outcome.text}")
     lines.extend(parsed.replies)

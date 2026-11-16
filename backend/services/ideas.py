@@ -133,13 +133,34 @@ def _focus_topics(session: Session, settings: Settings, project_id: int) -> list
     ]
 
 
-def _prompt(project: ContentProject, items: list[ResearchItem], focus: list[str], n: int) -> str:
+def _occasions(session: Session, settings: Settings, project: ContentProject) -> list[str]:
+    """Holidays and events coming up that fit the area's languages (Ausbau A5)."""
+    from services import events
+
+    today = planning.today(settings)
+    langs = {str(x) for x in project.languages or ["de"]}
+    return [
+        events.describe(o, today)
+        for o in events.upcoming(session, today, 30, project_id=project.id)
+        if langs & set(o.languages)
+    ][:6]
+
+
+def _prompt(
+    project: ContentProject,
+    items: list[ResearchItem],
+    focus: list[str],
+    n: int,
+    occasions: list[str] | None = None,
+) -> str:
     lines = [
         f"Themenbereich: {project.name}",
         f"Unterthemen: {', '.join(map(str, project.subtopics or [])) or '–'}",
         f"Zielgruppe: {project.audience or '–'}",
         f"Tonalität: {project.tone or '–'}",
         f"Schwerpunkte gerade: {', '.join(focus) or 'keine'}",
+        "Anlässe bald (nur nutzen, wenn es zum Thema passt): "
+        + (", ".join(occasions or []) or "keine"),
         f"Schlage bis zu {n} Ideen vor, Schwerpunkte zuerst.",
         "<eintraege>",
     ]
@@ -220,6 +241,7 @@ def draft(
     if not items:
         return DraftResult(project.name, 0, [], 0, ai.selected_provider(session), None)
     focus = _focus_topics(session, settings, project.id)
+    occasions = _occasions(session, settings, project)
     by_id = {i.id: i for i in items}
     project_id, project_name = project.id, project.name
     subtopics = [str(s) for s in project.subtopics or []]
@@ -229,7 +251,7 @@ def draft(
         ai.AIRequest(
             purpose="ideas",
             tier="reasoning",
-            messages=[ai.AIMessage("user", _prompt(project, items, focus, n))],
+            messages=[ai.AIMessage("user", _prompt(project, items, focus, n, occasions))],
             system=SYSTEM,
             max_tokens=2500,
             mock=lambda _req: _mock_answer(items, focus, n),

@@ -1023,6 +1023,31 @@ export interface CalendarEntry {
   project_id: number;
   project: string;
   note: string | null;
+  from_rule: boolean;
+}
+
+export interface Occasion {
+  day: string;
+  name: string;
+  kind: "holiday" | "occasion" | "own";
+  languages: string[];
+  lead_days: number;
+  id: number | null;
+  project_id: number | null;
+  note: string | null;
+  ends_on: string | null;
+}
+
+export interface PlanRule {
+  id: number;
+  project_id: number;
+  project: string;
+  weekday: number;
+  every_weeks: number;
+  label: string;
+  starts_on: string;
+  note: string | null;
+  skipped: number;
 }
 
 export interface CalendarVideo {
@@ -1042,6 +1067,7 @@ export interface CalendarDay {
   is_today: boolean;
   entries: CalendarEntry[];
   videos: CalendarVideo[];
+  events: Occasion[];
 }
 
 export interface CalendarFocus {
@@ -1550,4 +1576,41 @@ export interface PushSettings {
   quiet_start: number;
   quiet_end: number;
   timezone: string;
+}
+
+// --- competitor radar (A5) ---
+
+export interface CompetitorChannel {
+  id: number;
+  project_id: number;
+  project: string;
+  handle: string;
+  name: string | null;
+  url: string;
+  last_checked_at: string | null;
+  last_error: string | null;
+  videos: number;
+  standouts: number;
+}
+
+export interface CompetitorVideo {
+  id: number;
+  competitor_id: number;
+  channel: string;
+  project_id: number;
+  title: string;
+  url: string | null;
+  published_at: string | null;
+  views: number;
+  likes: number | null;
+  comments: number | null;
+  outlier: number | null;
+  is_mock: boolean;
+  in_idea_lab: boolean;
+}
+
+export interface CompetitorRadar {
+  live: boolean;
+  competitors: CompetitorChannel[];
+  standouts: CompetitorVideo[];
 }

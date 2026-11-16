@@ -8,9 +8,10 @@ from models.campaigns import Campaign, CampaignSubmission
 from models.channel_setup import ChannelSetupTask
 from models.channels import Channel, ChannelCredential, Platform
 from models.comments import Comment
+from models.competitors import Competitor, CompetitorVideo
 from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.library import LibraryItem, OwnProduction
-from models.planning import ContentFocus, EditorialDay
+from models.planning import CalendarEvent, ContentFocus, EditorialDay, PlanRule
 from models.production import (
     Clip,
     GameplayFile,
@@ -45,6 +46,7 @@ __all__ = [
     "AnalyticsSnapshot",
     "Asset",
     "AuditLog",
+    "CalendarEvent",
     "Campaign",
     "CampaignSubmission",
     "Channel",
@@ -55,6 +57,8 @@ __all__ = [
     "ChatMessage",
     "Clip",
     "Comment",
+    "Competitor",
+    "CompetitorVideo",
     "ContentFocus",
     "ContentProject",
     "Cost",
@@ -70,6 +74,7 @@ __all__ = [
     "Metric",
     "Notification",
     "OwnProduction",
+    "PlanRule",
     "Platform",
     "Post",
     "PublisherPolicy",
