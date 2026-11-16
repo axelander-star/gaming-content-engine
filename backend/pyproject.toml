@@ -24,6 +24,7 @@ dependencies = [
     "cryptography>=50,<51",  # 46.x has known advisories (pip-audit, Phase 15)
     "anthropic>=2.8,<3",  # Claude API (extension phase E3); used only in live AI mode
     "defusedxml>=0.7,<1",  # safe RSS/Atom parsing (extension phase E5)
+    "piper-tts>=1.8,<2",  # local voice (decision 16.11.2026); GPL-3.0, runs as own process
 ]
 
 [project.optional-dependencies]

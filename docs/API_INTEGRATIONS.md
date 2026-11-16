@@ -93,6 +93,12 @@ Geprüft am 14.11.2026 gegen die offizielle Dokumentation (Seiten „videos.inse
   4. Im Dashboard unter Einstellungen → Kanäle „Mit YouTube verbinden“ (nur Admin) und mit einem **privaten Testkanal** anmelden.
   5. Echte Uploads erst, wenn zusätzlich `PUBLISHING_MODE=live`, `AUTO_PUBLISH_ENABLED=true`, der Schalter im Dashboard und die ausdrückliche Freigabe des Betreibers vorliegen.
 
+### YouTube: mehrere Kanäle (16.11.2026)
+
+- Jeder Kanal im Dashboard hat seine eigene OAuth-Verbindung (`channel_credentials` je Kanal). So lassen sich mehrere YouTube-Kanäle ansteuern, z. B. einer je Themenbereich.
+- Die Anmeldung fragt mit `prompt=consent select_account` nach dem Konto bzw. Brand-Kanal, damit beim zweiten Kanal nicht automatisch das erste Konto genommen wird.
+- Dasselbe Plattform-Konto (gleiche Kanal- bzw. Konto-ID) kann nur an **einem** Kanal hängen; die Rückleitung lehnt eine zweite Verbindung ab (`?youtube=in_use`). Das gilt für alle Plattformen und verhindert, dass zwei Themenbereiche auf denselben echten Kanal posten.
+
 ### TikTok
 
 Geprüft am 14.11.2026 gegen die offizielle Dokumentation (developers.tiktok.com: „Content Posting API – Get Started“, „Direct Post“, „Query Creator Info“, „Get Post Status“, „Media Transfer Guide“, „OAuth User Access Token Management“, „Login Kit for Web“, „Rate Limits“, „Error Handling“):

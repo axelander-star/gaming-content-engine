@@ -1082,6 +1082,9 @@ export interface LibraryItem {
   note: string | null;
   error_message: string | null;
   archived: boolean;
+  /** false once the original was removed after the retention period */
+  has_original: boolean;
+  original_deleted_at: string | null;
   created_at: string;
 }
 
@@ -1089,6 +1092,8 @@ export interface LibraryInfo {
   rights_statement: string;
   allowed_types: Record<string, string>;
   max_rendition_s: number;
+  /** originals of uploaded videos are deleted after this many days (0 = never) */
+  original_retention_days: number;
 }
 
 export type ProductionStatus = "draft" | "queued" | "rendering" | "done" | "failed";

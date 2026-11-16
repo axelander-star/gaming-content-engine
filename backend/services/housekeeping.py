@@ -38,7 +38,7 @@ from models.library import LibraryItem
 
 _URI = re.compile(r"local://([^\s\"',)\\}\]]+)")
 #: Folders below MEDIA_ROOT that cleanup never touches.
-_SKIP_TOP = {"tmp"}
+_SKIP_TOP = {"tmp", "piper-voices"}
 
 
 @dataclass

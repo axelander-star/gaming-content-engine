@@ -16,17 +16,18 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from core.config import Settings
-from core.enums import LibraryKind, LibraryOrigin, LibraryStatus
+from core.enums import LibraryKind, LibraryOrigin, LibraryStatus, VideoStatus
 from models.library import LibraryItem
-from services import media, render, storage
+from models.production import Variant
+from services import audit, media, render, storage
 
 VIDEO_TYPES = {"video/mp4": ".mp4", "video/quicktime": ".mov", "video/x-matroska": ".mkv"}
 IMAGE_TYPES = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
@@ -414,3 +415,93 @@ def usable_image(session: Session, project_id: int, item_id: int) -> LibraryItem
     if item.status != LibraryStatus.READY:
         raise LibraryError(409, f"Bild #{item_id} ist noch nicht fertig verarbeitet")
     return item
+
+
+#: Posts that may still need the file: prepared, approved, scheduled.
+_OPEN_POST = (
+    VideoStatus.QUALITY_APPROVED,
+    VideoStatus.READY_TO_PUBLISH,
+    VideoStatus.SCHEDULED,
+)
+
+
+def has_separate_rendition(item: LibraryItem) -> bool:
+    return bool(item.rendition_uri) and item.rendition_uri != item.original_uri
+
+
+def expire_originals(
+    session: Session, settings: Settings, now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """Delete originals of uploaded videos older than the retention (decision 16.11.2026).
+
+    * With a separate 9:16 version the original goes, the item stays usable for posts.
+    * Without one (already vertical, or longer than the rendition limit) the original
+      is the only file: it goes too and the item is archived, unless an open post
+      still needs it; then it waits until that post is done.
+    * A file another library row still uses (same content in another topic area)
+      is only removed once every row using it has expired.
+    """
+    days = settings.library_original_retention_days
+    if days <= 0:
+        return []
+    now = now or datetime.now(UTC)
+    cutoff = now - timedelta(days=days)
+    due = list(
+        session.scalars(
+            select(LibraryItem)
+            .where(
+                LibraryItem.kind == LibraryKind.VIDEO,
+                LibraryItem.origin == LibraryOrigin.UPLOAD,
+                LibraryItem.status != LibraryStatus.PROCESSING,
+                LibraryItem.original_deleted_at.is_(None),
+                LibraryItem.created_at <= cutoff,
+            )
+            .order_by(LibraryItem.id)
+            .with_for_update(skip_locked=True)
+        )
+    )
+    due_ids = {i.id for i in due}
+    done: list[dict[str, Any]] = []
+    for item in due:
+        keeps_post = not has_separate_rendition(item)
+        if keeps_post and session.scalar(
+            select(Variant.id).where(
+                Variant.library_item_id == item.id, Variant.status.in_(_OPEN_POST)
+            )
+        ):
+            continue
+        shared = session.scalar(
+            select(LibraryItem.id).where(
+                LibraryItem.id.not_in(due_ids),
+                LibraryItem.original_deleted_at.is_(None),
+                or_(
+                    LibraryItem.original_uri == item.original_uri,
+                    LibraryItem.rendition_uri == item.original_uri,
+                ),
+            )
+        )
+        if shared:
+            continue
+        size = 0
+        try:
+            path = storage.resolve(settings, item.original_uri)
+            if path.is_file():
+                size = path.stat().st_size
+                path.unlink()
+        except (storage.StorageError, OSError):
+            continue
+        item.original_deleted_at = now
+        if keeps_post:
+            item.rendition_uri = None
+            item.archived_at = item.archived_at or now
+        audit.record(
+            session,
+            "library.original_deleted",
+            agent="media_library",
+            entity_type="library_items",
+            entity_id=item.id,
+            after={"bytes": size, "archived": keeps_post, "retention_days": days},
+        )
+        done.append({"item_id": item.id, "bytes": size, "archived": keeps_post})
+    session.flush()
+    return done
