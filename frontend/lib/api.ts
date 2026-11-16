@@ -4,6 +4,9 @@
 
 import type {
   Agent,
+  CommentStats,
+  CommentStatus,
+  ViewerComment,
   AccountsOverview,
   RevenueEntry,
   RevenueInput,
@@ -472,6 +475,28 @@ export const api = {
   costSummary: () => request<CostSummary>("/costs/summary"),
   systemStatus: () => request<SystemStatus>("/system/status"),
 
+  // comments: drafts, replies, review
+  comments: (state?: CommentStatus) =>
+    request<ViewerComment[]>(`/comments${state ? `?state=${state}` : ""}`),
+  commentStats: () => request<CommentStats>("/comments/stats"),
+  editCommentReply: (id: number, reply_text: string) =>
+    request<ViewerComment>(`/comments/${id}/reply`, { method: "PUT", body: json({ reply_text }) }),
+  sendComment: (id: number, reply_text?: string) =>
+    request<ViewerComment>(`/comments/${id}/send`, {
+      method: "POST",
+      body: json(reply_text === undefined ? {} : { reply_text }),
+    }),
+  commentDone: (id: number) => request<ViewerComment>(`/comments/${id}/done`, { method: "POST" }),
+  ignoreComment: (id: number) =>
+    request<ViewerComment>(`/comments/${id}/ignore`, { method: "POST" }),
+  redraftComment: (id: number) =>
+    request<ViewerComment>(`/comments/${id}/redraft`, { method: "POST" }),
+  addManualComment: (channel_id: number, text: string, author?: string) =>
+    request<ViewerComment>("/comments/manual", {
+      method: "POST",
+      body: json({ channel_id, text, author: author || undefined }),
+    }),
+  runComments: () => request<{ job_id: string | null }>("/comments/run", { method: "POST" }),
   // account overview: every channel with reach, revenue and recommendation
   accounts: () => request<AccountsOverview>("/accounts"),
   revenue: (channelId?: number) =>

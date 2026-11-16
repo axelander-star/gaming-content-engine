@@ -73,14 +73,14 @@ try {
     }
   });
 
-  await step("Agentenseite zeigt alle 22 Agenten", async () => {
+  await step("Agentenseite zeigt alle 23 Agenten", async () => {
     await page.getByRole("link", { name: "Agenten", exact: true }).click();
     await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
     await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
     const rows = page.locator("table").first().locator("tbody tr");
     await rows.nth(21).waitFor();
-    assert.equal(await rows.count(), 22);
-    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 22 agents are built
+    assert.equal(await rows.count(), 23);
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 23 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -798,6 +798,26 @@ try {
     await page.getByText(/Affiliate: 12,50/).waitFor();
     await row.getByText(/^12,50\s€$/).first().waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/konten.png`, fullPage: true });
+  });
+
+  await step("Kommentare: TikTok-Kommentar einfügen, Antwort kopieren, erledigen", async () => {
+    await page.getByRole("link", { name: "Kommentare", exact: true }).click();
+    await page.getByRole("heading", { name: "Kommentare", level: 1 }).waitFor();
+    await page.getByText(/Antworten werden nur simuliert/).waitFor();
+    const form = page.getByRole("form", { name: "TikTok-Kommentar einfügen" });
+    await form.getByLabel("Kanal").selectOption({ label: "Küchenwissen E2E" });
+    await form.getByLabel("Name (optional)").fill("Lena");
+    await form.getByLabel("Kommentar").fill("Wie lange hält sich Hafer?");
+    await form.getByRole("button", { name: "Antwort vorschlagen" }).click();
+    const card = page.getByRole("article", { name: "Kommentar von Lena" });
+    await card.getByText(/TikTok hat keine Schnittstelle|Selbst eingefügt/).waitFor();
+    assert.ok((await card.getByLabel("Antwort").inputValue()).length > 5);
+    await card.getByRole("button", { name: "Antwort kopieren" }).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/kommentare.png`, fullPage: true });
+    await card.getByRole("button", { name: "Erledigt" }).click();
+    await card.waitFor({ state: "detached" });
+    await page.getByRole("tab", { name: /Beantwortet/ }).click();
+    await page.getByRole("article", { name: "Kommentar von Lena" }).waitFor();
   });
 
   await step("Abmelden", async () => {

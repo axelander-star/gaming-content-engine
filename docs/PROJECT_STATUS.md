@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A2 (Konten-Übersicht) abgeschlossen, weiter mit A3 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A3 (Kommentare) abgeschlossen, weiter mit A4 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -31,7 +31,8 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | Schritt | Inhalt | Status |
 |---|---|---|
 | A1 | Kanal-Assistent: fehlende Kanäle je Themenbereich erkennen, Name, Benutzername, Bio, Profilbild, Banner, E-Mail-Weiterleitung, Aufgabe „Kanal erstellen“ | ✅ abgeschlossen (PR #35) |
-| A2 | Konten-Übersicht für viele Konten: Reichweite, Einnahmen je Konto, Empfehlung, Vorschlag „Pausieren erwägen“ nach 90 Tagen | ✅ abgeschlossen |
+| A2 | Konten-Übersicht für viele Konten: Reichweite, Einnahmen je Konto, Empfehlung, Vorschlag „Pausieren erwägen“ nach 90 Tagen | ✅ abgeschlossen (PR #36) |
+| A3 | Kommentare: harmlose selbst beantworten (menschlicher Ton), Kritik, heikle Themen und TikTok zur Freigabe | ✅ abgeschlossen |
 
 **A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
 - Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).
@@ -51,6 +52,17 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 - „Lohnt sich am meisten“: die fünf Kanäle mit den höchsten Einnahmen plus Schätzung.
 
 **Tests:** 6 Backend-Tests (`tests/integration/test_accounts.py`: Zusammenfassung mit nur letzter Messung, Pausieren-Vorschlag, Anlaufphase/keine Beiträge/Untergrenze, Einnahmen verhindern den Vorschlag, Content-Rewards-Schätzung mit Deckel, API und Rechte), E2E-Schritt „Konten“. **Offen:** Einnahmen automatisch aus der YouTube-Analytics-API holen (braucht den zusätzlichen Zugriff `yt-analytics-monetary.readonly` und ein Partnerprogramm-Konto); bis dahin Eintrag von Hand.
+
+**A3 Kommentare** (Agent 23 „Community“, `services/comments.py`, `api/comments.py`, Seite `/kommentare`, Tabelle `comments`, Migration `9ac20b0b4565`):
+- Alle 30 Minuten (und per „Jetzt abrufen“) holt der Agent neue Kommentare zu den Beiträgen der letzten 14 Tage: YouTube über `commentThreads.list`, Instagram über `/{media-id}/comments`. Eigene Kommentare werden übersprungen.
+- Jeder Kommentar wird eingeordnet: Frage, Lob, Kritik, heikel (Politik, Gesundheit, Beleidigung, Rechtliches …), Spam, Sonstiges. Spam wird ignoriert.
+- Die Antwort schreibt die KI im Ton eines echten Kanalbetreibers: kurz (höchstens 200 Zeichen), in der Sprache des Kommentars, ohne Floskeln wie „Danke für deinen Kommentar!“, ohne Hashtags. Typische KI-Sätze werden erkannt und verworfen, dann wird neu formuliert.
+- Fragen, Lob und Sonstiges beantwortet die Engine selbst (abschaltbar mit `COMMENT_AUTO_REPLY=false`). Kritik und heikle Themen landen mit Entwurf unter „Zu prüfen“.
+- TikTok bietet keine Kommentar-Schnittstelle für normale Apps. Alexander kopiert einen TikTok-Kommentar ins Dashboard, die Engine schlägt eine Antwort vor, „Antwort kopieren“ und in der App einfügen.
+- Gesendet wird nur echt, wenn Veröffentlichen freigegeben ist und der Kanal verbunden ist; sonst wird simuliert und im Dashboard als Test markiert. Pro Lauf höchstens 10 Antworten, damit es nicht nach Bot aussieht.
+- Nach dem Update müssen YouTube- und Instagram-Kanäle einmal neu verbunden werden, weil zwei Rechte dazukommen (`youtube.force-ssl`, `instagram_business_manage_comments` bzw. `instagram_manage_comments`).
+
+**Tests:** 19 Backend-Tests (`tests/integration/test_comments.py`: Einordnung, KI-Floskeln verworfen, Entscheidungsregeln, Abruf YouTube/Instagram mit eigenem Konto übersprungen, Senden simuliert/echt, TikTok nur Kopieren, Neu formulieren, Ignorieren, API und Rechte), E2E-Schritt „Kommentare“.
 
 ## Einschub: Entscheidungen des Betreibers (16.11.2026)
 

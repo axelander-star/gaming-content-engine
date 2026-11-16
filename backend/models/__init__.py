@@ -7,6 +7,7 @@ from models.assistant import ChatAction, ChatMessage
 from models.campaigns import Campaign, CampaignSubmission
 from models.channel_setup import ChannelSetupTask
 from models.channels import Channel, ChannelCredential, Platform
+from models.comments import Comment
 from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.library import LibraryItem, OwnProduction
 from models.planning import ContentFocus, EditorialDay
@@ -52,6 +53,7 @@ __all__ = [
     "ChatAction",
     "ChatMessage",
     "Clip",
+    "Comment",
     "ContentFocus",
     "ContentProject",
     "Cost",

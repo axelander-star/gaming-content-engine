@@ -47,6 +47,8 @@ SCOPES = (
     "https://www.googleapis.com/auth/youtube.readonly",
     # statistics for Analytics (Phase 14): view duration, retention, shares
     "https://www.googleapis.com/auth/yt-analytics.readonly",
+    # read comments and post replies (A3, comments.insert)
+    "https://www.googleapis.com/auth/youtube.force-ssl",
 )
 UPLOAD_SCOPE = SCOPES[0]
 PROVIDER = "youtube"

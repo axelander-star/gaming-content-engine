@@ -48,7 +48,7 @@ GRAPH_ROOT = "https://graph.instagram.com"
 GRAPH = f"{GRAPH_ROOT}/{VERSION}"
 PROVIDER = "instagram"
 PUBLISH_SCOPE = "instagram_business_content_publish"
-SCOPES = ("instagram_business_basic", PUBLISH_SCOPE)
+SCOPES = ("instagram_business_basic", PUBLISH_SCOPE, "instagram_business_manage_comments")
 #: Renew the 60-day token when it has less than this left (and is older than 24 h).
 REFRESH_BEFORE = timedelta(days=7)
 MIN_TOKEN_AGE = timedelta(hours=24)
