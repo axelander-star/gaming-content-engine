@@ -1990,3 +1990,107 @@ details summary {
     max-width: 220px;
   }
 }
+
+/* --- clipping campaigns (Content Rewards) --- */
+.sub-list,
+.camp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.sub-card,
+.camp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sub-card p,
+.camp-card p {
+  margin: 0;
+}
+.sub-card.is-urgent {
+  border-color: var(--warn, #d29922);
+}
+.sub-card.is-overdue {
+  border-color: var(--danger, #f85149);
+}
+.sub-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sub-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.sub-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.sub-time {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.sub-card.is-urgent .sub-time {
+  color: var(--warn, #d29922);
+}
+.sub-link {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.sub-link input {
+  flex: 1;
+  min-width: 0;
+}
+.camp-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+.camp-facts dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.camp-facts dd {
+  margin: 0;
+}
+.camp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .sub-link {
+    flex-direction: column;
+  }
+  .sub-timer {
+    align-items: flex-start;
+  }
+}
+.camp-page {
+  min-width: 0;
+  max-width: 100%;
+}
+.camp-page .section,
+.camp-page .table-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+.camp-card .inline-form {
+  flex-wrap: wrap;
+}
+.camp-card input[type="file"] {
+  min-width: 0;
+  max-width: 100%;
+}

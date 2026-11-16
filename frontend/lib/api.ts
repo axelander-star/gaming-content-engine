@@ -13,6 +13,12 @@ import type {
   AgentDecision,
   AgentRun,
   Budget,
+  Campaign,
+  CampaignClip,
+  CampaignFields,
+  CampaignInput,
+  CampaignStatus,
+  CampaignSubmission,
   Channel,
   ChannelInput,
   ContentProject,
@@ -457,6 +463,44 @@ export const api = {
     request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, { method: "POST" }),
   costSummary: () => request<CostSummary>("/costs/summary"),
   systemStatus: () => request<SystemStatus>("/system/status"),
+
+  // clipping campaigns (Content Rewards)
+  campaigns: () => request<Campaign[]>("/campaigns"),
+  createCampaign: (data: CampaignInput) =>
+    request<Campaign>("/campaigns", { method: "POST", body: json(data) }),
+  updateCampaign: (id: number, changes: CampaignFields) =>
+    request<Campaign>(`/campaigns/${id}`, { method: "PATCH", body: json(changes) }),
+  setCampaignStatus: (id: number, status: CampaignStatus) =>
+    request<Campaign>(`/campaigns/${id}/status`, { method: "POST", body: json({ status }) }),
+  campaignClips: () => request<CampaignClip[]>("/campaigns/clips/list"),
+  updateCampaignClip: (
+    id: number,
+    changes: { title?: string; description?: string; hashtags?: string[] },
+  ) => request<CampaignClip>(`/campaigns/clips/${id}`, { method: "PATCH", body: json(changes) }),
+  approveCampaignClip: (id: number) =>
+    request<CampaignClip>(`/campaigns/clips/${id}/approve`, { method: "POST" }),
+  withdrawCampaignClip: (id: number) =>
+    request<CampaignClip>(`/campaigns/clips/${id}/withdraw`, { method: "POST" }),
+  discardCampaignClip: (id: number) =>
+    request<CampaignClip>(`/campaigns/clips/${id}/discard`, { method: "POST" }),
+  submissions: (done = false) =>
+    request<CampaignSubmission[]>(
+      `/campaigns/submissions/list${done ? "?done=true&limit=30" : ""}`,
+    ),
+  setSubmissionLink: (id: number, url: string) =>
+    request<CampaignSubmission>(`/campaigns/submissions/${id}/link`, {
+      method: "POST",
+      body: json({ url }),
+    }),
+  markSubmitted: (id: number) =>
+    request<CampaignSubmission>(`/campaigns/submissions/${id}/submitted`, { method: "POST" }),
+  skipSubmission: (id: number, note?: string) =>
+    request<CampaignSubmission>(`/campaigns/submissions/${id}/skip`, {
+      method: "POST",
+      body: json({ note: note ?? null }),
+    }),
+  reopenSubmission: (id: number) =>
+    request<CampaignSubmission>(`/campaigns/submissions/${id}/reopen`, { method: "POST" }),
 
   users: () => request<User[]>("/users"),
   createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>

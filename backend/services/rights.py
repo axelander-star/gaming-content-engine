@@ -19,11 +19,17 @@ from typing import Any, Literal
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from core.enums import LicenseStatus, MaterialStatus, NotificationLevel, PolicyStatus
+from core.enums import (
+    LicenseStatus,
+    MaterialStatus,
+    NotificationLevel,
+    PolicyStatus,
+    SourceType,
+)
 from models.access import Notification
 from models.production import GameplayFile
 from models.rights import Asset, Creator, License, PublisherPolicy, Source
-from services import audit, workflow
+from services import audit, campaigns, workflow
 from services.controls import get_operations
 
 Outcome = Literal["ok", "denied", "missing"]
@@ -147,12 +153,21 @@ def evaluate(session: Session, material: GameplayFile, today: date | None = None
             )
         )
 
+    # A campaign license covers only some platforms and languages; its clips go only
+    # to the campaign channels (services.campaigns.target_channels), so here one
+    # covered platform/language is enough.
+    campaign = (
+        campaigns.for_source(session, source.id) if source.type == SourceType.CAMPAIGN else None
+    )
+
     # 7. platforms
     wanted = {p.value for p in ops.platforms}
     allowed_platforms = {str(p) for p in lic.allowed_platforms or []}
     missing_platforms = sorted(wanted - allowed_platforms)
     if not allowed_platforms:
         add(Check("platforms", "missing", "Keine Plattformen in der Lizenz angegeben"))
+    elif campaign is not None:
+        add(Check("platforms", "ok", "Nur Kampagne: " + ", ".join(sorted(allowed_platforms))))
     elif missing_platforms:
         add(Check("platforms", "denied", "Nicht abgedeckt: " + ", ".join(missing_platforms)))
     else:
@@ -164,13 +179,18 @@ def evaluate(session: Session, material: GameplayFile, today: date | None = None
     missing_lang = sorted(wanted_lang - allowed_lang)
     if not allowed_lang:
         add(Check("languages", "missing", "Keine Sprachen in der Lizenz angegeben"))
+    elif campaign is not None:
+        add(Check("languages", "ok", "Nur Kampagne: " + ", ".join(sorted(allowed_lang))))
     elif missing_lang:
         add(Check("languages", "denied", "Nicht erlaubt: " + ", ".join(missing_lang)))
     else:
         add(Check("languages", "ok", "Alle Sprachfassungen erlaubt"))
 
     # 9. validity
-    if lic.valid_from and lic.valid_from > today:
+    campaign_problem = campaigns.status_problem(campaign) if campaign is not None else None
+    if campaign_problem:
+        add(Check("validity", "denied", campaign_problem))
+    elif lic.valid_from and lic.valid_from > today:
         add(Check("validity", "denied", f"Gültig erst ab {lic.valid_from.isoformat()}"))
     elif lic.valid_until and lic.valid_until < today:
         add(Check("validity", "denied", f"Abgelaufen am {lic.valid_until.isoformat()}"))

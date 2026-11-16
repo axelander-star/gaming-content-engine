@@ -4,6 +4,7 @@ from models.access import AuditLog, Notification, SystemSetting, User
 from models.ai import AICall
 from models.analytics import AnalyticsSnapshot, LearningVersion, Metric
 from models.assistant import ChatAction, ChatMessage
+from models.campaigns import Campaign, CampaignSubmission
 from models.channels import Channel, ChannelCredential, Platform
 from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.library import LibraryItem, OwnProduction
@@ -41,6 +42,8 @@ __all__ = [
     "AnalyticsSnapshot",
     "Asset",
     "AuditLog",
+    "Campaign",
+    "CampaignSubmission",
     "Channel",
     "ChannelCredential",
     "ChatAction",

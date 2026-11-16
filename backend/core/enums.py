@@ -87,6 +87,8 @@ class SourceType(StrEnum):
     PARTNER = "partner"
     CONTRACT = "contract"
     OTHER_LICENSED = "other_licensed"
+    #: Clipping campaign of a rights holder (e.g. Content Rewards); license only for it.
+    CAMPAIGN = "campaign"
 
 
 class LicenseStatus(StrEnum):
@@ -216,3 +218,19 @@ class ProductionStatus(StrEnum):
     RENDERING = "rendering"
     DONE = "done"
     FAILED = "failed"
+
+
+class CampaignStatus(StrEnum):
+    """A clipping campaign (e.g. Content Rewards) the operator takes part in."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"  # no new clips, posts already made stay
+    ENDED = "ended"  # budget used up or campaign over
+
+
+class SubmissionStatus(StrEnum):
+    """Link of a published campaign clip that the operator submits by hand."""
+
+    OPEN = "open"  # still to submit
+    SUBMITTED = "submitted"
+    SKIPPED = "skipped"  # operator decided not to submit

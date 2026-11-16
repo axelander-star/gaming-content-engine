@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 15.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E10 (Vorbereitung Hetzner) abgeschlossen, damit alle zehn Erweiterungsphasen fertig · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 16.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E10 (Vorbereitung Hetzner) abgeschlossen, damit alle zehn Erweiterungsphasen fertig · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -40,6 +40,17 @@ Alexander hat am 16.11. entschieden; umgesetzt im selben Pull Request:
 ## Einschub: private Nutzung (15.11.2026)
 
 Entscheidung des Betreibers: Die Anwendung ist ausschließlich für ihn bestimmt, kein öffentliches Produkt. Umgesetzt (ohne Deployment): Prüfung des Cloudflare-Access-Tokens im Backend (`ACCESS_GUARD=cloudflare`), Einzelbenutzer-Modus (`SINGLE_USER_MODE`), Dienst `cloudflared` (Profil `tunnel`), interner Caddy-Eingang für den Tunnel, `harden.sh --tunnel`, Warnungen in `deploy.sh`. 13 neue Tests, alle 372 Backend-Tests grün. Checkliste ohne öffentliche Website überarbeitet. Nachgezogen (15.11.): Prüfung des Zugangsschutzes ohne Blockieren der Ereignisschleife und mit 30 s Uhrentoleranz; statische Rechtstext-Seite für Google/Meta auf eigenem Caddy-Eingang `:8081` ohne Route zur Anwendung; fortsetzbarer Upload in Teilstücken (`/api/uploads`, Tabelle `upload_sessions`, Dashboard mit Fortschritt und Anhalten, 9 neue Tests, [UPLOADS.md](UPLOADS.md)). Offen: Einrichtung von Cloudflare und Server (gemeinsam, nach Prüfung durch den Betreiber), Rechtstexte lesen und `LEGAL_*` setzen. Details: [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md), [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
+
+## Einschub: Clipping-Kampagnen (Content Rewards, 16.11.2026)
+
+Auf Wunsch des Betreibers: Kampagnen von Content Rewards als lizenzierte Materialquelle. Die Engine schneidet das Kampagnenmaterial, setzt Werbehinweis und Pflicht-Hashtags, prüft die Kampagnenregeln und veröffentlicht nach Freigabe; der Betreiber reicht den Link von Hand ein (keine offizielle Clipper-API) und hakt ihn im Dashboard ab. Beschreibung: [CONTENT_REWARDS.md](CONTENT_REWARDS.md).
+
+1. **Erstellt:** Tabellen `campaigns` und `campaign_submissions` (Migration `b8643b7e945f`, Quelltyp `campaign`), `services/campaigns.py` (Kampagne als Quelle + Lizenz, Zielkanäle, Texte, Regelprüfung, Freigabe, Einreichungen mit Frist, Ertragsschätzung), `api/campaigns.py`, Dashboard-Seite **Kampagnen** mit Countdown, „Link kopieren“ und „Eingereicht ✓“.
+2. **Geändert:** Rechteprüfung (Kampagnenlizenz deckt nur ihre Plattformen/Sprachen; pausierte oder beendete Kampagne sperrt), Gameplay-Analyse (Varianten nur für Kampagnenkanäle), Qualitätskontrolle (Texte + Regelprüfung, Kampagnen-Clips warten auf Freigabe), Publishing-Agent (legt die Einreichung an), Navigation, API-Client, E2E-Test.
+3. **Tests:** 15 neue Backend-Tests (ganzer Weg vom Material bis zur Einreichung, API, ungültige Kampagnen, pausierte Kampagne); neuer E2E-Schritt.
+4. **Ergebnis:** 541 Backend-Tests bestanden (inklusive Stand von main, 95 % Abdeckung), ruff, mypy und `alembic check` ohne Befund; Frontend `typecheck` und `build` grün; E2E 27 Schritte bestanden; `verify_phase1.sh` 70/0.
+5. **Einschränkungen:** Einreichung bei Content Rewards bleibt Handarbeit; Aufrufzahlen und Ertrag je Kampagne erscheinen erst mit echten Analytics-Daten; der Strategie-Agent berücksichtigt Kampagnen noch nicht gesondert.
+6. **Nächster Schritt:** Mit der ersten echten Kampagne testen, sobald Kanäle verbunden sind; danach Ertragsanzeige und Kampagnen-Priorität im Strategie-Agenten.
 
 ## Erweiterung: KI-Content-Plattform (ab 15.11.2026)
 
