@@ -5,6 +5,7 @@ from models.ai import AICall
 from models.analytics import AnalyticsSnapshot, LearningVersion, Metric
 from models.assistant import ChatAction, ChatMessage
 from models.campaigns import Campaign, CampaignSubmission
+from models.channel_setup import ChannelSetupTask
 from models.channels import Channel, ChannelCredential, Platform
 from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.library import LibraryItem, OwnProduction
@@ -46,6 +47,7 @@ __all__ = [
     "CampaignSubmission",
     "Channel",
     "ChannelCredential",
+    "ChannelSetupTask",
     "ChatAction",
     "ChatMessage",
     "Clip",

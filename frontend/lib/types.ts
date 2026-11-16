@@ -1324,3 +1324,66 @@ export interface CampaignSubmission {
   submitted_at: string | null;
   note: string | null;
 }
+
+// --- channel assistant ---------------------------------------------------------------
+
+export type SlotState = "connected" | "added" | "prepared" | "missing";
+export type ChannelSetupStatus = "open" | "done" | "dismissed";
+export type MailAliasStatus = "not_needed" | "mock" | "created" | "failed";
+
+export interface CoverageSlot {
+  platform: PlatformCode;
+  language: Language;
+  state: SlotState;
+  channel_id: number | null;
+  channel_name: string | null;
+  task_id: number | null;
+}
+
+export interface ProjectCoverage {
+  project_id: number;
+  project: string;
+  project_status: "active" | "paused" | "archived";
+  slots: CoverageSlot[];
+  missing: number;
+}
+
+export interface ChannelSetupTask {
+  id: number;
+  content_project_id: number;
+  content_project: string;
+  platform: PlatformCode;
+  platform_label: string;
+  language: Language;
+  status: ChannelSetupStatus;
+  display_name: string;
+  handle: string;
+  alt_handles: string[];
+  handle_check: Record<string, "free" | "taken" | "unknown">;
+  bio: string;
+  bio_max: number;
+  email: string | null;
+  email_status: MailAliasStatus;
+  email_error: string | null;
+  has_avatar: boolean;
+  has_banner: boolean;
+  signup_url: string;
+  steps: string[];
+  text_source: string;
+  channel_id: number | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface MailRoutingStatus {
+  mode: "mock" | "live";
+  domain: string;
+  forward_to_set: boolean;
+  problem: string | null;
+}
+
+export interface ChannelSetupPatch {
+  display_name?: string;
+  handle?: string;
+  bio?: string;
+}

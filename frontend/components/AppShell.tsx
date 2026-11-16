@@ -34,6 +34,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/freigabe", label: "Freigabecenter", icon: "check" },
       { href: "/kampagnen", label: "Kampagnen", icon: "clock" },
       { href: "/themenbereiche", label: "Themenbereiche", icon: "layers" },
+      { href: "/kanal-assistent", label: "Kanal-Assistent", icon: "userPlus" },
     ],
   },
   {

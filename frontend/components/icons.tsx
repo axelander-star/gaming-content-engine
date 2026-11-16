@@ -28,9 +28,17 @@ export type IconName =
   | "bulb"
   | "calendar"
   | "image"
-  | "wand";
+  | "wand"
+  | "userPlus";
 
 const PATHS: Record<IconName, ReactNode> = {
+  userPlus: (
+    <>
+      <circle cx="9" cy="8" r="4" />
+      <path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7" />
+      <path d="M19 8v6M16 11h6" />
+    </>
+  ),
   home: (
     <>
       <path d="M3 10.5 12 3l9 7.5" />
