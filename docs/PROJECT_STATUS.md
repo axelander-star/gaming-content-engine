@@ -48,7 +48,7 @@ Auf Wunsch des Betreibers: Kampagnen von Content Rewards als lizenzierte Materia
 1. **Erstellt:** Tabellen `campaigns` und `campaign_submissions` (Migration `b8643b7e945f`, Quelltyp `campaign`), `services/campaigns.py` (Kampagne als Quelle + Lizenz, Zielkanäle, Texte, Regelprüfung, Freigabe, Einreichungen mit Frist, Ertragsschätzung), `api/campaigns.py`, Dashboard-Seite **Kampagnen** mit Countdown, „Link kopieren“ und „Eingereicht ✓“.
 2. **Geändert:** Rechteprüfung (Kampagnenlizenz deckt nur ihre Plattformen/Sprachen; pausierte oder beendete Kampagne sperrt), Gameplay-Analyse (Varianten nur für Kampagnenkanäle), Qualitätskontrolle (Texte + Regelprüfung, Kampagnen-Clips warten auf Freigabe), Publishing-Agent (legt die Einreichung an), Navigation, API-Client, E2E-Test.
 3. **Tests:** 15 neue Backend-Tests (ganzer Weg vom Material bis zur Einreichung, API, ungültige Kampagnen, pausierte Kampagne); neuer E2E-Schritt.
-4. **Ergebnis:** 531 Backend-Tests bestanden (95 % Abdeckung), ruff, mypy und `alembic check` ohne Befund; Frontend `typecheck` und `build` grün; E2E 27 Schritte bestanden; `verify_phase1.sh` 70/0.
+4. **Ergebnis:** 541 Backend-Tests bestanden (inklusive Stand von main, 95 % Abdeckung), ruff, mypy und `alembic check` ohne Befund; Frontend `typecheck` und `build` grün; E2E 27 Schritte bestanden; `verify_phase1.sh` 70/0.
 5. **Einschränkungen:** Einreichung bei Content Rewards bleibt Handarbeit; Aufrufzahlen und Ertrag je Kampagne erscheinen erst mit echten Analytics-Daten; der Strategie-Agent berücksichtigt Kampagnen noch nicht gesondert.
 6. **Nächster Schritt:** Mit der ersten echten Kampagne testen, sobald Kanäle verbunden sind; danach Ertragsanzeige und Kampagnen-Priorität im Strategie-Agenten.
 

@@ -1,7 +1,7 @@
 """campaigns: clipping campaigns (Content Rewards) and hand-made submissions
 
 Revision ID: b8643b7e945f
-Revises: 79004ffcd696
+Revises: 66d12af8800d
 Create Date: 2026-11-16 09:15:27.152097
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = 'b8643b7e945f'
-down_revision: str | None = '79004ffcd696'
+down_revision: str | None = '66d12af8800d'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
