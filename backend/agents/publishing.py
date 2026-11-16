@@ -48,7 +48,7 @@ from models.access import Notification
 from models.channels import Channel
 from models.production import Variant
 from models.publishing import Post, PublishingJob
-from services import platform, publishers, workflow
+from services import campaigns, platform, publishers, workflow
 from services.queue import get_redis
 from services.sources.base import QuotaExceededError
 
@@ -173,6 +173,8 @@ class PublishingAgent(Agent):
         job.last_error = None
         if variant.status == VideoStatus.SCHEDULED:
             workflow.transition(s, variant, VideoStatus.PUBLISHED, actor=ACTOR)
+        # Campaign clip: the operator submits the link by hand within the window.
+        submission = campaigns.on_published(s, variant, post)
         info = {
             "variant_id": variant.id,
             "job_id": job.id,
@@ -182,6 +184,7 @@ class PublishingAgent(Agent):
             "mock": post.is_mock,
             "privacy": privacy,
             "resumed": resumed,
+            "campaign_submission_id": submission.id if submission else None,
         }
         ctx.decide(
             "published",

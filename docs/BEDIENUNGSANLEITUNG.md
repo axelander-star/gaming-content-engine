@@ -86,6 +86,16 @@ Hier wird aus einem fertigen Video ein Beitrag je Kanal. **Ohne deine Freigabe g
 5. Wann er erscheint, entscheidet der Strategie-Agent je Kanal (Menge und Uhrzeit sind nicht fest eingestellt).
 6. **Freigabe zurückziehen** geht auch, wenn der Beitrag schon eingeplant ist; der Auftrag wird dann storniert. Nicht freigegebene Beiträge kannst du **verwerfen**.
 
+### Kampagnen
+
+Clipping-Kampagnen von Content Rewards: Die Engine schneidet das Material der Kampagne, prüft die Regeln und veröffentlicht nach deiner Freigabe. Den Link reichst du selbst ein. Details: [CONTENT_REWARDS.md](CONTENT_REWARDS.md).
+
+1. **Neue Kampagne:** Werte aus der Kampagnenbeschreibung übernehmen, die bei Content Rewards verbundenen Kanäle ankreuzen und bestätigen, dass du die Regeln gelesen hast.
+2. In der Kampagnenkarte **Material hochladen**. Schnitt, Texte und Prüfung laufen automatisch.
+3. Unter **Clips zur Freigabe** Video ansehen, Texte prüfen, **Freigeben**. Werbehinweis und Pflicht-Hashtags setzt das System selbst.
+4. Nach dem Veröffentlichen steht der Clip unter **Jetzt einreichen** mit Countdown: **Link kopieren**, **Kampagnenseite öffnen**, dort einreichen, hier **Eingereicht ✓** drücken. Dann steht er unter **Erledigt**.
+5. Ist das Budget aufgebraucht, die Kampagne **beenden**. Danach entstehen keine neuen Clips mehr.
+
 ### Themenbereiche
 
 Bereiche und ihre Kanäle verwalten (Anlegen und Ändern nur Admin).

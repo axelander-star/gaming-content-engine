@@ -17,7 +17,10 @@ can be planned for publishing:
 
 Blocking findings reject the variant regardless of the score; the others lower
 the score, which must reach the operator's ``min_quality_score``. Approved
-variants move on to ``READY_TO_PUBLISH``; rejected ones go to ``QUALITY_REJECTED``
+variants move on to ``READY_TO_PUBLISH`` (clips of a clipping campaign stay at
+``QUALITY_APPROVED`` until a person approves them, after their texts got the
+campaign's disclosure and hashtags and the campaign rules were checked);
+rejected ones go to ``QUALITY_REJECTED``
 with their reasons and a notification for the operator.
 """
 
@@ -43,7 +46,7 @@ from models.production import (
     Variant,
     Voiceover,
 )
-from services import gates, media, quality, storage, workflow
+from services import campaigns, gates, media, quality, storage, workflow
 from services.controls import get_operations
 from services.quality import Check
 from services.voice import Segment
@@ -74,6 +77,10 @@ class QualityControlAgent(Agent):
 
         checks: list[Check] = []
         measured: dict[str, Any] = {}
+        campaign = campaigns.for_variant(s, variant)
+        if campaign is not None:
+            # Disclosure and hashtags of the brief belong in the text before the checks.
+            campaigns.apply_texts(campaign, variant)
         probe = _technical(settings, variant, checks)
         if probe is not None:
             measured["probe"] = probe.as_dict()
@@ -81,6 +88,9 @@ class QualityControlAgent(Agent):
             checks += _picture_and_sound(settings, variant, probe, measured)
         checks += _rights_voice_subtitles(s, variant)
         checks += _duplicates(s, variant, clip)
+        if campaign is not None:
+            duration = (measured.get("probe") or {}).get("duration_s")
+            checks += campaigns.rule_checks(s, campaign, variant, duration)
 
         score = quality.score(checks)
         minimum = get_operations(s).min_quality_score
@@ -108,7 +118,11 @@ class QualityControlAgent(Agent):
         if passed:
             workflow.transition(s, variant, VideoStatus.QUALITY_APPROVED, actor="quality_control")
             s.flush()
-            workflow.transition(s, variant, VideoStatus.READY_TO_PUBLISH, actor="quality_control")
+            if campaign is None:
+                workflow.transition(
+                    s, variant, VideoStatus.READY_TO_PUBLISH, actor="quality_control"
+                )
+            # A campaign clip waits for the operator's approval (Kampagnen page).
         else:
             workflow.transition(s, variant, VideoStatus.QUALITY_REJECTED, actor="quality_control")
             s.add(

@@ -7,7 +7,8 @@ Works on rights-approved material (``RIGHTS_APPROVED``):
 3. selection of the best scenes (score at least ``MIN_SCENE_SCORE``, at most
    ``MAX_CLIPS_PER_MATERIAL``) with start and end snapped to shot boundaries,
 4. for every selected scene one clip and one variant per language, which the
-   Clip Production Agent renders next (``SCENE_SELECTED``).
+   Clip Production Agent renders next (``SCENE_SELECTED``). Material of a
+   clipping campaign gets one variant per campaign channel instead.
 
 The material then moves to ``ANALYZED``. A file that fails the technical check
 is marked FAILED without automatic retries; the operator has to replace it.
@@ -27,7 +28,7 @@ from core.enums import Language, MaterialStatus, NotificationLevel
 from models.access import Notification
 from models.channels import Channel
 from models.production import Clip, GameplayFile, Scene, Variant
-from services import analysis, media, storage, workflow
+from services import analysis, campaigns, media, storage, workflow
 from services.controls import get_operations
 
 SCENES_KEPT = 10  # rated scenes stored for the dashboard, selected or not
@@ -84,6 +85,13 @@ class GameplayAnalysisAgent(Agent):
 
         selected: list[dict[str, Any]] = []
         languages = list(get_operations(s).languages)
+        # Campaign material: clips only for the channels connected to the campaign.
+        campaign = campaigns.for_material(s, material)
+        campaign_channels = (
+            campaigns.target_channels(s, campaign, material.content_project_id)
+            if campaign is not None
+            else []
+        )
         for rank, cand in enumerate(candidates, start=1):
             pick = (
                 cand.score >= settings.min_scene_score
@@ -109,8 +117,15 @@ class GameplayAnalysisAgent(Agent):
             s.add(clip)
             s.flush()
             variants = []
-            for lang in languages:
-                channel = primary_channel(s, lang, material.content_project_id)
+            targets: list[tuple[Language, Channel | None]] = (
+                [(c.language, c) for c in campaign_channels]
+                if campaign is not None
+                else [
+                    (lang, primary_channel(s, lang, material.content_project_id))
+                    for lang in languages
+                ]
+            )
+            for lang, channel in targets:
                 if channel is None:
                     continue
                 variant = Variant(

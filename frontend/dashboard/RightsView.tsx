@@ -58,6 +58,7 @@ const SOURCE_TYPES: Record<SourceType, string> = {
   partner: "Partner",
   contract: "Vertrag",
   other_licensed: "Sonstige Lizenz",
+  campaign: "Clipping-Kampagne",
 };
 const PERMISSIONS: [keyof LicenseTerms, string][] = [
   ["allows_commercial_use", "Kommerziell"],

@@ -281,7 +281,8 @@ export type SourceType =
   | "licensed_creator"
   | "partner"
   | "contract"
-  | "other_licensed";
+  | "other_licensed"
+  | "campaign";
 export type LicenseStatus = "pending" | "approved" | "rejected" | "expired" | "revoked";
 export type PolicyStatus = "permitted" | "license_required" | "forbidden";
 export type MaterialStatus =
@@ -1203,4 +1204,118 @@ export interface PostChanges {
   description?: string;
   hashtags?: string[];
   options?: Record<string, unknown>;
+}
+
+// --- Clipping campaigns (Content Rewards) -------------------------------------
+
+export type CampaignStatus = "active" | "paused" | "ended";
+
+export interface CampaignFields {
+  name?: string;
+  url?: string;
+  game_id?: number | null;
+  cpm_usd?: number | null;
+  budget_usd?: number | null;
+  min_views?: number | null;
+  max_payout_per_clip_usd?: number | null;
+  platforms?: PlatformCode[];
+  languages?: Language[];
+  channel_ids?: number[];
+  required_hashtags?: string[];
+  disclosure?: string | null;
+  required_text?: string | null;
+  min_duration_s?: number | null;
+  max_duration_s?: number | null;
+  submission_window_min?: number;
+  ends_on?: string | null;
+  brief?: string | null;
+  material_links?: string[];
+}
+
+export interface CampaignInput extends CampaignFields {
+  content_project_id: number;
+  name: string;
+  url: string;
+  platforms: PlatformCode[];
+  languages: Language[];
+  channel_ids: number[];
+  /** The brief allows edited, monetized short clips of the material (with its music). */
+  rights_confirmed: boolean;
+}
+
+export interface Campaign {
+  id: number;
+  content_project_id: number;
+  project: string;
+  source_id: number;
+  license_id: number;
+  game_id: number | null;
+  provider: string;
+  name: string;
+  url: string;
+  status: CampaignStatus;
+  cpm_usd: number | null;
+  budget_usd: number | null;
+  min_views: number | null;
+  max_payout_per_clip_usd: number | null;
+  platforms: PlatformCode[];
+  languages: Language[];
+  channel_ids: number[];
+  channels: string[];
+  required_hashtags: string[];
+  disclosure: string | null;
+  required_text: string | null;
+  min_duration_s: number | null;
+  max_duration_s: number | null;
+  submission_window_min: number;
+  ends_on: string | null;
+  brief: string | null;
+  material_links: string[];
+  materials: number;
+  clips_waiting: number;
+  submissions_open: number;
+  submissions_done: number;
+  created_at: string;
+}
+
+export interface CampaignClip {
+  id: number;
+  campaign_id: number;
+  campaign: string;
+  status: VideoStatus;
+  channel_id: number;
+  channel: string;
+  platform: PlatformCode;
+  language: Language;
+  title: string;
+  description: string;
+  hashtags: string[];
+  caption: string;
+  duration_s: number | null;
+  quality_score: number | null;
+  checks: { name: string; passed: boolean; detail: string }[];
+  problems: string[];
+  scheduled_for: string | null;
+}
+
+export type SubmissionState = "open" | "overdue" | "needs_link" | "submitted" | "skipped";
+
+export interface CampaignSubmission {
+  id: number;
+  campaign_id: number;
+  campaign: string;
+  campaign_url: string;
+  channel_id: number;
+  channel: string;
+  platform: PlatformCode;
+  title: string;
+  post_url: string | null;
+  is_mock: boolean;
+  posted_at: string | null;
+  deadline_at: string | null;
+  state: SubmissionState;
+  seconds_left: number | null;
+  late: boolean;
+  submitted_at: string | null;
+  note: string | null;
 }

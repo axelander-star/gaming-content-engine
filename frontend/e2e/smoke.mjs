@@ -727,6 +727,32 @@ try {
     await card.getByText("Wartet auf Freigabe").waitFor();
   });
 
+  await step("Kampagnen: Content-Rewards-Kampagne anlegen, pausieren, fortsetzen", async () => {
+    await page.getByRole("link", { name: "Kampagnen", exact: true }).click();
+    await page.getByRole("heading", { name: "Kampagnen", level: 1 }).waitFor();
+    await page.getByText(/Keine offenen Links/).waitFor();
+    const form = page.getByRole("form", { name: "Neue Kampagne" });
+    await form.getByLabel("Name", { exact: true }).fill("Streamer E2E Highlights");
+    await form.getByLabel("Kampagnenseite (Content Rewards)").fill("https://contentrewards.com/e2e");
+    await form.getByLabel("Themenbereich").selectOption({ label: "Gaming" });
+    await form.getByLabel("$ pro 1.000 Aufrufe").fill("1,5");
+    await form.getByLabel("Pflicht-Hashtags").fill("#StreamerE2E");
+    await form.getByLabel(/YouTube Shorts EN \(/).check();
+    const create = form.getByRole("button", { name: "Kampagne anlegen" });
+    assert.equal(await create.isDisabled(), true); // rules not confirmed yet
+    await form.getByLabel(/Ich habe die Kampagnenregeln gelesen/).check();
+    await create.click();
+    const card = page.getByRole("article", { name: "Kampagne Streamer E2E Highlights" });
+    await card.getByText("1,5 $ / 1.000 Aufrufe").waitFor();
+    await card.getByText("#ad #StreamerE2E").waitFor();
+    await card.getByRole("form", { name: "Material für Streamer E2E Highlights" }).waitFor();
+    await card.getByRole("button", { name: "Pausieren" }).click();
+    await card.getByText("Pausiert").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/kampagnen.png`, fullPage: true });
+    await card.getByRole("button", { name: "Aktivieren" }).click();
+    await card.getByText("Aktiv", { exact: true }).waitFor();
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");
