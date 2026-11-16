@@ -163,6 +163,12 @@ def _own_production() -> Agent:
     return OwnProductionAgent()
 
 
+def _community() -> Agent:
+    from agents.community import CommunityAgent
+
+    return CommunityAgent()
+
+
 def _publishing() -> Agent:
     from agents.publishing import PublishingAgent
 
@@ -241,6 +247,10 @@ _SPECS: tuple[AgentSpec, ...] = (
     AgentSpec("own_production", 22, "Own Production",
               "Macht aus Skript, Stimme, eigenen Bildern und Untertiteln ein Hochformat-Video.",
               15, CostKind.LOCAL, production=True, factory=_own_production),
+    AgentSpec("community", 23, "Community",
+              "Holt Kommentare, schreibt natürliche Antworten und beantwortet harmlose selbst; "
+              "Kritik und heikle Themen gehen zur Freigabe.", 16, CostKind.PAID,
+              factory=_community),
 )  # fmt: skip
 
 _registry: dict[str, AgentSpec] = {s.name: s for s in _SPECS}

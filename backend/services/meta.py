@@ -56,6 +56,7 @@ INSTAGRAM_SCOPES = (
     "instagram_basic",
     "instagram_content_publish",
     "instagram_manage_insights",  # statistics (Phase 14)
+    "instagram_manage_comments",  # read and answer comments (A3)
     "pages_show_list",
     "pages_read_engagement",
 )

@@ -238,6 +238,19 @@ Entscheidung des Betreibers (15.11.2026): Claude, harte Obergrenze 20 $ je Monat
 
 Geprüft am 16.11.2026 gegen [Create routing rule](https://developers.cloudflare.com/api/resources/email_routing/subresources/rules/methods/create/): nur `actions` und `matchers` sind Pflicht, `value` je Aktion ist derzeit auf eine Adresse begrenzt, Token-Recht „Email Routing Rules Write“. Der Lösch-Endpunkt ist noch nicht gegen die Seite geprüft (offener Punkt). Die Zieladresse muss einmalig in Cloudflare bestätigt sein. TikTok und Instagram bieten keine offizielle Schnittstelle zur Prüfung von Benutzernamen; die Engine fragt dort nichts ab.
 
+## Kommentare (Ausbau A3)
+
+Geprüft gegen die Anbieter-Dokumentation am 16.11.2026.
+
+| Plattform | Lesen | Antworten | Recht |
+|---|---|---|---|
+| YouTube | `GET /youtube/v3/commentThreads?part=snippet&videoId=…&maxResults=100&textFormat=plainText` (1 Einheit) | `POST /youtube/v3/comments?part=snippet` mit `snippet.parentId` und `snippet.textOriginal` (50 Einheiten) | `https://www.googleapis.com/auth/youtube.force-ssl` |
+| Instagram (Instagram-Login) | `GET graph.instagram.com/{media-id}/comments` | `POST /{comment-id}/replies` mit `message` | `instagram_business_manage_comments` |
+| Instagram (Facebook-Login) | `GET graph.facebook.com/{media-id}/comments` | `POST /{comment-id}/replies` | `instagram_manage_comments` |
+| TikTok | keine Schnittstelle für normale Apps | – | Kommentar von Hand ins Dashboard kopieren |
+
+Bestehende Verbindungen haben die neuen Rechte nicht; YouTube und Instagram einmal neu verbinden. Kontingent YouTube: je Lauf bis zu 20 Beiträge lesen (je 1 Einheit) und höchstens 10 Antworten (je 50 Einheiten), also bis zu 520 Einheiten je Lauf. Antworten fallen nur an, wenn neue Kommentare da sind. Bei vielen aktiven Kanälen das Tageskontingent (Standard 10.000) im Blick behalten und notfalls `COMMENTS_SECONDS` erhöhen.
+
 ## Speicher
 
 - **Cloudflare R2** (S3-kompatibel). Seit E8 nur für kurzlebige Video-Adressen beim Instagram-Login genutzt (`services/r2.py`, eigene SigV4-Signatur, kein SDK). Ablage der Medien sonst weiter lokal. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.

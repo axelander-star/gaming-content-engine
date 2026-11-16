@@ -1475,3 +1475,37 @@ export interface RevenueInput {
   period_end: string;
   note?: string;
 }
+
+// --- comments (A3) ---------------------------------------------------------------------
+
+export type CommentStatus = "new" | "review" | "ready" | "sent" | "ignored" | "failed";
+export type CommentKind = "question" | "praise" | "criticism" | "sensitive" | "spam" | "other";
+
+export interface ViewerComment {
+  id: number;
+  channel_id: number;
+  channel: string;
+  platform: PlatformCode;
+  post_title: string | null;
+  post_url: string | null;
+  author: string | null;
+  text: string;
+  like_count: number | null;
+  written_at: string | null;
+  kind: CommentKind;
+  status: CommentStatus;
+  review_reason: string | null;
+  reply_text: string | null;
+  reply_source: string | null;
+  reply_is_mock: boolean;
+  replied_at: string | null;
+  error: string | null;
+  is_test: boolean;
+  can_send: boolean;
+}
+
+export interface CommentStats {
+  by_status: Partial<Record<CommentStatus, number>>;
+  auto_reply: boolean;
+  live: boolean;
+}

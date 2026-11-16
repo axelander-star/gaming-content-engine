@@ -261,3 +261,23 @@ class RevenueSource(StrEnum):
     AFFILIATE = "affiliate"  # partner links in bio/description
     SPONSOR = "sponsor"  # brand deals
     OTHER = "other"
+
+
+class CommentStatus(StrEnum):
+    """A viewer comment and what happens with the reply (A3)."""
+
+    NEW = "new"  # fetched, no reply drafted yet
+    REVIEW = "review"  # draft waits for the operator (criticism, sensitive, TikTok, auto off)
+    READY = "ready"  # draft may be sent automatically on the next run
+    SENT = "sent"  # reply posted (or simulated in mock mode)
+    IGNORED = "ignored"  # spam or operator decided not to answer
+    FAILED = "failed"
+
+
+class CommentKind(StrEnum):
+    QUESTION = "question"
+    PRAISE = "praise"
+    CRITICISM = "criticism"
+    SENSITIVE = "sensitive"  # legal, health, insults, politics, money: always to the operator
+    SPAM = "spam"
+    OTHER = "other"

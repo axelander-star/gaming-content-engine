@@ -2275,3 +2275,59 @@ details summary {
   white-space: nowrap;
   border: 0;
 }
+
+/* --- comments -------------------------------------------------------------------- */
+.cm-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.cm-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.cm-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cm-text {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: 6px;
+}
+.cm-reason {
+  color: var(--warn, var(--text));
+}
+.cm-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.cm-sent {
+  margin: 6px 0 0;
+}
+.cm-manual {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.cm-manual label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+.cm-manual-text {
+  flex: 1 1 320px;
+}

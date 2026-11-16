@@ -268,6 +268,19 @@ class Settings(BaseSettings):
     production_min_segment_s: float = Field(default=2.5, gt=0)
     production_max_s: float = Field(default=180.0, gt=0)
 
+    # --- Comments (A3) ---
+    #: Answer harmless comments (questions, praise) without asking. Criticism, sensitive
+    #: topics and TikTok always go to the operator. Real replies need publishing_allowed.
+    comment_auto_reply: bool = True
+    #: Test comments under mock posts so the flow can be tried without live channels.
+    comment_mock_samples: bool = True
+    comments_seconds: int = Field(default=1800, ge=300)
+    comment_lookback_days: int = Field(default=14, ge=1, le=90)
+    comment_posts_per_run: int = Field(default=20, ge=1, le=100)  # 1 YouTube unit each
+    comment_drafts_per_run: int = Field(default=30, ge=1, le=200)
+    #: YouTube charges 50 quota units per reply; keep the per-run amount modest.
+    comment_replies_per_run: int = Field(default=10, ge=0, le=100)
+
     # --- Account overview (A2) ---
     #: Days after the first post before a channel is judged (decision 16.11.2026: 90).
     account_review_days: int = Field(default=90, ge=7, le=365)
