@@ -17,7 +17,7 @@ from types import FrameType
 from core.config import Settings, get_settings
 from core.logging import configure_logging
 from database.session import get_sessionmaker
-from services import monitoring, notify, uploads, watchdog
+from services import monitoring, notify, plan_rules, uploads, watchdog
 from services.controls import effective_controls
 from services.orchestrator import submit
 from services.queue import get_redis
@@ -50,6 +50,7 @@ class Schedule:
                 "idea_lab": settings.ideas_seconds,
                 "media_library": settings.library_sweep_seconds,
                 "community": settings.comments_seconds,
+                "competitor_radar": settings.competitor_seconds,
             }
         )
 
@@ -106,6 +107,11 @@ class Monitor:
             uploads.purge_expired(session, settings)
         if now - self.last_watch >= settings.watchdog_seconds:
             self.last_watch = now
+            try:
+                with get_sessionmaker()() as session, session.begin():
+                    plan_rules.apply(session, settings)  # the week plan fills itself
+            except Exception:
+                log.exception("plan rules failed")
             try:
                 with get_sessionmaker()() as session:
                     watchdog.scan(session, settings)

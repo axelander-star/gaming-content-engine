@@ -251,6 +251,18 @@ Geprüft gegen die Anbieter-Dokumentation am 16.11.2026.
 
 Bestehende Verbindungen haben die neuen Rechte nicht; YouTube und Instagram einmal neu verbinden. Kontingent YouTube: je Lauf bis zu 20 Beiträge lesen (je 1 Einheit) und höchstens 10 Antworten (je 50 Einheiten), also bis zu 520 Einheiten je Lauf. Antworten fallen nur an, wenn neue Kommentare da sind. Bei vielen aktiven Kanälen das Tageskontingent (Standard 10.000) im Blick behalten und notfalls `COMMENTS_SECONDS` erhöhen.
 
+## Konkurrenz-Radar (Ausbau A5)
+
+Geprüft gegen die YouTube-Data-API-Dokumentation am 16.11.2026. Nur öffentliche Daten, nur mit API-Schlüssel (kein OAuth):
+
+| Schritt | Aufruf | Kosten |
+|---|---|---|
+| Kanal finden (einmal je Kanal) | `GET /youtube/v3/channels?part=snippet,contentDetails&forHandle=@name`, Upload-Liste aus `contentDetails.relatedPlaylists.uploads` | 1 Einheit |
+| Neueste Videos | `GET /youtube/v3/playlistItems?part=contentDetails&playlistId=…&maxResults=20` | 1 Einheit |
+| Titel und Aufrufe | `GET /youtube/v3/videos?part=snippet,statistics&id=…` | 1 Einheit |
+
+Alle 12 Stunden je Kanal 2–3 Einheiten, bei 30 Kanälen also unter 200 Einheiten am Tag (Tageskontingent 10.000). Fehlermeldungen enthalten nie die URL (sie trägt den Schlüssel). TikTok und Instagram: keine offizielle Schnittstelle für Videos fremder Konten, daher nicht beobachtet.
+
 ## Push aufs Handy: ntfy (Ausbau A4)
 
 Geprüft gegen https://docs.ntfy.sh/publish/ am 16.11.2026: `POST https://ntfy.sh/<thema>` mit dem Text als Body; Kopfzeilen `Title`, `Priority` (1–5), `Tags` (Emoji-Kurzcodes), `Click` (URL beim Antippen). Nicht-ASCII in Kopfzeilen wird nach RFC 2047 kodiert (`=?UTF-8?B?…?=`), wie die Doku empfiehlt; Nachrichten über 4.096 Byte würden als Anhang verschickt, die Engine kürzt auf 3.500 Zeichen. Optionaler Zugangstoken als `Authorization: Bearer …` (für geschützte Themen; dieser Teil der Doku wurde nicht live geprüft, Standard ist ein geheimer Themenname ohne Token). Kosten: keine. Die Themen-URL ist geheim und wird nie geloggt.

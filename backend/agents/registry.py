@@ -169,6 +169,12 @@ def _community() -> Agent:
     return CommunityAgent()
 
 
+def _competitor_radar() -> Agent:
+    from agents.competitor_radar import CompetitorRadarAgent
+
+    return CompetitorRadarAgent()
+
+
 def _publishing() -> Agent:
     from agents.publishing import PublishingAgent
 
@@ -251,6 +257,10 @@ _SPECS: tuple[AgentSpec, ...] = (
               "Holt Kommentare, schreibt natürliche Antworten und beantwortet harmlose selbst; "
               "Kritik und heikle Themen gehen zur Freigabe.", 16, CostKind.PAID,
               factory=_community),
+    AgentSpec("competitor_radar", 24, "Competitor Radar",
+              "Beobachtet YouTube-Kanäle der Konkurrenz und meldet Videos, die weit über deren "
+              "Durchschnitt laufen, als Hinweis ans Ideenlabor.", 16, CostKind.FREE_API,
+              factory=_competitor_radar),
 )  # fmt: skip
 
 _registry: dict[str, AgentSpec] = {s.name: s for s in _SPECS}

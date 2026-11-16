@@ -83,6 +83,7 @@ class PlanEntry:
     project_id: int
     project: str
     note: str | None
+    rule_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -103,7 +104,9 @@ def plan_between(session: Session, start: date, end: date) -> list[PlanEntry]:
         .where(EditorialDay.day >= start, EditorialDay.day <= end)
         .order_by(EditorialDay.day, ContentProject.priority, ContentProject.id)
     ).all()
-    return [PlanEntry(d.id, d.day, d.content_project_id, name, d.note) for d, name in rows]
+    return [
+        PlanEntry(d.id, d.day, d.content_project_id, name, d.note, d.rule_id) for d, name in rows
+    ]
 
 
 def focus_between(session: Session, start: date, end: date) -> list[FocusEntry]:
@@ -158,6 +161,9 @@ def remove_day(
     )
     if existing is None:
         return None
+    from services import plan_rules
+
+    plan_rules.skip(session, existing)
     session.delete(existing)
     session.flush()
     return existing
@@ -196,18 +202,21 @@ def day_block(session: Session, day: date, project_id: int) -> str | None:
     """Why a channel of ``project_id`` gets no posts on ``day`` according to the plan.
 
     A day without any plan entry is open for every topic area. Once a day has
-    entries, only the planned topic areas post that day. The *amount* per channel
+    hand-made entries, only the planned topic areas post that day (entries from a
+    weekly rule add their area without closing the day for the others). The *amount* per channel
     is never set here; it stays with the Publishing Strategy Agent.
     """
-    names = list(
+    rows = list(
         session.execute(
-            select(EditorialDay.content_project_id, ContentProject.name)
+            select(EditorialDay.content_project_id, ContentProject.name, EditorialDay.rule_id)
             .join(ContentProject, ContentProject.id == EditorialDay.content_project_id)
             .where(EditorialDay.day == day)
             .order_by(ContentProject.priority, ContentProject.id)
         ).all()
     )
-    if not names or any(pid == project_id for pid, _ in names):
+    # Entries from weekly rules add an area to the day; only hand-made ones are exclusive.
+    names = [(pid, name) for pid, name, rule_id in rows if rule_id is None]
+    if not names or any(pid == project_id for pid, _, _ in rows):
         return None
     planned = ", ".join(name for _, name in names)
     return f"Redaktionsplan: am {format_day(day)} nur {planned}"
@@ -233,6 +242,9 @@ def move_day(
     )
     if clash is not None:
         raise PlanningError(f"Am {format_day(new_day)} ist der Bereich schon eingeplant")
+    from services import plan_rules
+
+    plan_rules.skip(session, entry)  # a weekly rule must not fill the old day again
     entry.day = new_day
     session.flush()
     return entry

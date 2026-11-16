@@ -7,7 +7,21 @@ import { useAuth } from "@/components/AuthProvider";
 import { Badge, ErrorText, PageHeader, Section } from "@/components/ui";
 import { api } from "@/lib/api";
 import { hasRole } from "@/lib/roles";
-import type { Calendar, CalendarDay, CalendarEntry, ContentProject } from "@/lib/types";
+import type {
+  Calendar,
+  CalendarDay,
+  CalendarEntry,
+  ContentProject,
+  Occasion,
+  PlanRule,
+} from "@/lib/types";
+
+const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+const OCCASION_KIND: Record<Occasion["kind"], string> = {
+  holiday: "Feiertag",
+  occasion: "Anlass",
+  own: "Eigener Termin",
+};
 
 type Mode = "week" | "month";
 
@@ -219,6 +233,21 @@ function DayCell({
           </button>
         )}
       </div>
+      {day.events.length > 0 && (
+        <div className="cal-events">
+          {day.events.map((o) => (
+            <span
+              key={`${o.kind}-${o.id ?? o.name}`}
+              className={`cal-event kind-${o.kind}`}
+              title={`${OCCASION_KIND[o.kind]} · ${o.languages.join("/").toUpperCase()}${
+                o.note ? ` · ${o.note}` : ""
+              }`}
+            >
+              {o.name}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="cal-entries">
         {day.entries.map((e) => (
           <button
@@ -226,11 +255,18 @@ function DayCell({
             type="button"
             draggable={canEdit}
             onDragStart={(ev) => ev.dataTransfer.setData("text/plain", String(e.id))}
-            className={`chip cal-entry${selected === e.id ? " is-selected" : ""}`}
-            title={e.note ?? undefined}
-            aria-label={`Eintrag ${e.project}`}
+            className={`chip cal-entry${selected === e.id ? " is-selected" : ""}${
+              e.from_rule ? " is-rule" : ""
+            }`}
+            title={e.from_rule ? `Feste Regel${e.note ? `: ${e.note}` : ""}` : (e.note ?? undefined)}
+            aria-label={`Eintrag ${e.project}${e.from_rule ? " (Regel)" : ""}`}
             onClick={() => canEdit && onSelect(e, day.day)}
           >
+            {e.from_rule && (
+              <span className="cal-rule-mark" aria-hidden="true">
+                ↻{" "}
+              </span>
+            )}
             {e.project}
             {e.note && mode === "week" ? <span className="cal-note"> · {e.note}</span> : null}
           </button>
@@ -396,6 +432,235 @@ function FocusPanel({
   );
 }
 
+function RulesPanel({
+  projects,
+  canEdit,
+  onChange,
+  onError,
+}: {
+  projects: ContentProject[];
+  canEdit: boolean;
+  onChange: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [rules, setRules] = useState<PlanRule[]>([]);
+  const [projectId, setProjectId] = useState<number | "">("");
+  const [weekday, setWeekday] = useState(3);
+  const [every, setEvery] = useState(1);
+
+  const load = useCallback(() => {
+    api
+      .planRules()
+      .then(setRules)
+      .catch((e: Error) => onError(e.message));
+  }, [onError]);
+  useEffect(load, [load]);
+
+  async function add(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (projectId === "") return;
+    try {
+      await api.addPlanRule({ project_id: projectId, weekday, every_weeks: every });
+      load();
+      onChange();
+    } catch (err) {
+      onError((err as Error).message);
+    }
+  }
+
+  async function remove(id: number) {
+    try {
+      await api.deletePlanRule(id);
+      load();
+      onChange();
+    } catch (err) {
+      onError((err as Error).message);
+    }
+  }
+
+  return (
+    <Section title="Feste Regeln">
+      <p className="muted small">
+        Zum Beispiel „jeden Donnerstag Uhren“. Der Plan füllt sich für vier Wochen im Voraus
+        selbst; andere Bereiche dürfen an dem Tag trotzdem posten. Einen einzelnen Tag
+        herausnehmen geht wie immer, er wird dann nicht neu gefüllt.
+      </p>
+      {rules.length === 0 ? (
+        <p className="muted small">Noch keine Regel.</p>
+      ) : (
+        <ul className="feed" aria-label="Feste Regeln">
+          {rules.map((r) => (
+            <li key={r.id}>
+              <div className="feed-body">
+                <div className="feed-title">↻ {r.label}</div>
+                {r.skipped > 0 && (
+                  <div className="muted small">{r.skipped} Tag(e) von Hand herausgenommen</div>
+                )}
+              </div>
+              {canEdit && (
+                <div className="row-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-small"
+                    aria-label={`Regel ${r.label} beenden`}
+                    onClick={() => void remove(r.id)}
+                  >
+                    Beenden
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canEdit && (
+        <form className="focus-form" aria-label="Neue Regel" onSubmit={add}>
+          <label>
+            Themenbereich
+            <select
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : "")}
+              required
+            >
+              <option value="">Bitte wählen</option>
+              {projects
+                .filter((p) => p.status === "active")
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Wochentag
+            <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))}>
+              {WEEKDAYS.map((w, i) => (
+                <option key={w} value={i}>
+                  {w}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Rhythmus
+            <select value={every} onChange={(e) => setEvery(Number(e.target.value))}>
+              <option value={1}>jede Woche</option>
+              <option value={2}>alle 2 Wochen</option>
+              <option value={3}>alle 3 Wochen</option>
+              <option value={4}>alle 4 Wochen</option>
+            </select>
+          </label>
+          <button type="submit" className="btn btn-ghost">
+            Regel anlegen
+          </button>
+        </form>
+      )}
+    </Section>
+  );
+}
+
+function OccasionsPanel({
+  calendar,
+  canEdit,
+  onChange,
+  onError,
+}: {
+  calendar: Calendar;
+  canEdit: boolean;
+  onChange: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [day, setDay] = useState(calendar.start);
+  const [langs, setLangs] = useState("de,en");
+  const list = calendar.days.flatMap((d) => d.events);
+
+  async function add(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    try {
+      await api.addOccasion({ name, day, languages: langs.split(",") });
+      setName("");
+      onChange();
+    } catch (err) {
+      onError((err as Error).message);
+    }
+  }
+
+  async function remove(id: number) {
+    try {
+      await api.deleteOccasion(id);
+      onChange();
+    } catch (err) {
+      onError((err as Error).message);
+    }
+  }
+
+  return (
+    <Section title="Feiertage und Termine">
+      <p className="muted small">
+        Feiertage und Anlässe wie Black Friday oder Muttertag kennt die Engine selbst (deutsch
+        und für englische Kanäle US-Termine). Das Ideenlabor schlägt rechtzeitig passende Ideen
+        vor. Eigene Termine wie Messen oder Spiele-Releases trägst du hier ein.
+      </p>
+      {list.length === 0 ? (
+        <p className="muted small">Keine Termine in diesem Zeitraum.</p>
+      ) : (
+        <ul className="feed" aria-label="Termine im Zeitraum">
+          {list.map((o) => (
+            <li key={`${o.kind}-${o.id ?? o.name}-${o.day}`}>
+              <div className="feed-body">
+                <div className="feed-title">
+                  {o.name} <span className={`cal-event kind-${o.kind}`}>{OCCASION_KIND[o.kind]}</span>
+                </div>
+                <div className="muted small">
+                  {fmtDay(o.day, { weekday: "short", day: "2-digit", month: "2-digit" })} ·{" "}
+                  {o.languages.join(" / ").toUpperCase()}
+                </div>
+              </div>
+              {canEdit && o.id !== null && (
+                <div className="row-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-small"
+                    aria-label={`Termin ${o.name} entfernen`}
+                    onClick={() => void remove(o.id as number)}
+                  >
+                    Entfernen
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canEdit && (
+        <form className="focus-form" aria-label="Eigener Termin" onSubmit={add}>
+          <label>
+            Termin
+            <input value={name} maxLength={200} onChange={(e) => setName(e.target.value)} required />
+          </label>
+          <label>
+            Datum
+            <input type="date" value={day} onChange={(e) => setDay(e.target.value)} required />
+          </label>
+          <label>
+            Sprache
+            <select value={langs} onChange={(e) => setLangs(e.target.value)}>
+              <option value="de,en">Deutsch und Englisch</option>
+              <option value="de">Deutsch</option>
+              <option value="en">Englisch</option>
+            </select>
+          </label>
+          <button type="submit" className="btn btn-ghost">
+            Termin eintragen
+          </button>
+        </form>
+      )}
+    </Section>
+  );
+}
+
 /** Editorial calendar: topic areas per day, focus topics and the planned videos (extension E6). */
 export function CalendarView() {
   const { user } = useAuth();
@@ -443,7 +708,7 @@ export function CalendarView() {
     <>
       <PageHeader
         title="Redaktionsplan"
-        description="Welcher Themenbereich an welchem Tag läuft und welche Themen Vorrang haben. Ist ein Tag verplant, posten nur dessen Bereiche; wie viel, entscheidet die Publishing-Strategie."
+        description="Welcher Themenbereich an welchem Tag läuft, feste Regeln wie „jeden Donnerstag Uhren“, Feiertage und Anlässe. Ist ein Tag von Hand verplant, posten nur dessen Bereiche; wie viel, entscheidet die Publishing-Strategie."
       />
       <div className="toolbar">
         <div className="tabs" role="tablist" aria-label="Ansicht">
@@ -531,10 +796,19 @@ export function CalendarView() {
           ))}
         </div>
       )}
+      <RulesPanel projects={projects} canEdit={canEdit} onChange={changed} onError={setError} />
       {calendar && (
         <FocusPanel
           calendar={calendar}
           projects={projects}
+          canEdit={canEdit}
+          onChange={changed}
+          onError={setError}
+        />
+      )}
+      {calendar && (
+        <OccasionsPanel
+          calendar={calendar}
           canEdit={canEdit}
           onChange={changed}
           onError={setError}
