@@ -4,6 +4,11 @@
 
 import type {
   Agent,
+  ChannelSetupPatch,
+  ChannelSetupStatus,
+  ChannelSetupTask,
+  MailRoutingStatus,
+  ProjectCoverage,
   ApprovalInfo,
   ApprovalPost,
   PostChanges,
@@ -464,6 +469,29 @@ export const api = {
   costSummary: () => request<CostSummary>("/costs/summary"),
   systemStatus: () => request<SystemStatus>("/system/status"),
 
+  // channel assistant: coverage per topic area and "create channel" tasks
+  channelCoverage: () => request<ProjectCoverage[]>("/channel-setup/coverage"),
+  channelSetupTasks: (state: ChannelSetupStatus = "open") =>
+    request<ChannelSetupTask[]>(`/channel-setup/tasks?state=${state}`),
+  mailRoutingStatus: () => request<MailRoutingStatus>("/channel-setup/mail"),
+  prepareChannels: (projectId: number) =>
+    request<ChannelSetupTask[]>("/channel-setup/prepare", {
+      method: "POST",
+      body: json({ project_id: projectId }),
+    }),
+  updateChannelSetup: (id: number, changes: ChannelSetupPatch) =>
+    request<ChannelSetupTask>(`/channel-setup/tasks/${id}`, { method: "PATCH", body: json(changes) }),
+  retryChannelSetupEmail: (id: number) =>
+    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/email`, { method: "POST" }),
+  completeChannelSetup: (id: number, handle?: string) =>
+    request<{ task: ChannelSetupTask; channel_id: number }>(`/channel-setup/tasks/${id}/complete`, {
+      method: "POST",
+      body: json(handle ? { handle } : {}),
+    }),
+  dismissChannelSetup: (id: number) =>
+    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/dismiss`, { method: "POST" }),
+  channelSetupImage: (id: number, kind: "avatar" | "banner") =>
+    `/api/channel-setup/tasks/${id}/${kind}.png`,
   // clipping campaigns (Content Rewards)
   campaigns: () => request<Campaign[]>("/campaigns"),
   createCampaign: (data: CampaignInput) =>

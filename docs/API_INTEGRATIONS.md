@@ -228,6 +228,16 @@ Entscheidung des Betreibers (15.11.2026): Claude, harte Obergrenze 20 $ je Monat
 - **Schutz:** nur `http`/`https`, keine Zugangsdaten in der Adresse, keine internen oder privaten Ziele (auch nicht nach Weiterleitung, höchstens 3), höchstens `RESEARCH_MAX_FEED_BYTES` (2 MB), Zeitlimit `HTTP_TIMEOUT_S`, XML ohne Entitäten (`defusedxml`), HTML in Texten wird entfernt.
 - **Rest-Risiko:** Zwischen Adressprüfung und Verbindung könnte ein Name umgebogen werden (DNS-Rebinding). Auf dem Server zusätzlich ausgehende Verbindungen in interne Netze per Firewall sperren (E10).
 
+## Kanal-Assistent (Ausbau A1)
+
+| Dienst | Endpunkt | Zweck | Kosten |
+|---|---|---|---|
+| Cloudflare Email Routing | `POST /client/v4/zones/{zone_id}/email/routing/rules` (Body: `matchers` `[{type: "literal", field: "to", value}]`, `actions` `[{type: "forward", value: [ziel]}]`), Antwort `result.id` (`result.tag` ist veraltet) | Weiterleitungsadresse je neuem TikTok-/Instagram-Konto | kostenlos |
+| Cloudflare Email Routing | `DELETE /client/v4/zones/{zone_id}/email/routing/rules/{rule_id}` | Adresse entfernen, wenn die Aufgabe verworfen wird | kostenlos |
+| YouTube Data API v3 | `GET /youtube/v3/channels?part=id&forHandle=@name` | Prüfen, ob ein Handle vergeben ist | 1 Kontingent-Einheit |
+
+Geprüft am 16.11.2026 gegen [Create routing rule](https://developers.cloudflare.com/api/resources/email_routing/subresources/rules/methods/create/): nur `actions` und `matchers` sind Pflicht, `value` je Aktion ist derzeit auf eine Adresse begrenzt, Token-Recht „Email Routing Rules Write“. Der Lösch-Endpunkt ist noch nicht gegen die Seite geprüft (offener Punkt). Die Zieladresse muss einmalig in Cloudflare bestätigt sein. TikTok und Instagram bieten keine offizielle Schnittstelle zur Prüfung von Benutzernamen; die Engine fragt dort nichts ab.
+
 ## Speicher
 
 - **Cloudflare R2** (S3-kompatibel). Seit E8 nur für kurzlebige Video-Adressen beim Instagram-Login genutzt (`services/r2.py`, eigene SigV4-Signatur, kein SDK). Ablage der Medien sonst weiter lokal. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.

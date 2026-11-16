@@ -753,6 +753,36 @@ try {
     await card.getByText("Aktiv", { exact: true }).waitFor();
   });
 
+  await step("Kanal-Assistent: fehlende Kanäle vorbereiten, anpassen, abschließen", async () => {
+    await page.getByRole("link", { name: "Kanal-Assistent", exact: true }).click();
+    await page.getByRole("heading", { name: "Kanal-Assistent", level: 1 }).waitFor();
+    const area = page.getByRole("article", { name: "Themenbereich Ernährung E2E" });
+    await area.getByText("Angelegt, nicht verbunden").waitFor();
+    await area.getByRole("button", { name: "2 fehlende vorbereiten" }).click();
+    await page.getByText("2 Kanäle vorbereitet.").waitFor();
+    const tiktok = page.getByRole("article", { name: "Aufgabe TikTok DE: Ernährung E2E" });
+    await tiktok.getByRole("link", { name: "Bei TikTok registrieren" }).waitFor();
+    await tiktok.getByRole("img", { name: /^Profilbild / }).waitFor();
+    await tiktok.getByLabel(/^Benutzername/).waitFor();
+    await tiktok.getByRole("button", { name: "Werte ändern" }).click();
+    const form = tiktok.getByRole("form", { name: "Werte TikTok DE: Ernährung E2E" });
+    await form.getByLabel("Name", { exact: true }).fill("Küchenwissen E2E");
+    await form.getByLabel("Benutzername", { exact: true }).fill("Küchen Wissen");
+    await form.getByRole("button", { name: "Speichern" }).click();
+    await form.waitFor({ state: "detached" });
+    assert.equal(await tiktok.getByLabel("Name", { exact: true }).inputValue(), "Küchenwissen E2E");
+    assert.equal(await tiktok.getByLabel(/^Benutzername/).inputValue(), "kuechen_wissen");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/kanal-assistent.png`, fullPage: true });
+    const insta = page.getByRole("article", { name: "Aufgabe Instagram DE: Ernährung E2E" });
+    await insta.getByText(/professionelles Konto/).waitFor({ state: "attached" });
+    await insta.getByRole("button", { name: "Nicht gebraucht" }).click();
+    await insta.waitFor({ state: "detached" });
+    await tiktok.getByRole("button", { name: "Kanal ist angelegt" }).click();
+    await page.getByText(/^Kanal angelegt\./).waitFor();
+    await tiktok.waitFor({ state: "detached" });
+    assert.equal(await area.getByText("Angelegt, nicht verbunden").count(), 2);
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");

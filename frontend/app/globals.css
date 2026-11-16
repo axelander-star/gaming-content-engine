@@ -2094,3 +2094,103 @@ details summary {
   min-width: 0;
   max-width: 100%;
 }
+
+/* --- channel assistant ---------------------------------------------------------- */
+.cs-tasks,
+.cs-coverage {
+  display: grid;
+  gap: 16px;
+}
+.cs-coverage {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.cs-task-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cs-task-head h3 {
+  margin: 0;
+}
+.cs-task-body {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 14px;
+}
+.cs-images {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cs-images figure {
+  margin: 0;
+}
+.cs-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: block;
+}
+.cs-banner {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+.cs-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.cs-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cs-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cs-copy-row {
+  display: flex;
+  gap: 8px;
+}
+.cs-copy-row input,
+.cs-copy-row textarea {
+  flex: 1;
+  min-width: 0;
+}
+.cs-steps {
+  margin-top: 12px;
+}
+.cs-steps ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+.cs-slots {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 6px;
+}
+.cs-slot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.cs-notice {
+  margin-bottom: 12px;
+}
+@media (max-width: 720px) {
+  .cs-task-body {
+    grid-template-columns: 1fr;
+  }
+}

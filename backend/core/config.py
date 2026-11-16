@@ -268,6 +268,17 @@ class Settings(BaseSettings):
     production_min_segment_s: float = Field(default=2.5, gt=0)
     production_max_s: float = Field(default=180.0, gt=0)
 
+    # --- Channel assistant: forwarding addresses for new accounts (Cloudflare Email Routing) ---
+    #: ``mock`` only proposes addresses; ``live`` creates routing rules at Cloudflare.
+    mail_routing_mode: Literal["mock", "live"] = "mock"
+    #: Domain of the addresses, e.g. ``kanalfabrik.de`` (must use Cloudflare Email Routing).
+    mail_alias_domain: str = ""
+    #: Verified destination address at Cloudflare that every alias forwards to.
+    mail_forward_to: str = ""
+    cloudflare_zone_id: str = ""
+    #: API token with the permission "Zone > Email Routing Rules > Edit" for that zone only.
+    cloudflare_api_token: SecretStr = SecretStr("")
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy URL for psycopg 3."""

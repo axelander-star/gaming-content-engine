@@ -234,3 +234,20 @@ class SubmissionStatus(StrEnum):
     OPEN = "open"  # still to submit
     SUBMITTED = "submitted"
     SKIPPED = "skipped"  # operator decided not to submit
+
+
+class ChannelSetupStatus(StrEnum):
+    """A prepared account the operator still has to create at the platform."""
+
+    OPEN = "open"  # values ready, operator has not created the account yet
+    DONE = "done"  # account created, channel added to the engine
+    DISMISSED = "dismissed"  # operator does not want this channel
+
+
+class MailAliasStatus(StrEnum):
+    """Forwarding address for a new platform account (Cloudflare Email Routing)."""
+
+    NOT_NEEDED = "not_needed"  # YouTube brand channels live under the business Google account
+    MOCK = "mock"  # test mode: address only proposed, nothing created
+    CREATED = "created"  # routing rule exists at Cloudflare
+    FAILED = "failed"

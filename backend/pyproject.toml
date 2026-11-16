@@ -25,6 +25,7 @@ dependencies = [
     "anthropic>=2.8,<3",  # Claude API (extension phase E3); used only in live AI mode
     "defusedxml>=0.7,<1",  # safe RSS/Atom parsing (extension phase E5)
     "piper-tts>=1.8,<2",  # local voice (decision 16.11.2026); GPL-3.0, runs as own process
+    "pillow>=11,<13",  # profile pictures and banners of the channel assistant
 ]
 
 [project.optional-dependencies]

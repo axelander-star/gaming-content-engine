@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 16.11.2026 · **Aktuelle Phase:** Erweiterung KI-Content-Plattform, Phase E10 (Vorbereitung Hetzner) abgeschlossen, damit alle zehn Erweiterungsphasen fertig · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A1 (Kanal-Assistent) abgeschlossen, weiter mit A2 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -23,6 +23,25 @@
 | 13 | TikTok, Instagram, Facebook | ✅ abgeschlossen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
+
+## Ausbau ab 16.11.2026 abends (Kanal-Assistent und mehr)
+
+Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolge: [AUSBAU_PLAN.md](AUSBAU_PLAN.md). Testmodus bleibt, es wird nichts echt gepostet.
+
+| Schritt | Inhalt | Status |
+|---|---|---|
+| A1 | Kanal-Assistent: fehlende Kanäle je Themenbereich erkennen, Name, Benutzername, Bio, Profilbild, Banner, E-Mail-Weiterleitung, Aufgabe „Kanal erstellen“ | ✅ abgeschlossen |
+
+**A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
+- Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).
+- „Fehlende vorbereiten“ erzeugt je Lücke eine Aufgabe: Name, Benutzername plus Ausweichnamen (nach den Zeichenregeln der Plattform), Bio in der Kanalsprache innerhalb der Längengrenze (TikTok 80, Instagram 150, YouTube 1000 Zeichen), Profilbild 800 × 800 und YouTube-Banner 2560 × 1440 (Text im sicheren Bereich 1546 × 423), lokal mit Pillow gezeichnet, Farben je Themenbereich.
+- Texte schreibt die KI (Claude Haiku, im Testmodus Mock); ist die KI gesperrt oder fehlt das Budget, kommen Vorlagentexte. Alles ist im Dashboard änderbar.
+- E-Mail: TikTok und Instagram bekommen eine Weiterleitungsadresse wie `uhren-de-tiktok@kanalfabrik.de` (Cloudflare Email Routing, Entscheidung Alexander 16.11.). YouTube braucht keine, weil der Kanal ein Brand-Kanal unter dem Geschäftskonto ist.
+- Benutzername-Prüfung nur, wo es eine offizielle Schnittstelle gibt (YouTube `channels.list forHandle`, 1 Kontingent-Einheit, nur mit `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live`). TikTok und Instagram haben dafür keine, dort zeigt die Aufgabe Ausweichnamen.
+- „Kanal ist angelegt“ legt den Kanal in der Engine an (pausiert, nicht verbunden, `max_posts_per_day = 0` wie jeder neue Kanal) und startet direkt das Verbinden per OAuth.
+- Die Engine legt nie selbst Plattform-Konten an (Nutzungsbedingungen, Telefon/Captcha).
+
+**Tests:** 17 Backend-Tests (`tests/integration/test_channel_setup.py`: Zeichenregeln, Bildgrößen, Abdeckung, Vorbereiten idempotent, KI-Antwort bereinigt, Rückfall auf Vorlage, YouTube-Prüfung über die offizielle Schnittstelle, Cloudflare-Regel anlegen und Fehler, kompletter API-Ablauf, Rechte), E2E-Schritt „Kanal-Assistent“. **Offen:** Cloudflare-Token anlegen und `MAIL_ROUTING_MODE=live` setzen (Anleitung in AUSBAU_PLAN.md); der echte Cloudflare-Aufruf ist nur gegen die Dokumentation geprüft, nicht live.
 
 ## Einschub: Entscheidungen des Betreibers (16.11.2026)
 
