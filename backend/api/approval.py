@@ -257,7 +257,10 @@ class TextsIn(BaseModel):
 class PrepareIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     item_id: int
-    channel_ids: list[int] = Field(min_length=1, max_length=20)
+    channel_ids: list[int] = Field(default_factory=list, max_length=20)
+    #: A6: all channels of the topic area (every platform, German and English) that do
+    #: not have this video yet; ``channel_ids`` is ignored then.
+    everywhere: bool = False
     #: Texts per channel id; channels without texts get an AI suggestion.
     texts: dict[int, TextsIn] = Field(default_factory=dict)
 
@@ -266,8 +269,21 @@ class PrepareIn(BaseModel):
 def prepare(body: PrepareIn, user: Operator, db: DbSession, settings: AppSettings) -> list[PostOut]:
     texts = {cid: t.model_dump() for cid, t in body.texts.items()}
     try:
+        channel_ids = (
+            [c.id for c in approval.open_channels(db, body.item_id)][:20]
+            if body.everywhere
+            else body.channel_ids
+        )
+        if body.everywhere and not channel_ids:
+            raise approval.ApprovalError("Alle Kanäle haben dieses Video schon", 409)
         variants = approval.prepare(
-            db, settings, body.item_id, body.channel_ids, user.id, texts=texts
+            db,
+            settings,
+            body.item_id,
+            channel_ids,
+            user.id,
+            texts=texts,
+            skip_unfit=body.everywhere,
         )
     except approval.ApprovalError as exc:
         db.rollback()

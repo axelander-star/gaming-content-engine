@@ -184,6 +184,11 @@ function ItemCard({
   onError: (msg: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [count, setCount] = useState(item.split_suggestion?.count ?? 4);
+  const [length, setLength] = useState(item.split_suggestion?.length_s ?? 30);
+  const splitting = item.split_state === "queued" || item.split_state === "running";
+  const made = item.split_info.made?.length ?? 0;
 
   async function act(fn: () => Promise<unknown>) {
     try {
@@ -246,6 +251,20 @@ function ItemCard({
           </p>
         )}
         {item.error_message && <p className="feed-error small">{item.error_message}</p>}
+        {item.parent_item_id !== null && (
+          <p className="muted small">
+            {item.note ?? `Ausschnitt aus Datei #${item.parent_item_id}`}
+          </p>
+        )}
+        {splitting && <p className="small">Wird in Shorts zerlegt …</p>}
+        {item.split_state === "done" && (
+          <p className="muted small">
+            In {made} Shorts zerlegt (stehen in der Mediathek als „Teil 1“ usw.).
+          </p>
+        )}
+        {item.split_state === "failed" && item.split_info.error && (
+          <p className="feed-error small">Zerlegen ging nicht: {item.split_info.error}</p>
+        )}
         {open && (
           <div className="lib-preview">
             {item.kind === "video" && (item.has_rendition || item.has_original) && (
@@ -263,7 +282,7 @@ function ItemCard({
               <audio controls src={api.libraryFileUrl(item.id, "original")} />
             )}
             <p className="muted small">
-              {item.origin === "upload"
+              {item.origin === "upload" || item.rights.origin === "upload"
                 ? `Rechte bestätigt am ${formatDateTime(String(item.rights.confirmed_at ?? ""))}`
                 : `Selbst erzeugt, Stimme: ${String(item.rights.voice_provider ?? "–")}, kein fremdes Video`}
             </p>
@@ -274,8 +293,58 @@ function ItemCard({
             )}
           </div>
         )}
+        {canEdit && splitOpen && item.split_problem === null && !splitting && (
+          <form
+            className="split-form"
+            aria-label={`${item.title} zerlegen`}
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSplitOpen(false);
+              void act(() => api.splitLibraryItem(item.id, count, length));
+            }}
+          >
+            <label>
+              Shorts
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={count}
+                onChange={(e) => setCount(Number(e.target.value))}
+              />
+            </label>
+            <label>
+              Länge (s)
+              <input
+                type="number"
+                min={10}
+                max={90}
+                step={5}
+                value={length}
+                onChange={(e) => setLength(Number(e.target.value))}
+              />
+            </label>
+            <button type="submit" className="btn btn-primary btn-small">
+              Zerlegen
+            </button>
+            <p className="muted small">
+              Die Engine sucht die stärksten Stellen (Bewegung, Lautstärke, Schnitte) und schneidet
+              sie ins Hochformat. Kostenlos, läuft im Hintergrund.
+            </p>
+          </form>
+        )}
         {canEdit && (
           <div className="row-actions">
+            {item.split_problem === null && !splitting && !item.archived && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-small"
+                aria-expanded={splitOpen}
+                onClick={() => setSplitOpen(!splitOpen)}
+              >
+                In Shorts zerlegen
+              </button>
+            )}
             {item.status === "failed" && (
               <button
                 type="button"
@@ -342,7 +411,11 @@ export function LibraryView() {
   useEffect(load, [load]);
 
   // refresh while files are still being processed
-  const processing = items?.some((i) => i.status === "processing") ?? false;
+  const processing =
+    items?.some(
+      (i) =>
+        i.status === "processing" || i.split_state === "queued" || i.split_state === "running",
+    ) ?? false;
   useEffect(() => {
     if (!processing) return;
     const t = setInterval(load, 4000);

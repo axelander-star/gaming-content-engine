@@ -172,7 +172,10 @@ def library_item_problem(item: LibraryItem, project_id: int) -> str | None:
     if item.status != LibraryStatus.READY:
         return f"Mediathek-Video ist nicht bereit ({item.status.value})"
     rights = item.rights or {}
-    if item.origin == LibraryOrigin.UPLOAD:
+    # A short cut out of an own upload (A6) carries the upload's confirmation.
+    if item.origin == LibraryOrigin.UPLOAD or (
+        rights.get("cut_from") and rights.get("origin") == LibraryOrigin.UPLOAD.value
+    ):
         if not rights.get("confirmed_by_user_id"):
             return "Rechtebestätigung fehlt"
     elif rights.get("kind") != "generated" or rights.get("third_party_video") is not False:

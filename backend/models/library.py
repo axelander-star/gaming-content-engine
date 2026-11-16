@@ -79,6 +79,14 @@ class LibraryItem(IdMixin, TimestampMixin, Base):
     #: Uploaded video originals are removed after ``LIBRARY_ORIGINAL_RETENTION_DAYS``
     #: (operator decision 16.11.2026); the 9:16 version stays for posts.
     original_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    #: A6: a short cut out of a long video points to that video.
+    parent_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("library_items.id", ondelete="SET NULL"), index=True
+    )
+    #: A6: splitting a long video into shorts: ``queued``, ``running``, ``done``, ``failed``.
+    split_state: Mapped[str | None] = mapped_column(String(16), index=True)
+    #: Wanted count and length, result (new items) or error of the last split.
+    split_info: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
 
 
 class OwnProduction(IdMixin, TimestampMixin, Base):

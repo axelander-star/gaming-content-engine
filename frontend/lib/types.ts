@@ -1125,6 +1125,19 @@ export interface LibraryItem {
   has_original: boolean;
   original_deleted_at: string | null;
   created_at: string;
+  /** A6: the long video this short was cut from */
+  parent_item_id: number | null;
+  /** A6: splitting into shorts: queued | running | done | failed */
+  split_state: string | null;
+  split_info: {
+    count?: number;
+    length_s?: number;
+    made?: { item_id: number }[];
+    error?: string | null;
+  };
+  /** why it cannot be split; null = can be split */
+  split_problem: string | null;
+  split_suggestion: { count: number; length_s: number } | null;
 }
 
 export interface LibraryInfo {

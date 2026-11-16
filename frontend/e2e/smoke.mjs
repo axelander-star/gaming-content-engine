@@ -921,6 +921,56 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/konkurrenz.png`, fullPage: true });
   });
 
+  await step("Langes Video in Shorts zerlegen, englische Fassung, überall vorbereiten", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "gce-e2e-split-"));
+    const long = join(dir, `stream-${rightsTag}.mp4`);
+    const ff = spawnSync("ffmpeg", [
+      "-v", "error", "-y",
+      "-f", "lavfi", "-i", "testsrc2=s=640x360:r=25:d=40",
+      "-f", "lavfi", "-i", "color=c=0x303840:s=640x360:r=25:d=25",
+      "-f", "lavfi", "-i", "anoisesrc=c=pink:d=65",
+      "-filter_complex", "[1:v][0:v]concat=n=2:v=1:a=0[v]",
+      "-map", "[v]", "-map", "2:a", "-shortest",
+      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", long,
+    ]);
+    assert.equal(ff.status, 0, String(ff.stderr));
+    await page.getByRole("link", { name: "Mediathek", exact: true }).click();
+    await page.getByRole("heading", { name: "Mediathek", level: 1 }).waitFor();
+    const form = page.getByRole("form", { name: "Datei hochladen" });
+    await form.getByRole("combobox").selectOption({ label: "Ernährung E2E" });
+    await form.getByLabel("Datei", { exact: true }).setInputFiles(long);
+    await form.getByLabel("Titel (optional)").fill("Langer Stream");
+    await form.getByRole("checkbox").check();
+    await form.getByRole("button", { name: "Hochladen" }).click();
+    const card = page.getByRole("article", { name: "Datei Langer Stream" });
+    await card.getByRole("button", { name: "In Shorts zerlegen" }).click({ timeout: 90000 });
+    const split = card.getByRole("form", { name: "Langer Stream zerlegen" });
+    await split.getByLabel("Shorts").fill("2");
+    await split.getByLabel("Länge (s)").fill("15");
+    await split.getByRole("button", { name: "Zerlegen" }).click();
+    await card.getByText("In 2 Shorts zerlegt", { exact: false }).waitFor({ timeout: 120000 });
+    const part = page.getByRole("article", { name: "Datei Langer Stream – Teil 1" });
+    await part.getByText(/Ausschnitt \d+:\d\d–\d+:\d\d/).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/mediathek-zerlegt.png`, fullPage: true });
+
+    await page.getByRole("link", { name: "Eigenproduktion", exact: true }).click();
+    await page.getByRole("heading", { name: "Eigenproduktion", level: 1 }).waitFor();
+    await page.getByRole("button", { name: "Englische Fassung erstellen" }).click();
+    await page.getByText(/übersetzt/).first().waitFor();
+    await page.getByRole("button", { name: "Deutsche Fassung erstellen" }).waitFor();
+
+    await page.getByRole("link", { name: "Freigabecenter", exact: true }).click();
+    await page.getByRole("heading", { name: "Freigabecenter", level: 1 }).waitFor();
+    const prep = page.getByRole("form", { name: "Beitrag vorbereiten" });
+    await prep.getByLabel("Themenbereich").selectOption({ label: "Ernährung E2E" });
+    const video = prep.getByLabel("Video");
+    await video.locator("option", { hasText: "Langer Stream – Teil 1" }).waitFor({ state: "attached" });
+    await video.selectOption({ label: "Langer Stream – Teil 1" });
+    await prep.getByRole("button", { name: "Überall vorbereiten" }).click();
+    await page.getByText("Video: Langer Stream – Teil 1").first().waitFor({ timeout: 30000 });
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/freigabe-ueberall.png`, fullPage: true });
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");

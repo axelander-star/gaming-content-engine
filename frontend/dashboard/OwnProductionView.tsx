@@ -37,7 +37,11 @@ const SOURCE_LABELS: Record<string, string> = {
 function sourceLabel(source: string): string {
   return source
     .split("+")
-    .map((s) => SOURCE_LABELS[s] ?? s)
+    .map((s) =>
+      s.startsWith("translated:")
+        ? `übersetzt (${SOURCE_LABELS[s.slice(11)] ?? s.slice(11)})`
+        : (SOURCE_LABELS[s] ?? s),
+    )
     .join(", bearbeitet ");
 }
 
@@ -162,12 +166,14 @@ function Editor({
   images,
   canEdit,
   onSaved,
+  onCreated,
   onError,
 }: {
   production: Production;
   images: LibraryItem[];
   canEdit: boolean;
   onSaved: (p: Production) => void;
+  onCreated: (p: Production) => void;
   onError: (msg: string) => void;
 }) {
   const [title, setTitle] = useState(production.title);
@@ -220,6 +226,18 @@ function Editor({
 
   const [label, tone] = STATUS[production.status];
   const result = production.result;
+  const other: Language = production.language === "de" ? "en" : "de";
+
+  async function translate() {
+    setBusy(true);
+    try {
+      onCreated(await api.translateProduction(production.id, other));
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <Section title={production.title}>
@@ -229,6 +247,17 @@ function Editor({
         <span className="muted small">
           Skript: {sourceLabel(production.script_source)} · {production.language.toUpperCase()}
         </span>
+        {canEdit && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-small"
+            onClick={translate}
+            disabled={busy}
+            title="Neuer Entwurf mit denselben Bildern; Text und Stimme in der anderen Sprache"
+          >
+            {other === "en" ? "Englische Fassung erstellen" : "Deutsche Fassung erstellen"}
+          </button>
+        )}
       </div>
       {production.error_message && <p className="feed-error small">{production.error_message}</p>}
 
@@ -447,6 +476,11 @@ export function OwnProductionView() {
               images={images}
               canEdit={canEdit}
               onSaved={saved}
+              onCreated={(p) => {
+                setError(null);
+                setProductions((all) => [p, ...(all ?? [])]);
+                setSelected(p.id);
+              }}
               onError={setError}
             />
           ) : (

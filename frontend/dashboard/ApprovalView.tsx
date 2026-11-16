@@ -421,6 +421,24 @@ function PreparePanel({
 
   const projectChannels = channels.filter((c) => c.content_project_id === projectId);
 
+  async function everywhere() {
+    if (itemId === "") return;
+    setBusy(true);
+    setError(null);
+    try {
+      onDone(await api.preparePostsEverywhere(itemId));
+      setPicked([]);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const languages = new Set(
+    projectChannels.filter((c) => picked.includes(c.id)).map((c) => c.language),
+  );
+
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (itemId === "" || picked.length === 0) return;
@@ -491,18 +509,35 @@ function PreparePanel({
                 }
               />
               <span>
-                {c.name} · {PLATFORM_LABELS[c.platform]}
+                {c.name} · {PLATFORM_LABELS[c.platform]} · {c.language.toUpperCase()}
               </span>
             </label>
           ))}
         </fieldset>
-        <button
-          className="btn btn-primary"
-          type="submit"
-          disabled={busy || itemId === "" || picked.length === 0}
-        >
-          {busy ? "Wird vorbereitet …" : "Beiträge vorbereiten"}
-        </button>
+        {languages.size > 1 && (
+          <p className="muted small">
+            Englische Kanäle bekommen englische Texte, der Ton bleibt wie im Video. Für eine
+            englische Stimme: in der Eigenproduktion „Englische Fassung erstellen“.
+          </p>
+        )}
+        <div className="row-actions">
+          <button
+            className="btn btn-primary"
+            type="submit"
+            disabled={busy || itemId === "" || picked.length === 0}
+          >
+            {busy ? "Wird vorbereitet …" : "Beiträge vorbereiten"}
+          </button>
+          <button
+            className="btn btn-ghost"
+            type="button"
+            disabled={busy || itemId === "" || projectChannels.length === 0}
+            onClick={everywhere}
+            title="Alle Plattformen und Sprachen des Themenbereichs, die das Video noch nicht haben"
+          >
+            Überall vorbereiten
+          </button>
+        </div>
       </form>
       <ErrorText error={error} />
       {info && <p className="muted small appr-twitch">Twitch: {info.twitch_note}</p>}

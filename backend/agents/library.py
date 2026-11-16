@@ -14,9 +14,9 @@ from typing import Any
 from sqlalchemy import select
 
 from agents.base import Agent, AgentContext, AgentResult, AgentSkipError
-from core.enums import CostCategory, LibraryStatus, ProductionStatus
+from core.enums import CostCategory, LibraryStatus, NotificationLevel, ProductionStatus
 from models.library import LibraryItem, OwnProduction
-from services import library, own_production, render, voice
+from services import library, notify, own_production, render, splitter, voice
 from services.controls import get_operations
 from services.queue import get_redis
 
@@ -32,11 +32,15 @@ class MediaLibraryAgent(Agent):
         item_id = (
             _int(payload, "entity_id") if payload.get("entity_type") == "library_items" else None
         )
+        splits: list[LibraryItem] = []
         if item_id is not None:
             item = s.scalar(select(LibraryItem).where(LibraryItem.id == item_id).with_for_update())
             items = [item] if item is not None and item.status == LibraryStatus.PROCESSING else []
+            if item is not None and item.split_state == "queued":
+                splits = [item]
         else:
             items = library.pending(s)
+            splits = splitter.pending(s)
         expired = [] if item_id is not None else library.expire_originals(s, settings)
         for row in expired:
             ctx.decide(
@@ -47,13 +51,38 @@ class MediaLibraryAgent(Agent):
                 entity_type="library_items",
                 entity_id=row["item_id"],
             )
-        if not items and not expired:  # skipped runs do not count against the daily limit
+        if not items and not expired and not splits:  # skipped runs do not count
             raise AgentSkipError("Keine neuen Dateien in der Mediathek")
-        if not items:
+        if not items and not splits:
             return AgentResult(output={"processed": [], "originals_deleted": expired})
         limit = get_operations(s).max_parallel_render_jobs
         done = []
+        cut = []
         with render.render_slot(get_redis(), limit, settings.render_slot_ttl_s):
+            for item in splits:
+                info = splitter.run(s, settings, item)
+                cut.append(info)
+                made = len(info.get("made") or [])
+                ctx.decide(
+                    "library_split",
+                    info,
+                    (
+                        f"„{item.title}“ in {made} Shorts zerlegt"
+                        if info["status"] == "done"
+                        else f"„{item.title}“ ließ sich nicht zerlegen: {info.get('error')}"
+                    ),
+                    entity_type="library_items",
+                    entity_id=item.id,
+                )
+                if info["status"] == "done":
+                    notify.add(
+                        s,
+                        f"Fertig: {made} Shorts aus „{item.title}“",
+                        "Liegen in der Mediathek und können im Freigabecenter vorbereitet werden.",
+                        level=NotificationLevel.INFO,
+                        kind="split_done",
+                        link="/mediathek",
+                    )
             for item in items:
                 info = library.process(s, settings, item)
                 done.append(info)
@@ -69,7 +98,7 @@ class MediaLibraryAgent(Agent):
                     entity_type="library_items",
                     entity_id=item.id,
                 )
-        return AgentResult(output={"processed": done, "originals_deleted": expired})
+        return AgentResult(output={"processed": done, "split": cut, "originals_deleted": expired})
 
 
 class OwnProductionAgent(Agent):
