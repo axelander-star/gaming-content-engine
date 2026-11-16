@@ -10,6 +10,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from redis.exceptions import RedisError
 
+from api.accounts import router as accounts_router
 from api.agents import router as agents_router
 from api.ai import router as ai_router
 from api.analytics import router as analytics_router
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
         approval_router,
         campaigns_router,
         channel_setup_router,
+        accounts_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 

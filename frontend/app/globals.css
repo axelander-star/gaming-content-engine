@@ -2194,3 +2194,84 @@ details summary {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- account overview ------------------------------------------------------------ */
+.acc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 8px;
+}
+.acc-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  flex: 1;
+}
+.acc-status .is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.th-sort {
+  text-transform: inherit;
+  letter-spacing: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.acc-table td {
+  vertical-align: top;
+}
+.acc-name {
+  font-weight: 600;
+}
+.acc-panel {
+  display: grid;
+  gap: 12px;
+}
+.acc-reasons,
+.acc-entries,
+.acc-top {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+.acc-entries {
+  list-style: none;
+  padding: 0;
+}
+.acc-entries li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.acc-rev-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.acc-rev-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

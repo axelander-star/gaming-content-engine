@@ -268,6 +268,14 @@ class Settings(BaseSettings):
     production_min_segment_s: float = Field(default=2.5, gt=0)
     production_max_s: float = Field(default=180.0, gt=0)
 
+    # --- Account overview (A2) ---
+    #: Days after the first post before a channel is judged (decision 16.11.2026: 90).
+    account_review_days: int = Field(default=90, ge=7, le=365)
+    #: "Weak" = fewer views per post than this share of the topic area's median.
+    account_weak_share: float = Field(default=0.25, gt=0, lt=1)
+    #: Lower bound per post when a topic area has too few channels to compare with.
+    account_min_views_per_post: int = Field(default=200, ge=0)
+
     # --- Channel assistant: forwarding addresses for new accounts (Cloudflare Email Routing) ---
     #: ``mock`` only proposes addresses; ``live`` creates routing rules at Cloudflare.
     mail_routing_mode: Literal["mock", "live"] = "mock"
