@@ -17,7 +17,7 @@ from types import FrameType
 from core.config import Settings, get_settings
 from core.logging import configure_logging
 from database.session import get_sessionmaker
-from services import monitoring, uploads
+from services import monitoring, notify, uploads, watchdog
 from services.controls import effective_controls
 from services.orchestrator import submit
 from services.queue import get_redis
@@ -90,6 +90,7 @@ class Monitor:
     beat_every_s: float = 15.0
     last_check: float = float("-inf")
     last_beat: float = float("-inf")
+    last_watch: float = float("-inf")
 
     def tick(self, now: float, settings: Settings) -> bool:
         redis = get_redis()
@@ -103,6 +104,15 @@ class Monitor:
             monitoring.run(session, settings, redis)
         with get_sessionmaker()() as session, session.begin():
             uploads.purge_expired(session, settings)
+        if now - self.last_watch >= settings.watchdog_seconds:
+            self.last_watch = now
+            try:
+                with get_sessionmaker()() as session:
+                    watchdog.scan(session, settings)
+            except Exception:  # a broken check must not stop the push below
+                log.exception("watchdog failed")
+        with get_sessionmaker()() as session:
+            notify.deliver(session, settings)
         return True
 
 

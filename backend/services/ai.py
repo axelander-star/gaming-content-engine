@@ -194,8 +194,16 @@ def cost_usd(
     return _q(total)
 
 
+#: One image block costs at most about this many tokens (images are scaled to 1568 px).
+_IMAGE_TOKENS = 1600
+
+
 def _chars(content: str | list[dict[str, Any]]) -> int:
-    return len(content) if isinstance(content, str) else len(json.dumps(content))
+    if isinstance(content, str):
+        return len(content)
+    images = sum(1 for b in content if isinstance(b, dict) and b.get("type") == "image")
+    rest = [b for b in content if not (isinstance(b, dict) and b.get("type") == "image")]
+    return len(json.dumps(rest)) + images * _IMAGE_TOKENS * _CHARS_PER_TOKEN
 
 
 def prompt_chars(req: AIRequest) -> int:

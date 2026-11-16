@@ -1,13 +1,62 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { Icon } from "@/components/icons";
 import { Badge, ErrorText, PageHeader, Section } from "@/components/ui";
 import { api } from "@/lib/api";
 import { hasRole } from "@/lib/roles";
-import type { AIStatus, ChatAction, ChatMessage, WeekPlan } from "@/lib/types";
+import { useDictation, useSpeaker } from "@/lib/speech";
+import type {
+  AIStatus,
+  ChatAction,
+  ChatAttachment,
+  ChatMessage,
+  WeekPlan,
+} from "@/lib/types";
+
+const AUTO_READ_KEY = "gce:chat:autoread";
+const FILE_TYPES = "image/png,image/jpeg,application/pdf";
+
+/** The question keeps "[PDF „x“ (3 Seiten)]" lines for the AI; the chips show them here. */
+function visibleText(m: ChatMessage): string {
+  if (m.attachments.length === 0) return m.text;
+  return m.text
+    .split("\n")
+    .filter((line) => !/^\[(Bild|PDF) „.*\]$/.test(line))
+    .join("\n");
+}
+
+function fileLabel(a: ChatAttachment): string {
+  if (a.content_type === "application/pdf") return `${a.filename} · ${a.pages ?? 0} S.`;
+  return a.filename;
+}
+
+function AttachmentChips({ files }: { files: ChatAttachment[] }) {
+  return (
+    <div className="chat-files">
+      {files.map((a) =>
+        a.content_type.startsWith("image/") ? (
+          <a key={a.id} href={api.chatFileUrl(a.id)} target="_blank" rel="noreferrer">
+            <img src={api.chatFileUrl(a.id)} alt={a.filename} className="chat-thumb" />
+          </a>
+        ) : (
+          <a
+            key={a.id}
+            className="chip"
+            href={api.chatFileUrl(a.id)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            PDF {fileLabel(a)}
+          </a>
+        ),
+      )}
+    </div>
+  );
+}
 
 const SUGGESTIONS = [
   "Status",
@@ -160,7 +209,51 @@ export function ChatView() {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<ChatAttachment[]>([]);
+  const [uploading, setUploading] = useState(0);
+  const [autoRead, setAutoRead] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const speaker = useSpeaker();
+  const dictation = useDictation((spoken) =>
+    setText((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken)),
+  );
+
+  useEffect(() => {
+    try {
+      setAutoRead(window.localStorage.getItem(AUTO_READ_KEY) === "1");
+    } catch {
+      setAutoRead(false);
+    }
+  }, []);
+
+  function toggleAutoRead() {
+    const next = !autoRead;
+    setAutoRead(next);
+    if (!next) speaker.stop();
+    try {
+      window.localStorage.setItem(AUTO_READ_KEY, next ? "1" : "0");
+    } catch {
+      // private mode: keep it for this visit only
+    }
+  }
+
+  async function onPickFiles(e: ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    setError(null);
+    for (const file of picked) {
+      setUploading((n) => n + 1);
+      try {
+        const att = await api.uploadChatFile(file);
+        setFiles((prev) => [...prev, att]);
+      } catch (err) {
+        setError(`${file.name}: ${(err as Error).message}`);
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+  }
 
   const loadPlan = useCallback(() => {
     api
@@ -186,13 +279,19 @@ export function ChatView() {
 
   async function send(value: string) {
     const trimmed = value.trim();
-    if (!trimmed || busy) return;
+    if ((!trimmed && files.length === 0) || busy || uploading > 0) return;
+    if (dictation.listening) dictation.stop();
     setBusy(true);
     setError(null);
     try {
-      const exchange = await api.sendChat(trimmed);
+      const exchange =
+        files.length > 0
+          ? await api.sendChatWithFiles(trimmed, files.map((f) => f.id))
+          : await api.sendChat(trimmed);
       setMessages((prev) => [...prev, exchange.question, exchange.answer]);
       setText("");
+      setFiles([]);
+      if (autoRead) void speaker.speak(exchange.answer.id, exchange.answer.text);
       loadPlan();
     } catch (err) {
       setError((err as Error).message);
@@ -233,7 +332,7 @@ export function ChatView() {
     <>
       <PageHeader
         title="Assistent"
-        description="Plan per Chat steuern: Schwerpunkte setzen, Tage planen, Bereiche pausieren. Veröffentlichen kann der Assistent nicht."
+        description="Plan per Chat steuern, Bilder und PDFs zeigen, per Sprache fragen und Antworten vorlesen lassen. Veröffentlichen kann der Assistent nicht."
       />
       <div className="chat-layout">
         <section className="card chat-panel" aria-label="Chat">
@@ -245,6 +344,10 @@ export function ChatView() {
                   : "Test (Mock): Befehlserkennung, keine Kosten"}
               </Badge>
             )}
+            <label className="chat-toggle">
+              <input type="checkbox" checked={autoRead} onChange={toggleAutoRead} />
+              Antworten vorlesen
+            </label>
           </div>
           <div className="chat-log" aria-live="polite">
             {messages.length === 0 && (
@@ -255,7 +358,27 @@ export function ChatView() {
             )}
             {messages.map((m) => (
               <div key={m.id} className={`chat-msg chat-${m.role}`}>
-                <div className="chat-bubble">{m.text}</div>
+                {m.attachments.length > 0 && <AttachmentChips files={m.attachments} />}
+                {visibleText(m).trim() && (
+                  <div className="chat-bubble">
+                    {visibleText(m)}
+                    {m.role === "assistant" && (
+                      <button
+                        type="button"
+                        className="icon-btn chat-speak"
+                        aria-label={speaker.playing === m.id ? "Vorlesen stoppen" : "Vorlesen"}
+                        title={speaker.playing === m.id ? "Stopp" : "Vorlesen"}
+                        onClick={() =>
+                          speaker.playing === m.id
+                            ? speaker.stop()
+                            : void speaker.speak(m.id, m.text)
+                        }
+                      >
+                        <Icon name={speaker.playing === m.id ? "stop" : "speaker"} size={16} />
+                      </button>
+                    )}
+                  </div>
+                )}
                 {m.actions.length > 0 && (
                   <div className="chat-actions">
                     {m.actions.map((a) => (
@@ -272,7 +395,7 @@ export function ChatView() {
             ))}
             <div ref={endRef} />
           </div>
-          <ErrorText error={error} />
+          <ErrorText error={error ?? dictation.error ?? speaker.error} />
           {canWrite ? (
             <>
               <div className="chip-row" aria-label="Vorschläge">
@@ -287,20 +410,72 @@ export function ChatView() {
                   </button>
                 ))}
               </div>
+              {(files.length > 0 || uploading > 0) && (
+                <div className="chat-pending" aria-label="Angehängte Dateien">
+                  {files.map((f) => (
+                    <span key={f.id} className="chip">
+                      {fileLabel(f)}
+                      <button
+                        type="button"
+                        className="chip-x"
+                        aria-label={`${f.filename} entfernen`}
+                        onClick={() => setFiles((prev) => prev.filter((x) => x.id !== f.id))}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  {uploading > 0 && <span className="muted small">Lädt hoch …</span>}
+                </div>
+              )}
               <form className="chat-form" onSubmit={onSubmit}>
+                <div className="chat-tools">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept={FILE_TYPES}
+                    multiple
+                    hidden
+                    onChange={(e) => void onPickFiles(e)}
+                    data-testid="chat-file"
+                  />
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Bild oder PDF anhängen"
+                    title="Bild oder PDF anhängen"
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    <Icon name="paperclip" />
+                  </button>
+                  {dictation.supported && (
+                    <button
+                      type="button"
+                      className={`icon-btn${dictation.listening ? " is-recording" : ""}`}
+                      aria-label={dictation.listening ? "Aufnahme beenden" : "Sprechen"}
+                      aria-pressed={dictation.listening}
+                      title={dictation.listening ? "Aufnahme beenden" : "Sprechen"}
+                      onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+                    >
+                      <Icon name={dictation.listening ? "stop" : "mic"} />
+                    </button>
+                  )}
+                </div>
                 <textarea
                   aria-label="Nachricht an den Assistenten"
                   rows={2}
                   maxLength={2000}
                   value={text}
-                  placeholder="Was soll ich am Plan ändern?"
+                  placeholder={
+                    dictation.listening ? "Ich höre zu …" : "Schreib, sprich oder häng eine Datei an"
+                  }
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={onKeyDown}
                 />
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={busy || !text.trim()}
+                  disabled={busy || uploading > 0 || (!text.trim() && files.length === 0)}
                 >
                   {busy ? "…" : "Senden"}
                 </button>

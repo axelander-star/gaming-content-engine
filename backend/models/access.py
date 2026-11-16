@@ -54,6 +54,15 @@ class Notification(IdMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str | None] = mapped_column(Text)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    #: Area for the bell: system, rights, campaign, publishing, channel, reach, done.
+    kind: Mapped[str | None] = mapped_column(String(32))
+    #: Dashboard path that opens the matching page, e.g. ``/kanaele``.
+    link: Mapped[str | None] = mapped_column(String(300))
+    #: Warnings from the watchdog repeat at most once per window for the same key.
+    dedup_key: Mapped[str | None] = mapped_column(String(200), index=True)
+    #: Push to the phone: ``sent``, ``mock``, ``skipped``, ``failed`` (None = not yet decided).
+    push_state: Mapped[str | None] = mapped_column(String(16), index=True)
+    pushed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class SystemSetting(IdMixin, TimestampMixin, Base):

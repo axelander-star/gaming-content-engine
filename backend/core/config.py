@@ -275,6 +275,25 @@ class Settings(BaseSettings):
     #: Test comments under mock posts so the flow can be tried without live channels.
     comment_mock_samples: bool = True
     comments_seconds: int = Field(default=1800, ge=300)
+    #: Push to the phone via ntfy (Ausbau A4). mock = recorded only, nothing leaves the server.
+    push_mode: Literal["mock", "live"] = "mock"
+    #: Full topic URL, e.g. https://ntfy.sh/<long-random-topic>; the topic name is the secret.
+    push_ntfy_url: SecretStr = SecretStr("")
+    #: Optional access token for a protected topic or an own ntfy server.
+    push_ntfy_token: SecretStr = SecretStr("")
+    #: Dashboard address; a tap on the push opens the matching page (e.g. https://studio.example.de).
+    push_click_base_url: str = ""
+    #: Lowest level that goes to the phone; everything else stays in the bell.
+    push_min_level: Literal["info", "warning", "error", "critical"] = "warning"
+    #: No push between these hours (local time), except critical; collected into one morning push.
+    push_quiet_start: int = Field(default=22, ge=0, le=23)
+    push_quiet_end: int = Field(default=7, ge=0, le=23)
+    #: Watchdog for warnings (channels, copyright, reach drops) every 15 minutes.
+    watchdog_seconds: int = Field(default=900, ge=60)
+    #: Same warning at most once per this many hours.
+    watchdog_repeat_hours: int = Field(default=24, ge=1, le=24 * 30)
+    #: Chat attachments: at most this many per message.
+    chat_max_attachments: int = Field(default=5, ge=1, le=10)
     comment_lookback_days: int = Field(default=14, ge=1, le=90)
     comment_posts_per_run: int = Field(default=20, ge=1, le=100)  # 1 YouTube unit each
     comment_drafts_per_run: int = Field(default=30, ge=1, le=200)

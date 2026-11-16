@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Icon } from "@/components/icons";
 import type { IconName } from "@/components/icons";
+import { NotificationBell } from "@/components/NotificationBell";
 import { api } from "@/lib/api";
 import { onEmergencyStop } from "@/lib/events";
 import { ROLE_LABELS } from "@/lib/roles";
@@ -177,6 +178,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="topbar-name">
               {name} · {ROLE_LABELS[user.role]}
             </span>
+            <NotificationBell />
             <button
               type="button"
               className="icon-btn"

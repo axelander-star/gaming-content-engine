@@ -251,6 +251,10 @@ Geprüft gegen die Anbieter-Dokumentation am 16.11.2026.
 
 Bestehende Verbindungen haben die neuen Rechte nicht; YouTube und Instagram einmal neu verbinden. Kontingent YouTube: je Lauf bis zu 20 Beiträge lesen (je 1 Einheit) und höchstens 10 Antworten (je 50 Einheiten), also bis zu 520 Einheiten je Lauf. Antworten fallen nur an, wenn neue Kommentare da sind. Bei vielen aktiven Kanälen das Tageskontingent (Standard 10.000) im Blick behalten und notfalls `COMMENTS_SECONDS` erhöhen.
 
+## Push aufs Handy: ntfy (Ausbau A4)
+
+Geprüft gegen https://docs.ntfy.sh/publish/ am 16.11.2026: `POST https://ntfy.sh/<thema>` mit dem Text als Body; Kopfzeilen `Title`, `Priority` (1–5), `Tags` (Emoji-Kurzcodes), `Click` (URL beim Antippen). Nicht-ASCII in Kopfzeilen wird nach RFC 2047 kodiert (`=?UTF-8?B?…?=`), wie die Doku empfiehlt; Nachrichten über 4.096 Byte würden als Anhang verschickt, die Engine kürzt auf 3.500 Zeichen. Optionaler Zugangstoken als `Authorization: Bearer …` (für geschützte Themen; dieser Teil der Doku wurde nicht live geprüft, Standard ist ein geheimer Themenname ohne Token). Kosten: keine. Die Themen-URL ist geheim und wird nie geloggt.
+
 ## Speicher
 
 - **Cloudflare R2** (S3-kompatibel). Seit E8 nur für kurzlebige Video-Adressen beim Instagram-Login genutzt (`services/r2.py`, eigene SigV4-Signatur, kein SDK). Ablage der Medien sonst weiter lokal. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.

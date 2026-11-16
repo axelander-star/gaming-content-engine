@@ -26,6 +26,7 @@ from api.channels import router as channels_router
 from api.comments import router as comments_router
 from api.health import router as health_router
 from api.library import router as library_router
+from api.notifications import router as notifications_router
 from api.overview import router as overview_router
 from api.production import router as production_router
 from api.projects import router as projects_router
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
         channel_setup_router,
         accounts_router,
         comments_router,
+        notifications_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 

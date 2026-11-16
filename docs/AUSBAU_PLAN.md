@@ -23,3 +23,15 @@ Nicht gewünscht: eigene digitale Produkte.
 2. Unter **Zieladressen** das eigene Postfach eintragen und den Link in der Bestätigungsmail anklicken.
 3. **Mein Profil → API-Token → Token erstellen → Benutzerdefiniert**: Berechtigung *Zone → Email Routing Rules → Bearbeiten*, Zone nur `kanalfabrik.de`.
 4. Auf dem Server in `.env`: `MAIL_ROUTING_MODE=live`, `MAIL_ALIAS_DOMAIN=kanalfabrik.de`, `MAIL_FORWARD_TO=<bestätigte Adresse>`, `CLOUDFLARE_ZONE_ID=<Zone-ID von der Übersichtsseite>`, `CLOUDFLARE_API_TOKEN=<Token>`; danach `scripts/deploy.sh`.
+
+## Einrichtung Push aufs Handy (ntfy, für A4)
+
+ntfy ist eine Open-Source-App für Benachrichtigungen (Android im Play Store und F-Droid, iPhone im App Store). Kein Konto nötig.
+
+1. App **ntfy** auf dem Handy installieren.
+2. Einen langen, zufälligen Themennamen ausdenken, z. B. `kanalfabrik-` plus 20 zufällige Buchstaben und Ziffern (nur `A–Z a–z 0–9 - _`, höchstens 64 Zeichen). Wer den Namen kennt, kann mitlesen, deshalb nicht erraten lassen und nirgends veröffentlichen.
+3. In der App **Thema abonnieren** und den Namen eintragen (Server `ntfy.sh`).
+4. Auf dem Server in `.env`: `PUSH_NTFY_URL=https://ntfy.sh/<name>`, `PUSH_CLICK_BASE_URL=https://studio.kanalfabrik.de`, `PUSH_MODE=live`, danach `docker compose up -d`.
+5. Im Dashboard die Glocke öffnen und **Test-Push** drücken (nur Admin). Kommt die Meldung an, ist alles fertig.
+
+Ruhezeit, Mindeststufe und Wiederholung lassen sich in `.env` ändern (`PUSH_QUIET_START`, `PUSH_QUIET_END`, `PUSH_MIN_LEVEL`, `WATCHDOG_REPEAT_HOURS`).

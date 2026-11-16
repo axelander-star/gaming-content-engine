@@ -903,6 +903,17 @@ export interface ChatAction {
   undone_at: string | null;
 }
 
+export interface ChatAttachment {
+  id: number;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  pages: number | null;
+  width: number | null;
+  height: number | null;
+  has_text: boolean;
+}
+
 export interface ChatMessage {
   id: number;
   created_at: string;
@@ -910,6 +921,7 @@ export interface ChatMessage {
   text: string;
   provider: string | null;
   actions: ChatAction[];
+  attachments: ChatAttachment[];
 }
 
 export interface ChatExchange {
@@ -1508,4 +1520,34 @@ export interface CommentStats {
   by_status: Partial<Record<CommentStatus, number>>;
   auto_reply: boolean;
   live: boolean;
+}
+
+// --- notifications and push (A4) ---
+
+export type NotificationLevel = "info" | "warning" | "error" | "critical";
+
+export interface AppNotification {
+  id: number;
+  created_at: string;
+  level: NotificationLevel;
+  kind: string | null;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  push_state: string | null;
+}
+
+export interface NotificationList {
+  unread: number;
+  items: AppNotification[];
+}
+
+export interface PushSettings {
+  mode: "mock" | "live";
+  configured: boolean;
+  min_level: NotificationLevel;
+  quiet_start: number;
+  quiet_end: number;
+  timezone: string;
 }
