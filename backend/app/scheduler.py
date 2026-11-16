@@ -51,6 +51,7 @@ class Schedule:
                 "media_library": settings.library_sweep_seconds,
                 "community": settings.comments_seconds,
                 "competitor_radar": settings.competitor_seconds,
+                "winner_recycling": settings.winner_seconds,
             }
         )
 

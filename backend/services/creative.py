@@ -26,6 +26,7 @@ from typing import Any
 
 from core.catalog import FORMATS_BY_KEY
 from core.enums import Language
+from services import hooks
 
 Scores = dict[str, float]
 
@@ -68,40 +69,8 @@ FORMAT_HOOKS: dict[str, tuple[str, ...]] = {
     "storytelling": ("stakes", "pov", "question", "bold_claim"),
 }
 
-# Hook lines per language. {g} = game. Several wordings per hook keep channels varied.
-HOOKS: dict[Language, dict[str, tuple[str, ...]]] = {
-    Language.DE: {
-        "question": ("Hättest du das in {g} kommen sehen?", "Was passiert hier gleich in {g}?"),
-        "bold_claim": (
-            "Das ist der krasseste {g}-Moment, den ich kenne.",
-            "So etwas siehst du in {g} nicht oft.",
-        ),
-        "countdown": ("Achte auf die letzten fünf Sekunden.", "Warte bis zum Ende."),
-        "pov": (
-            "POV: Du denkst, in {g} ist alles ruhig …",
-            "POV: Deine Runde in {g} läuft gerade perfekt …",
-        ),
-        "challenge": ("Würdest du das in {g} schaffen?", "Schaffst du das in {g} auch?"),
-        "stakes": (
-            "Eine falsche Entscheidung und die Runde in {g} ist vorbei.",
-            "Jetzt entscheidet sich alles in {g}.",
-        ),
-    },
-    Language.EN: {
-        "question": ("Did you see this coming in {g}?", "What happens next in {g}?"),
-        "bold_claim": (
-            "This is the wildest {g} moment I've seen.",
-            "You don't see this in {g} every day.",
-        ),
-        "countdown": ("Watch the last five seconds.", "Wait for the end."),
-        "pov": (
-            "POV: You think {g} is calm right now …",
-            "POV: Your {g} run is going perfectly …",
-        ),
-        "challenge": ("Could you pull this off in {g}?", "Think you could do this in {g}?"),
-        "stakes": ("One wrong move and this {g} run is over.", "Everything comes down to this."),
-    },
-}
+# Hook lines per language live in services.hooks (Ausbau A7: natural wordings, no clichés).
+HOOKS = hooks.POOL
 
 # Voiceover beats per format and language: setup, build-up, payoff.
 BEATS: dict[Language, dict[str, tuple[str, str, str]]] = {
@@ -109,7 +78,7 @@ BEATS: dict[Language, dict[str, tuple[str, str, str]]] = {
         "epic_scene": (
             "Erst sieht alles normal aus.",
             "Dann geht es richtig los.",
-            "Einfach episch.",
+            "Genau dafür spiele ich das.",
         ),
         "surprise": (
             "Alles läuft nach Plan.",
@@ -128,7 +97,11 @@ BEATS: dict[Language, dict[str, tuple[str, str, str]]] = {
         ),
     },
     Language.EN: {
-        "epic_scene": ("It all looks normal at first.", "Then it kicks off.", "Absolutely epic."),
+        "epic_scene": (
+            "It all looks normal at first.",
+            "Then it kicks off.",
+            "That's why I play this.",
+        ),
         "surprise": ("Everything is going to plan.", "Now watch closely.", "Nobody expected that."),
         "unexpected_twist": (
             "It looks like it's over.",
@@ -155,13 +128,13 @@ CTAS: dict[Language, tuple[str, ...]] = {
 }
 TITLES: dict[Language, dict[str, str]] = {
     Language.DE: {
-        "epic_scene": "{g}: dieser Moment ist einfach episch",
+        "epic_scene": "{g}: dieser Moment hat gesessen",
         "surprise": "{g}: damit hat niemand gerechnet",
         "unexpected_twist": "{g}: die Wendung am Ende",
         "storytelling": "{g}: so schnell kann es gehen",
     },
     Language.EN: {
-        "epic_scene": "{g}: this moment is pure epic",
+        "epic_scene": "{g}: this moment just hit",
         "surprise": "{g}: nobody saw this coming",
         "unexpected_twist": "{g}: wait for the twist",
         "storytelling": "{g}: how fast it can turn",
@@ -281,13 +254,16 @@ def write_script(
     source_name: str,
     duration_s: float,
     seed: str,
+    avoid: frozenset[str] | set[str] = frozenset(),
 ) -> ScriptDraft:
     """Hook, voiceover beats, call to action, title and description for one variant.
 
     The voiceover is shortened until it fits the clip at a calm speaking pace.
     """
     g = game or ("dem Spiel" if language == Language.DE else "this game")
-    hook = _pick(HOOKS[language][hook_type], f"{seed}:hook").format(g=g)
+    # ``avoid``: hooks the channel used recently, so the opening line is not repeated
+    options = tuple(o.format(g=g) for o in HOOKS[language][hook_type])
+    hook = hooks.pick(options, f"{seed}:hook", avoid)
     setup, build, payoff = BEATS[language][video_format]
     cta = _pick(CTAS[language], f"{seed}:cta").format(g=g)
     wps = WORDS_PER_SECOND[language]

@@ -18,8 +18,10 @@ from core.enums import CostCategory, VideoStatus
 from models.production import Clip, GameplayFile, Scene, Script, Variant
 from models.rights import Asset, Source
 from models.trends import Game
-from services import creative, llm, workflow
+from services import creative, hooks, llm, workflow
 from services.controls import get_operations
+
+RECENT_HOOKS = 10  # A7: these recent openings of the channel are not used again
 
 
 class ScriptHookAgent(Agent):
@@ -37,6 +39,19 @@ class ScriptHookAgent(Agent):
         asset = s.get(Asset, material.asset_id)
         source = s.get(Source, asset.source_id) if asset else None
 
+        recent = set(
+            s.scalars(
+                select(Script.hook)
+                .join(Variant, Variant.id == Script.variant_id)
+                .where(
+                    Variant.channel_id == variant.channel_id,
+                    Variant.id != variant.id,
+                    Script.hook.is_not(None),
+                )
+                .order_by(Script.id.desc())
+                .limit(RECENT_HOOKS)
+            )
+        )
         draft = creative.write_script(
             language=variant.language,
             video_format=variant.video_format,
@@ -45,6 +60,7 @@ class ScriptHookAgent(Agent):
             source_name=source.name if source else "",
             duration_s=clip.duration_s or (clip.end_s - clip.start_s),
             seed=f"{variant.channel_id}:{variant.clip_id}:{variant.variant_label}",
+            avoid={h for h in recent if h},
         )
         origin, draft, note = self._refine(ctx, variant, draft)
 
@@ -107,4 +123,13 @@ class ScriptHookAgent(Agent):
         improved = model.rewrite(draft, variant.language, brief)
         ctx.add_cost(model.estimated_cost_eur, CostCategory.AI, provider=model.name,
                      description=f"Skript Variante #{variant.id}")  # fmt: skip
+        artificial = hooks.problems(improved.hook, variant.language)
+        if artificial:  # A7: a text whose hook sounds like a bot falls back to the template
+            return (
+                "template",
+                draft,
+                "KI-Text verworfen, Hook klang künstlich ("
+                + ", ".join(artificial)
+                + "); Vorlage verwendet.",
+            )
         return model.name, improved, None

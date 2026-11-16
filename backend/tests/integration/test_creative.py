@@ -140,7 +140,7 @@ def test_every_beat_has_time_to_be_spoken(duration: float) -> None:
 def test_wording_is_stable_per_seed() -> None:
     assert draft(Language.EN).hook == draft(Language.EN).hook
     hooks = {draft(Language.EN, seed=f"{i}:1:A").hook for i in range(12)}
-    assert len(hooks) == 2  # both wordings get used across channels
+    assert len(hooks) >= 3  # the wordings get used across channels (A7: larger pool)
 
 
 # --- agents through the orchestrator -------------------------------------------

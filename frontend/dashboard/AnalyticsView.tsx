@@ -10,6 +10,7 @@ import { hasRole } from "@/lib/roles";
 import type {
   AnalyticsFilters,
   AnalyticsOverview,
+  HookReport,
   LearningVersionOut,
   PerfGroup,
   PerfVideo,
@@ -94,6 +95,104 @@ function VideoList({ label, videos }: { label: string; videos: PerfVideo[] }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+const times = (v: number) => `${v.toFixed(1).replace(".", ",")}×`;
+
+/** Ausbau A7: which hook won on the same clip and channel, and what happened to winners. */
+function HooksSection() {
+  const [data, setData] = useState<HookReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api
+      .hookReport()
+      .then(setData)
+      .catch((e: Error) => setError(e.message));
+  }, []);
+  const label = (hook: string | null) =>
+    data?.balance.find((b) => b.hook_type === hook)?.label ?? hook ?? "–";
+  return (
+    <Section title="Hook-Tests und Gewinner">
+      <p className="muted small">
+        Laufen zwei Hooks desselben Clips auf demselben Kanal, gewinnt der, der mindestens 15 %
+        besser abschneidet (1,0× = üblich für den Kanal). Ein Gewinner ({data ? times(data.winner_score) : "2×"} so
+        gut wie üblich) kommt nach {data?.recycle_after_days ?? 7} Tagen mit einem anderen Hook
+        noch einmal, und eine Idee „Teil 2“ landet im Ideenlabor.
+      </p>
+      <ErrorText error={error} />
+      {data && data.balance.length > 0 && (
+        <table className="table" aria-label="Hook-Bilanz">
+          <thead>
+            <tr>
+              <th>Hook</th>
+              <th>Tests</th>
+              <th>Gewonnen</th>
+              <th>Verloren</th>
+              <th>Unentschieden</th>
+              <th>Median</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.balance.map((b) => (
+              <tr key={b.hook_type}>
+                <td>{b.label}</td>
+                <td>{b.tests}</td>
+                <td>{b.wins}</td>
+                <td>{b.losses}</td>
+                <td>{b.draws}</td>
+                <td>{b.median_score === null ? "–" : times(b.median_score)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {data && data.tests.length === 0 && (
+        <p className="muted">
+          Noch keine Hook-Tests: dafür müssen zwei Varianten eines Clips auf demselben Kanal
+          gelaufen und gemessen sein.
+        </p>
+      )}
+      {data && data.tests.length > 0 && (
+        <ul className="feed" aria-label="Hook-Tests">
+          {data.tests.slice(0, 10).map((t) => (
+            <li key={`${t.channel_id}-${t.clip_id}`} className="feed-item">
+              <div className="feed-body">
+                <strong>{t.entries[0]?.title ?? `Clip #${t.clip_id}`}</strong>
+                <p className="muted small">
+                  {t.channel} ·{" "}
+                  {t.entries.map((e) => `${e.label}: ${label(e.hook_type)} ${times(e.score)}`).join(" · ")}
+                </p>
+              </div>
+              {t.winner_hook ? (
+                <Badge tone="ok">Gewinner: {label(t.winner_hook)}</Badge>
+              ) : (
+                <Badge tone="neutral">Unentschieden</Badge>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {data && data.winners.length > 0 && (
+        <ul className="feed" aria-label="Gewinner">
+          {data.winners.map((w) => (
+            <li key={w.post_id} className="feed-item">
+              <div className="feed-body">
+                <strong>{w.title ?? `Beitrag #${w.post_id}`}</strong>
+                <p className="muted small">
+                  {w.channel} · {times(w.score)} so gut wie üblich · {formatDateTime(w.published_at)}
+                </p>
+              </div>
+              {w.recycled_variant_id ? (
+                <Badge tone="ok">Neuer Hook: {label(w.new_hook)}</Badge>
+              ) : (
+                <Badge tone="warn">Wird noch recycelt</Badge>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
   );
 }
 
@@ -316,6 +415,7 @@ export function AnalyticsView() {
           </div>
         )}
       </Section>
+      <HooksSection />
       <LearningSection admin={hasRole(user?.role, "admin")} />
     </>
   );

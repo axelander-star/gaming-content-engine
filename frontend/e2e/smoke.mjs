@@ -96,14 +96,14 @@ try {
     }
   });
 
-  await step("Agentenseite zeigt alle 24 Agenten", async () => {
+  await step("Agentenseite zeigt alle 25 Agenten", async () => {
     await page.getByRole("link", { name: "Agenten", exact: true }).click();
     await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
     await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
     const rows = page.locator("table").first().locator("tbody tr");
-    await rows.nth(22).waitFor();
-    assert.equal(await rows.count(), 24);
-    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 24 agents are built
+    await rows.nth(24).waitFor();
+    assert.equal(await rows.count(), 25);
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 25 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -460,6 +460,7 @@ try {
     await page.getByRole("figure", { name: "Aufrufe", exact: true }).waitFor();
     await page.getByRole("figure", { name: "Aufrufe pro Spiel" }).waitFor();
     await page.getByText("Erkenntnisse (Learning Agent)").waitFor();
+    await page.getByText("Hook-Tests und Gewinner").waitFor();
     await filters.getByRole("combobox", { name: "Zeitraum" }).selectOption("7");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/analytics.png`, fullPage: true });
     await page.getByRole("link", { name: "Kosten", exact: true }).click();

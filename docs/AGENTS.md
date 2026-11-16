@@ -51,6 +51,7 @@ Code: `backend/agents/base.py`, Registry `backend/agents/registry.py`.
 | 22 | Own Production | E7 | Skript, Stimme, eigene Bilder | Video 9:16 mit Untertiteln in der Mediathek | `queued` → `done`/`failed` | lokal (Stimme ggf. bezahlt) |
 | 23 | Community | A3 | neue Kommentare unter eigenen Beiträgen (YouTube, Instagram; TikTok von Hand eingefügt) | Antwortentwurf, harmlose Kommentare beantwortet, Kritik/heikle Themen/TikTok zur Freigabe, Spam ignoriert | `new` → `ready`/`review`/`ignored` → `sent` | Claude Haiku je Entwurf, YouTube 50 Einheiten je Antwort |
 | 24 | Competitor Radar | A5 | eingetragene YouTube-Kanäle der Konkurrenz je Themenbereich | Videos mit Aufrufen, Ausreißer (≥ 3× üblich, letzte 21 Tage) als Recherche-Eintrag fürs Ideenlabor | – (liest nur) | YouTube Data API, ca. 3 Einheiten je Kanal und Lauf (alle 12 h), kostenlos |
+| 25 | Winner Recycling | A7 | eigene Beiträge mit Bewertung relativ zum Kanal | Hook-Tests (Gewinner je Clip und Kanal), Gewinner ≥ 2× üblich nach 7 Tagen: neue Variante mit anderem Hook, Idee „Teil 2“ | neue Variante startet in `EDITING` | lokal, täglich |
 
 ## Trend Research und Game Intelligence (umgesetzt in Phase 5)
 
