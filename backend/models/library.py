@@ -76,6 +76,9 @@ class LibraryItem(IdMixin, TimestampMixin, Base):
         BigInteger, ForeignKey("users.id", ondelete="SET NULL")
     )
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    #: Uploaded video originals are removed after ``LIBRARY_ORIGINAL_RETENTION_DAYS``
+    #: (operator decision 16.11.2026); the 9:16 version stays for posts.
+    original_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class OwnProduction(IdMixin, TimestampMixin, Base):

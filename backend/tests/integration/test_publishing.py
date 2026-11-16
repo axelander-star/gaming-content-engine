@@ -120,7 +120,7 @@ def test_authorization_url_asks_for_offline_upload_access(settings: Settings) ->
     url = urlparse(youtube.authorization_url(settings, state))
     q = parse_qs(url.query)
     assert url.netloc == "accounts.google.com" and url.path == "/o/oauth2/v2/auth"
-    assert q["access_type"] == ["offline"] and q["prompt"] == ["consent"]
+    assert q["access_type"] == ["offline"] and q["prompt"] == ["consent select_account"]
     assert youtube.UPLOAD_SCOPE in q["scope"][0].split()
     assert q["redirect_uri"] == [settings.youtube_oauth_redirect_uri]
     assert youtube.read_state(settings, q["state"][0]) == (7, 3)
@@ -498,6 +498,50 @@ def test_connect_callback_and_disconnect(
         db.scalar(select(ChannelCredential).where(ChannelCredential.channel_id == channel.id))
         is None
     )
+
+
+def test_one_platform_account_per_channel(
+    db: Session,
+    settings: Settings,
+    google: FakeGoogle,
+    api: TestClient,
+    make_user: Callable[..., User],
+) -> None:
+    """Several YouTube channels (one per topic area) work; the same account twice does not."""
+    api.app.dependency_overrides[get_settings] = lambda: settings  # type: ignore[attr-defined]
+    chain = build_chain(db)
+    first = db.scalar(select(Channel).where(Channel.platform.has(code=PlatformCode.YOUTUBE)))
+    assert first is not None
+    second = Channel(
+        platform_id=first.platform_id,
+        content_project_id=first.content_project_id,
+        language=chain.variant.language,
+        name="YouTube Ernährung",
+        auth_status=ChannelAuthStatus.NOT_CONNECTED,
+    )
+    db.add(second)
+    make_user("admin@example.com", UserRole.ADMIN)
+    db.commit()
+    h = login(api, "admin@example.com")
+
+    def connect(channel: Channel) -> str:
+        res = api.post(f"/api/channels/{channel.id}/connect", headers=h)
+        state = parse_qs(urlparse(res.json()["url"]).query)["state"][0]
+        cb = api.get("/api/oauth/youtube/callback", params={"state": state, "code": "4/x"},
+                     follow_redirects=False)  # fmt: skip
+        return str(cb.headers["location"])
+
+    other = httpx.Response(200, json={"items": [{"id": "UC999", "snippet": {"title": "Zwei"}}]})
+    google.on("POST", youtube.TOKEN_URL, token_response())
+    google.on("GET", f"{youtube.API}/channels", channel_response(), channel_response(), other)
+    assert connect(first).endswith("youtube=connected")
+    assert connect(second).endswith("youtube=in_use")  # same Google channel UC123
+    db.expire_all()
+    assert db.get(Channel, second.id).external_channel_id is None  # type: ignore[union-attr]
+    assert connect(second).endswith("youtube=connected")  # its own channel UC999
+    db.expire_all()
+    ids = {db.get(Channel, c.id).external_channel_id for c in (first, second)}  # type: ignore[union-attr]
+    assert ids == {"UC123", "UC999"}
 
 
 def test_connect_needs_a_configured_client(

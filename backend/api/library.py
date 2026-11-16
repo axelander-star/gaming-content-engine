@@ -88,6 +88,9 @@ class LibraryItemOut(BaseModel):
     note: str | None
     error_message: str | None
     archived: bool
+    #: False once the original was removed after the retention period (16.11.2026)
+    has_original: bool
+    original_deleted_at: datetime | None
     created_at: datetime
 
 
@@ -119,6 +122,8 @@ def _item_out(item: LibraryItem, project: str) -> LibraryItemOut:
         note=item.note,
         error_message=item.error_message,
         archived=item.archived_at is not None,
+        has_original=item.original_deleted_at is None,
+        original_deleted_at=item.original_deleted_at,
         created_at=item.created_at,
     )
 
@@ -127,6 +132,8 @@ class LibraryInfoOut(BaseModel):
     rights_statement: str
     allowed_types: dict[str, str]
     max_rendition_s: float
+    #: originals of uploaded videos are deleted after this many days (0 = never)
+    original_retention_days: int
 
 
 @router.get("/library/info", response_model=LibraryInfoOut)
@@ -135,6 +142,7 @@ def library_info(_: Viewer, settings: AppSettings) -> LibraryInfoOut:
         rights_statement=library.RIGHTS_STATEMENT,
         allowed_types=library.ALLOWED_TYPES,
         max_rendition_s=settings.library_max_rendition_s,
+        original_retention_days=settings.library_original_retention_days,
     )
 
 
@@ -189,6 +197,10 @@ def library_file(
     uri = {"original": item.original_uri, "rendition": item.rendition_uri, "thumb": item.thumb_uri}[
         which
     ]
+    if which == "original" and item.original_deleted_at is not None:
+        raise HTTPException(
+            status.HTTP_410_GONE, detail="Original nach Ablauf der Aufbewahrungsfrist gelöscht"
+        )
     if uri is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Diese Fassung gibt es nicht")
     try:
@@ -281,6 +293,12 @@ def archive_library_item(item_id: int, user: Operator, db: DbSession) -> Library
 @router.post("/library/{item_id}/restore", response_model=LibraryItemOut)
 def restore_library_item(item_id: int, user: Operator, db: DbSession) -> LibraryItemOut:
     item = _item(db, item_id)
+    if item.original_deleted_at is not None and item.rendition_uri is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Original nach Ablauf der Frist gelöscht, keine 9:16-Fassung: "
+            "nicht mehr nutzbar",
+        )
     item.archived_at = None
     audit.record(
         db, "library.restored", user_id=user.id, entity_type="library_items", entity_id=item.id
@@ -299,6 +317,8 @@ def reprocess_library_item(
     item = _item(db, item_id)
     if item.status != LibraryStatus.FAILED:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Nur fehlgeschlagene Dateien")
+    if item.original_deleted_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Original bereits gelöscht")
     item.status = LibraryStatus.PROCESSING
     item.error_message = None
     audit.record(

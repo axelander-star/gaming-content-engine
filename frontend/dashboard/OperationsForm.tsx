@@ -58,6 +58,7 @@ export function OperationsForm({
       const changes: Partial<OperationsSettings> = {
         ...Object.fromEntries(FIELDS.map((f) => [f.key, values[f.key]])),
         ai_provider: values.ai_provider,
+        tts_provider: values.tts_provider,
       };
       setValues(await api.updateOperations(changes));
       setSaved(true);
@@ -97,8 +98,15 @@ export function OperationsForm({
           </select>
         </label>
         <label>
-          TTS-Anbieter
-          <input value={values.tts_provider} disabled />
+          Stimme (TTS)
+          <select
+            value={values.tts_provider === "piper" ? "piper" : "mock"}
+            disabled={!editable}
+            onChange={(e) => setValues({ ...values, tts_provider: e.target.value })}
+          >
+            <option value="mock">Teststimme (stumm, kostenlos)</option>
+            <option value="piper">Piper (lokal auf dem Server, kostenlos)</option>
+          </select>
         </label>
         <div className="form-actions">
           {editable ? (

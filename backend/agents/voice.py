@@ -69,6 +69,8 @@ class VoiceAgent(Agent):
             duration = media.duration(settings, storage.resolve(settings, stored.uri))
         except media.MediaError as exc:
             raise PermanentError(f"Stimme konnte nicht erzeugt werden: {exc}") from exc
+        except voice.VoiceError as exc:  # e.g. Piper voice not downloaded yet: try later
+            raise ProviderUnavailableError(str(exc)) from exc
         finally:
             shutil.rmtree(work, ignore_errors=True)
         if estimate > 0:

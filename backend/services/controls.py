@@ -54,6 +54,7 @@ class OperationsSettings(BaseModel):
     ai_monthly_cap_usd: float = Field(default=20.0, ge=0, le=1000)
     #: Creative variants (A–D) per clip and channel; each one differs in hook or format.
     creative_variants: int = Field(default=2, ge=1, le=4)
+    #: ``mock`` (silent test voice) or ``piper`` (local, free; services/voice.py).
     tts_provider: str = Field(default="mock", max_length=64)
     notifications_enabled: bool = True
 

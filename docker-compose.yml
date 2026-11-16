@@ -71,6 +71,7 @@ services:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
       MEDIA_ROOT: /data/media  # license evidence (Phase 6), media until R2 (Phase 7)
+      PIPER_VOICE_DIR: /data/piper-voices  # python -m app.piper_voices fetch (16.11.2026)
     command: ["sh", "-c", "alembic upgrade head && python -m app.seed"]
     healthcheck:
       disable: true
@@ -92,6 +93,7 @@ services:
     volumes:
       - media_data:/data/media
       - backup_data:/data/backups:ro
+      - piper_voices:/data/piper-voices
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -110,6 +112,7 @@ services:
     environment: *backend-env
     volumes:
       - media_data:/data/media
+      - piper_voices:/data/piper-voices:ro
     command: ["python", "-m", "app.worker"]
     healthcheck:
       disable: true
@@ -257,6 +260,7 @@ networks:
 volumes:
   backup_data:
   media_data:
+  piper_voices:
   postgres_data:
   redis_data:
   caddy_data:

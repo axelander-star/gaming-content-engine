@@ -210,6 +210,11 @@ class Settings(BaseSettings):
     # --- Gameplay analysis and clip production (Phase 7) ---
     ffmpeg_bin: str = "ffmpeg"
     ffprobe_bin: str = "ffprobe"
+    #: Piper voice (decision 16.11.2026): local, free, models below ``piper_voice_dir``.
+    piper_bin: str = "piper"
+    piper_voice_dir: str = "./data/piper-voices"
+    piper_voice_de: str = "de_DE-thorsten-medium"
+    piper_voice_en: str = "en_US-ljspeech-high"
     production_job_timeout_s: int = Field(default=3600, ge=60)
     max_upload_bytes: int = Field(default=4 * 1024**3, gt=0)  # one gameplay file
     #: Resumable uploads: size of one part. Cloudflare passes at most 100 MB per
@@ -257,6 +262,8 @@ class Settings(BaseSettings):
     library_max_image_bytes: int = Field(default=25 * 1024**2, gt=0)
     #: Sweep for library files whose rendition is still missing.
     library_sweep_seconds: int = Field(default=600, ge=60)
+    #: Delete originals of uploaded videos after this many days; 0 keeps them forever.
+    library_original_retention_days: int = Field(default=30, ge=0)
     production_max_segments: int = Field(default=12, ge=1, le=30)
     production_min_segment_s: float = Field(default=2.5, gt=0)
     production_max_s: float = Field(default=180.0, gt=0)

@@ -239,6 +239,18 @@ def test_unknown_voice_provider_waits(db: Session, settings: Settings, scripted:
     assert scripted.status == VideoStatus.VOICEOVER  # stays, master tries again later
 
 
+def test_piper_without_downloaded_voices_waits(
+    db: Session, settings: Settings, scripted: Variant, tmp_path: Path
+) -> None:
+    assert run(db, settings, "localization", scripted.id).status == AgentRunStatus.SUCCEEDED
+    update_operations(db, None, {"tts_provider": "piper"})
+    empty = settings.model_copy(update={"piper_voice_dir": str(tmp_path / "none")})
+    result = run(db, empty, "voice", scripted.id)
+    assert result.status == AgentRunStatus.SKIPPED and result.output["gate"] == "provider"
+    assert "piper_voices fetch" in (result.error or "")
+    assert scripted.status == VideoStatus.VOICEOVER
+
+
 class UnclearedVoice(voice.MockVoice):
     name = "uncleared"
     commercial_use_cleared = False

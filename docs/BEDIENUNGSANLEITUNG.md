@@ -61,14 +61,15 @@ Videos ganz ohne fremdes Videomaterial: Text, Stimme, eigene Bilder oder Farbfl�
 2. Jeden Abschnitt prüfen und ändern: Überschrift, Sprechtext, Bild (nur aus der Mediathek **desselben** Bereichs, sonst Farbfläche), Reihenfolge.
 3. **Video erzeugen.** Das fertige Video (Hochformat 1080×1920, Untertitel eingebrannt) landet in der Mediathek als „Selbst erzeugt“.
 
-Hinweis: Die Stimme ist noch eine **stumme Teststimme**. Die Videos haben Untertitel, aber keinen Ton, bis eine echte Stimme entschieden ist (siehe offene Freigaben).
+**Stimme:** Entschieden ist **Piper** (lokal auf dem Server, kostenlos). Deutsch spricht „Thorsten“ (CC0), Englisch „LJ Speech“ (Public Domain); beide Lizenzen erlauben kommerzielle Nutzung. Einschalten unter **Einstellungen → Betrieb → Stimme (TTS)**. Vorher einmal die Stimmen auf den Server laden (`python -m app.piper_voices fetch`, ca. 180 MB). Bis dahin ist die stumme Teststimme aktiv.
 
 ### Mediathek
 
 Alle Dateien je Themenbereich: eigene Videos, Bilder, Ton und die selbst erzeugten Videos.
 
 - **Datei hochladen:** Bereich wählen, Datei wählen und **„Eigene Aufnahme bestätigen“** anhaken. Ohne diese Bestätigung wird nichts angenommen; Person und Zeit werden gespeichert.
-- Das System prüft die Datei und legt automatisch eine Hochformat-Fassung (9:16) und ein Vorschaubild an. Das Original bleibt unverändert.
+- Das System prüft die Datei und legt automatisch eine Hochformat-Fassung (9:16) und ein Vorschaubild an. Das Original bleibt zunächst unverändert.
+- **Originale hochgeladener Videos werden nach 30 Tagen gelöscht** (deine Entscheidung vom 16.11.). Die 9:16-Fassung bleibt und lässt sich weiter posten. Ist das Original selbst schon die fertige Fassung (Hochformat) oder länger als 3 Minuten, gibt es keine zweite Datei: dann wird das Video nach 30 Tagen archiviert, aber erst, wenn kein vorbereiteter oder eingeplanter Beitrag es mehr braucht. Bilder, Ton und selbst erzeugte Videos sind nicht betroffen.
 - **Archivieren** statt Löschen: Archivierte Dateien lassen sich zurückholen und werden nirgends mehr verwendet.
 
 ### Freigabecenter
@@ -102,6 +103,7 @@ Bereiche und ihre Kanäle verwalten (Anlegen und Ändern nur Admin).
 
 - „Neuer Themenbereich“: Name, Sprachen, Unterthemen.
 - „Neuer Kanal“: Bereich, Plattform, Sprache und Kanalname. Die Verbindung zur Plattform (OAuth) stellt ein Admin unter **Einstellungen** in der Kanaltabelle her („Mit … verbinden“).
+- **Mehrere YouTube-Kanäle:** Jeder Kanal im Dashboard hat seine eigene Verbindung. Lege z. B. „YouTube Gaming“ und „YouTube Ernährung“ an und verbinde jeden mit seinem eigenen YouTube-Kanal. Google fragt dabei, welches Konto bzw. welcher Brand-Kanal gemeint ist. Dasselbe YouTube-Konto lässt sich nicht an zwei Kanäle hängen; das System lehnt es ab, damit Gaming und Ernährung nie auf demselben echten Kanal landen.
 - Ein Bereich lässt sich pausieren (dann wird für ihn nichts geplant) oder archivieren.
 
 ## Rollen
@@ -120,12 +122,12 @@ Bevor irgendetwas echt läuft, fehlen noch folgende Punkte. Die Nummern verweise
 
 | Punkt | Frage | Empfehlung |
 |---|---|---|
-| Stimme | Piper lokal (kostenlos, Lizenz der Stimme prüfen) oder ein bezahlter Dienst | erst Piper testen; bezahlter Dienst nur nach Kostenvergleich |
-| A17 TikTok | Entwurf über die API oder halbautomatisch ohne App | Entwurf zuerst in der Sandbox testen |
 | A18 X/Twitter | anbinden ja/nein | erst nach YouTube und Instagram |
 | A11 Sicherungen | Offsite-Kopie in R2 oder Storage Box | R2 |
 | Server | Hetzner bestellen (CX33 ca. 10,70 €/Monat brutto) | nach deiner Freigabe; Ablauf in [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) |
-| Speicher | Originale eigener Aufnahmen nach Frist löschen oder nach R2 auslagern | [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md), Abschnitt 4 |
+| Domain | Name für Dashboard und Rechtstext-Seite (.de) | kurz, neutral, ohne Themenbezug, weil weitere Bereiche dazukommen |
+
+**Entschieden am 16.11.2026:** Stimme Piper; TikTok als Entwurf ins Postfach (oder je Beitrag „Direkt posten“); Originale eigener Aufnahmen nach 30 Tagen löschen; Hetzner-Konto legst du an.
 
 **Freigaben für Kosten (erst nach deinem ausdrücklichen OK)**
 
