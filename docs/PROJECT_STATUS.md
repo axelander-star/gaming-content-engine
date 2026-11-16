@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A6 (ein Video auf alle Plattformen und Englisch, lange Videos zerlegen) abgeschlossen, weiter mit A7 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A7 (natürlichere Hooks, Hook-Tests, Gewinner-Recycling) abgeschlossen, weiter mit A8 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -35,7 +35,8 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A3 | Kommentare: harmlose selbst beantworten (menschlicher Ton), Kritik, heikle Themen und TikTok zur Freigabe | ✅ abgeschlossen (PR #37) |
 | A4 | Chat mit Bildern/PDFs, Spracheingabe, vorgelesenen Antworten, Fertig-Meldungen; Warnsystem mit Glocke und Push aufs Handy | ✅ abgeschlossen (PR #38) |
 | A5 | Feste Regeln im Redaktionsplan („jeden Donnerstag Uhren“), Feiertage und eigene Termine, Konkurrenz-Radar (YouTube) | ✅ abgeschlossen (PR #39) |
-| A6 | Ein Video auf alle Plattformen inkl. Englisch, Texte je Plattform; lange Videos in Shorts zerlegen | ✅ abgeschlossen |
+| A6 | Ein Video auf alle Plattformen inkl. Englisch, Texte je Plattform; lange Videos in Shorts zerlegen | ✅ abgeschlossen (PR #40) |
+| A7 | Natürlichere Hooks ohne Floskeln, Hook-A/B-Tests auswerten, Gewinner mit neuem Hook erneut einplanen, Idee „Teil 2“ | ✅ abgeschlossen |
 
 **A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
 - Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).
@@ -92,6 +93,13 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 - **Lange Videos zerlegen:** In der Mediathek „In Shorts zerlegen“ bei eigenen Videos ab 60 Sekunden: Anzahl (1–10, Vorschlag etwa eine je zwei Minuten) und Länge (10–90 s). Der Media-Library-Agent sucht im Hintergrund die stärksten Stellen (gleiche Signale wie die Clip-Analyse, an Schnitten ausgerichtet), schneidet sie ins Hochformat (Ausschnitt um die Bewegung oder unscharfer Hintergrund) und legt sie als „Titel – Teil 1“ usw. in die Mediathek, mit Zeitangabe und der Rechtebestätigung des langen Videos. Kostenlos, alles lokal. Danach Hinweis in der Glocke. Veröffentlicht wird nichts, die Shorts gehen wie jedes Video durchs Freigabecenter.
 
 **Tests:** 10 Backend-Tests (`tests/integration/test_crosspost_split.py`: Kopie auf alle Plattformen derselben Sprache, nicht doppelt, keine Kopie der Kopie; pausiert, zu lang und abgeschaltet; KI-Stimmen-Kennzeichnung und keine Selbst-Duplikate; Texte an Wortgrenzen gekürzt; „Überall“ mit Englisch und Auslassen unpassender Plattformen; englische Fassung mit gleichen Bildern; Zerlegen eines 65-Sekunden-Videos in zwei Shorts mit Rechte-Prüfung; Ausschnitt ohne Bestätigung gesperrt; API Zerlegen/Übersetzen; „Überall“ ohne offene Kanäle), E2E-Schritt „Langes Video in Shorts zerlegen, englische Fassung, überall vorbereiten“.
+
+**A7 Hooks, Hook-Tests, Gewinner-Recycling** (`services/hooks.py`, `services/winners.py`, Agent 25 „Winner Recycling“, `GET /analytics/hooks`, Abschnitt „Hook-Tests und Gewinner“ in Analytics; keine neue Tabelle):
+- **Natürlichere Hooks:** Je Hook-Art und Sprache drei bis vier Formulierungen, wie ein Mensch sie sagt („Ehrlich, das klappt in Valorant fast nie.“ statt „Der krasseste Moment ever!“). Eine Prüfung erkennt typische KI- und Clickbait-Floskeln („Du wirst nicht glauben …“, „unglaublich“, „insane“, „in diesem Video“), mehrere Ausrufezeichen, Großbuchstaben-Wörter, Emojis im Sprechtext und Hooks über 14 Wörter. Schreibt ein Sprachmodell einen solchen Hook, nimmt die Engine die Vorlage. Die letzten zehn Hooks eines Kanals werden nicht wiederholt. Auch „episch“-Titel und -Sätze sind ersetzt.
+- **Hook-A/B-Tests:** Der Creative Director plant schon Varianten mit verschiedenen Hooks (A, B …). Laufen zwei davon auf demselben Kanal, vergleicht die Engine ihre Bewertung (relativ zum Kanal, gleiches Alter). Ein Hook gewinnt ab 15 % Vorsprung, sonst unentschieden. Die Bilanz je Hook-Art steht in Analytics.
+- **Gewinner-Recycling:** Ein Beitrag, der mindestens doppelt so gut lief wie üblich, kommt nach 7 Tagen (bis 60 Tage) noch einmal: gleicher Clip, anderer Hook (der mit der besten Bilanz, nie der alte), als neue Variante „R1“ durch Skript, Stimme, Untertitel und Qualitätsprüfung. Wann sie erscheint, entscheidet der Publishing Strategy Agent. Zusätzlich landet eine Idee „Teil 2: …“ im Ideenlabor (auch für Mediathek-Videos). Jeder Gewinner nur einmal, höchstens fünf je Lauf, Hinweis in der Glocke. Im Live-Betrieb zählen Testbeiträge nicht mit.
+
+**Tests:** 8 Backend-Tests (`tests/integration/test_hooks_winners.py`: Floskeln/Großbuchstaben/Emoji/Ausrufezeichen, alle Vorlagen-Hooks natürlich, keine Wiederholung auf dem Kanal, Hook-Test mit Gewinner und Unentschieden, Recycling mit neuem Hook und Idee nur einmal und nicht zu früh, Agent überspringt ohne Beiträge, API), E2E prüft den neuen Abschnitt in Analytics.
 
 ## Einschub: Entscheidungen des Betreibers (16.11.2026)
 

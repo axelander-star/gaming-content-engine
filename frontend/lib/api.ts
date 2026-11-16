@@ -39,6 +39,7 @@ import type {
   AnalyticsOverview,
   ChannelPlan,
   CostSummary,
+  HookReport,
   LearningVersionOut,
   Clip,
   Creator,
@@ -542,6 +543,7 @@ export const api = {
     return request<AnalyticsOverview>(`/analytics/overview?${params.toString()}`);
   },
   learningVersions: () => request<LearningVersionOut[]>("/analytics/learning"),
+  hookReport: () => request<HookReport>("/analytics/hooks"),
   rollbackLearning: (version: number) =>
     request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, { method: "POST" }),
   costSummary: () => request<CostSummary>("/costs/summary"),

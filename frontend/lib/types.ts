@@ -675,6 +675,55 @@ export interface AnalyticsFilters {
   hour?: string;
 }
 
+/** Ausbau A7: hook A/B tests and winner recycling. */
+export interface HookTestEntry {
+  variant_id: number;
+  post_id: number;
+  label: string;
+  hook_type: string | null;
+  score: number;
+  title: string | null;
+}
+
+export interface HookTest {
+  channel_id: number;
+  channel: string;
+  clip_id: number;
+  entries: HookTestEntry[];
+  winner_variant_id: number | null;
+  winner_hook: string | null;
+}
+
+export interface HookBalance {
+  hook_type: string;
+  label: string;
+  tests: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  median_score: number | null;
+}
+
+export interface WinnerPost {
+  post_id: number;
+  variant_id: number;
+  title: string | null;
+  channel: string;
+  score: number;
+  hook_type: string | null;
+  published_at: string;
+  recycled_variant_id: number | null;
+  new_hook: string | null;
+}
+
+export interface HookReport {
+  tests: HookTest[];
+  balance: HookBalance[];
+  winners: WinnerPost[];
+  winner_score: number;
+  recycle_after_days: number;
+}
+
 export interface LearningVersionOut {
   version: number;
   status: "trial" | "active" | "rolled_back" | "superseded";

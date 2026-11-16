@@ -18,7 +18,7 @@ from models.analytics import AnalyticsSnapshot, LearningVersion, Metric
 from models.channels import Channel
 from models.production import Variant
 from models.publishing import Post
-from services import audit, costs, learning, strategy
+from services import audit, costs, learning, strategy, winners
 from services.queue import get_redis
 
 router = APIRouter(tags=["analytics"], dependencies=[Depends(csrf_protect)])
@@ -239,6 +239,52 @@ def learning_rollback(version: int, admin: Admin, db: DbSession) -> LearningOut:
     )
     db.commit()
     return _learning_out(restored)
+
+
+class HooksOut(BaseModel):
+    tests: list[dict[str, Any]]
+    balance: list[dict[str, Any]]
+    winners: list[dict[str, Any]]
+    winner_score: float
+    recycle_after_days: int
+
+
+@router.get("/analytics/hooks", response_model=HooksOut)
+def hook_report(_: Viewer, db: DbSession, settings: AppSettings) -> HooksOut:
+    """A7: hook A/B tests per clip and channel, wins per hook type, recent winners."""
+    scored = winners.scored_posts(db, include_mock=settings.publishing_mode != "live")
+    tests = winners.hook_tests(scored)
+    recycled = {
+        int(v.concept["recycle_of"]): v
+        for v in db.scalars(
+            select(Variant).where(Variant.concept["recycle_of"].as_integer().is_not(None))
+        )
+    }
+    best = sorted((x for x in scored if x.score >= winners.WINNER_SCORE), key=lambda x: -x.score)[
+        :20
+    ]
+    return HooksOut(
+        tests=[t.as_dict() for t in tests[:50]],
+        balance=[b.as_dict() for b in winners.balance(tests)],
+        winners=[
+            {
+                "post_id": x.post.id,
+                "variant_id": x.variant.id,
+                "title": x.variant.title,
+                "channel": x.channel.name,
+                "score": round(x.score, 2),
+                "hook_type": x.variant.hook_type,
+                "published_at": x.post.published_at,
+                "recycled_variant_id": recycled[x.variant.id].id
+                if x.variant.id in recycled
+                else None,
+                "new_hook": recycled[x.variant.id].hook_type if x.variant.id in recycled else None,
+            }
+            for x in best
+        ],
+        winner_score=winners.WINNER_SCORE,
+        recycle_after_days=winners.RECYCLE_AFTER_DAYS,
+    )
 
 
 @router.get("/costs/summary")

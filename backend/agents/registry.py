@@ -175,6 +175,12 @@ def _competitor_radar() -> Agent:
     return CompetitorRadarAgent()
 
 
+def _winner_recycling() -> Agent:
+    from agents.winner_recycling import WinnerRecyclingAgent
+
+    return WinnerRecyclingAgent()
+
+
 def _publishing() -> Agent:
     from agents.publishing import PublishingAgent
 
@@ -261,6 +267,9 @@ _SPECS: tuple[AgentSpec, ...] = (
               "Beobachtet YouTube-Kanäle der Konkurrenz und meldet Videos, die weit über deren "
               "Durchschnitt laufen, als Hinweis ans Ideenlabor.", 16, CostKind.FREE_API,
               factory=_competitor_radar),
+    AgentSpec("winner_recycling", 25, "Winner Recycling",
+              "Wertet Hook-Tests aus und plant Gewinner mit neuem Hook erneut ein; legt eine "
+              "Idee „Teil 2“ ins Ideenlabor.", 16, CostKind.LOCAL, factory=_winner_recycling),
 )  # fmt: skip
 
 _registry: dict[str, AgentSpec] = {s.name: s for s in _SPECS}

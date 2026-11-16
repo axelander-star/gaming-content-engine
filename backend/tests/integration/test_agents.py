@@ -76,9 +76,9 @@ def ready_chain(db: Session) -> Chain:
 # --- registry ---------------------------------------------------------------
 
 
-def test_registry_lists_all_24_agents() -> None:
+def test_registry_lists_all_25_agents() -> None:
     specs = registry.all_specs()
-    assert [s.number for s in specs] == list(range(1, 25))
+    assert [s.number for s in specs] == list(range(1, 26))
     assert {s.name for s in specs if s.implemented} == {
         "master",
         "budget_cost",
@@ -104,6 +104,7 @@ def test_registry_lists_all_24_agents() -> None:
         "own_production",
         "community",
         "competitor_radar",
+        "winner_recycling",
     }
     stages = [s.stage.status for s in registry.stage_specs() if s.stage]
     assert stages[0] == "DISCOVERED" and "SCHEDULED" in stages
