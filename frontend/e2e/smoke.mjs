@@ -18,6 +18,29 @@ const PASSWORD = process.env.E2E_PASSWORD;
 const SHOTS = process.env.SCREENSHOT_DIR;
 assert.ok(PASSWORD, "E2E_PASSWORD must be set");
 
+/** One-page PDF with a real text layer, built by hand. */
+function textPdf(text) {
+  const stream = `BT /F1 12 Tf 72 720 Td (${text}) Tj ET`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let out = "%PDF-1.4\n";
+  const offsets = [];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const off of offsets) out += `${String(off).padStart(10, "0")} 00000 n \n`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, "latin1");
+}
+
 let rightsTag = ""; // licence and game created in the rights step, reused for production
 const steps = [];
 const step = async (name, fn) => {
@@ -818,6 +841,36 @@ try {
     await card.waitFor({ state: "detached" });
     await page.getByRole("tab", { name: /Beantwortet/ }).click();
     await page.getByRole("article", { name: "Kommentar von Lena" }).waitFor();
+  });
+
+  await step("Assistent: PDF anhängen, Antwort vorlesen; Hinweise und Test-Push", async () => {
+    await page.getByRole("link", { name: "Assistent", exact: true }).click();
+    await page.getByRole("heading", { name: "Assistent", level: 1 }).waitFor();
+    await page.locator("[data-testid=chat-file]").setInputFiles({
+      name: "angebot.pdf",
+      mimeType: "application/pdf",
+      buffer: textPdf("Kooperation Uhren 300 Euro"),
+    });
+    const pending = page.getByLabel("Angehängte Dateien");
+    await pending.getByText("angebot.pdf · 1 S.").waitFor();
+    await page.getByLabel("Nachricht an den Assistenten").fill("Was steht drin?");
+    await page.getByRole("button", { name: "Senden" }).click();
+    const log = page.locator(".chat-log");
+    await log.getByText(/angebot\.pdf.*gelesen/).waitFor();
+    await log.getByText("Kooperation Uhren 300 Euro", { exact: false }).first().waitFor();
+    await log.getByRole("link", { name: /PDF angebot\.pdf/ }).waitFor();
+    await log.getByRole("button", { name: "Vorlesen" }).last().waitFor();
+    await page.getByLabel("Antworten vorlesen").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/assistent-dateien.png`, fullPage: true });
+
+    await page.getByRole("button", { name: /^Hinweise/ }).click();
+    const panel = page.getByRole("dialog", { name: "Hinweise" });
+    await panel.getByText(/Push aufs Handy ist noch aus/).waitFor();
+    await panel.getByRole("button", { name: "Test-Push" }).click();
+    await panel.getByText("Testmodus: nichts gesendet.").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/hinweise.png` });
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached" });
   });
 
   await step("Abmelden", async () => {

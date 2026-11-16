@@ -30,10 +30,10 @@ from agents.registry import get_spec
 from core.config import Settings
 from core.enums import ChatActionStatus, ContentProjectStatus, UserRole
 from models.access import User
-from models.assistant import ChatAction, ChatMessage
+from models.assistant import ChatAction, ChatAttachment, ChatMessage
 from models.planning import ContentFocus, EditorialDay
 from models.projects import DEFAULT_PROJECT_SLUG, ContentProject
-from services import agent_control, ai, audit, planning
+from services import agent_control, ai, audit, chat_media, planning
 from services.controls import effective_controls
 from services.planning import PlanningError, format_day
 
@@ -713,10 +713,13 @@ def _history(session: Session, user: User, before_id: int) -> list[ai.AIMessage]
     return messages
 
 
-def _live(ctx: Context, text: str) -> tuple[str, list[int]]:
+def _live(
+    ctx: Context, text: str, attachments: list[ChatAttachment] | None = None
+) -> tuple[str, list[int]]:
     """Run the tool loop; returns the answer and the ai_call ids."""
     system = system_prompt(ctx.session, ctx.settings, ctx.user)
-    messages = [*_history(ctx.session, ctx.user, ctx.message.id), ai.AIMessage("user", text)]
+    content = chat_media.content_blocks(ctx.settings, text, attachments or [])
+    messages = [*_history(ctx.session, ctx.user, ctx.message.id), ai.AIMessage("user", content)]
     call_ids: list[int] = []
     tool_calls = 0
     answer = ""
@@ -790,13 +793,25 @@ def _mock_answer(ctx: Context, text: str) -> str:
 
 
 def send(
-    session: Session, settings: Settings, user: User, text: str, redis: Redis | None = None
+    session: Session,
+    settings: Settings,
+    user: User,
+    text: str,
+    redis: Redis | None = None,
+    attachments: list[ChatAttachment] | None = None,
 ) -> Exchange:
-    """Handle one chat message from ``user``; commits."""
+    """Handle one chat message from ``user`` (optionally with files); commits."""
+    attachments = attachments or []
     text = text.strip()[:MAX_TEXT]
-    question = ChatMessage(user_id=user.id, role="user", text=text)
+    # The history keeps a note of the files so later questions can refer to them.
+    noted = "\n".join(f"[{chat_media.describe(a)}]" for a in attachments)
+    question = ChatMessage(
+        user_id=user.id, role="user", text=(f"{text}\n{noted}" if text and noted else text or noted)
+    )
     session.add(question)
     session.flush()
+    for att in attachments:
+        att.message_id = question.id
     answer = ChatMessage(user_id=user.id, role="assistant", text="", provider=ai.MOCK)
     session.add(answer)
     session.flush()
@@ -804,7 +819,7 @@ def send(
 
     if ai.selected_provider(session) == ai.CLAUDE:
         try:
-            reply, call_ids = _live(ctx, text)
+            reply, call_ids = _live(ctx, text, attachments)
             answer.provider = ai.CLAUDE
             answer.ai_call_ids = call_ids
         except ai.AIBlockedError as exc:
@@ -815,11 +830,22 @@ def send(
                     f"Claude ist gerade nicht verfügbar ({exc.reason}). "
                     "Ich habe die einfache Befehlserkennung genutzt.\n" + _mock_answer(ctx, text)
                 )
+                if attachments:
+                    reply += "\n" + chat_media.mock_summary(attachments)
         except (ai.AIRefusedError, ai.AIFailedError) as exc:
             answer.provider = ai.CLAUDE
             reply = f"Das hat nicht geklappt: {exc}."
+        except ValueError:
+            reply = (
+                "Die Nachricht mit den Dateien ist zu lang. "
+                "Schick bitte weniger oder kürzere Dateien."
+            )
     else:
-        reply = _mock_answer(ctx, text)
+        # A question about the files alone ("Was steht drin?") gets no command help.
+        plain = attachments and not parse(session, settings, text).calls
+        reply = _mock_answer(ctx, text) if text and not plain else ""
+        if attachments:
+            reply = "\n".join(p for p in (chat_media.mock_summary(attachments), reply) if p)
 
     answer.text = reply or "Erledigt."
     session.flush()

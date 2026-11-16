@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A3 (Kommentare) abgeschlossen, weiter mit A4 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A4 (Chat mit Dateien und Sprache, Warnsystem) abgeschlossen, weiter mit A5 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -32,7 +32,8 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 |---|---|---|
 | A1 | Kanal-Assistent: fehlende Kanäle je Themenbereich erkennen, Name, Benutzername, Bio, Profilbild, Banner, E-Mail-Weiterleitung, Aufgabe „Kanal erstellen“ | ✅ abgeschlossen (PR #35) |
 | A2 | Konten-Übersicht für viele Konten: Reichweite, Einnahmen je Konto, Empfehlung, Vorschlag „Pausieren erwägen“ nach 90 Tagen | ✅ abgeschlossen (PR #36) |
-| A3 | Kommentare: harmlose selbst beantworten (menschlicher Ton), Kritik, heikle Themen und TikTok zur Freigabe | ✅ abgeschlossen |
+| A3 | Kommentare: harmlose selbst beantworten (menschlicher Ton), Kritik, heikle Themen und TikTok zur Freigabe | ✅ abgeschlossen (PR #37) |
+| A4 | Chat mit Bildern/PDFs, Spracheingabe, vorgelesenen Antworten, Fertig-Meldungen; Warnsystem mit Glocke und Push aufs Handy | ✅ abgeschlossen |
 
 **A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
 - Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).
@@ -63,6 +64,17 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 - Nach dem Update müssen YouTube- und Instagram-Kanäle einmal neu verbunden werden, weil zwei Rechte dazukommen (`youtube.force-ssl`, `instagram_business_manage_comments` bzw. `instagram_manage_comments`).
 
 **Tests:** 19 Backend-Tests (`tests/integration/test_comments.py`: Einordnung, KI-Floskeln verworfen, Entscheidungsregeln, Abruf YouTube/Instagram mit eigenem Konto übersprungen, Senden simuliert/echt, TikTok nur Kopieren, Neu formulieren, Ignorieren, API und Rechte), E2E-Schritt „Kommentare“.
+
+**A4 Chat und Warnsystem** (`services/chat_media.py`, `services/notify.py`, `services/watchdog.py`, `api/notifications.py`, Glocke oben rechts, Tabelle `chat_attachments`, neue Spalten in `notifications`, Migration `89ce45412773`):
+- **Dateien im Chat:** Büroklammer im Assistenten, Bilder (PNG, JPEG) und PDFs bis 10 MB, bis 5 je Nachricht. PDFs liest der Server selbst (pypdf, kostenlos); an Claude geht nur der Text (zusammen höchstens 30.000 Zeichen). Bilder gehen verkleinert (längste Seite 1568 px, höchstens ca. 1.600 Token) an Claude. Gescannte PDFs ohne Text werden nicht teuer verschickt; der Assistent bittet um Fotos der Seiten. Im Testmodus bestätigt der Assistent, was er gelesen hat.
+- **Spracheingabe:** Mikrofon-Knopf, nutzt die Spracherkennung des Browsers (Chrome, Edge, Safari; kostenlos, ohne Server).
+- **Vorlesen:** Lautsprecher an jeder Antwort und Schalter „Antworten vorlesen“. Mit Piper (Einstellungen → Betrieb) spricht der Server lokal und kostenlos, sonst liest die Stimme des Browsers vor.
+- **Fertig-Meldungen:** Startet der Chat eine Recherche, kommt ein Hinweis in die Glocke, sobald sie fertig ist.
+- **Warnsystem** (alle 15 Minuten): Rechte- oder Sperrhinweis einer Plattform beim Veröffentlichen (kritisch), Veröffentlichen fehlgeschlagen, Verbindung abgelaufen, Reichweite bricht ein (−30 %), dazu leise Hinweise „Pausieren erwägen“ und „Kommentare warten“. Jede Warnung höchstens einmal je 24 Stunden (Einbrüche einmal je Woche).
+- **Push aufs Handy** über ntfy (kostenlose Open-Source-App): nur ab „Warnung“, nachts 22–7 Uhr nur Notfälle, was nachts anfällt kommt morgens gesammelt, ab vier Meldungen eine Sammelmeldung, gleiche Meldung nicht doppelt. Standard `PUSH_MODE=mock`: nichts verlässt den Server. Einrichtung in [AUSBAU_PLAN.md](AUSBAU_PLAN.md).
+- Alte Hinweise vor dem Update werden nicht nachträglich gepusht.
+
+**Tests:** 15 Backend-Tests (`tests/integration/test_chat_media_notify.py`: Bilder/PDFs speichern und prüfen, Verkleinern und Textgrenze, Chat mit Dateien im Test- und Live-Modus (Fake-Client), Vorlesen mit Browser-Rückfall und Server-Stimme samt Cache, Push nur Wichtiges und nicht doppelt, Umlaute, Ruhezeit mit Sammelmeldung, Testmodus/Fehler/alte Meldungen, Warnsystem einmalig, Fertig-Meldung, API und fremde Dateien), E2E-Schritt „Assistent: PDF anhängen …; Hinweise und Test-Push“. **Offen:** ntfy-Thema anlegen und `PUSH_MODE=live` setzen (Anleitung in AUSBAU_PLAN.md).
 
 ## Einschub: Entscheidungen des Betreibers (16.11.2026)
 

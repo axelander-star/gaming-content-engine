@@ -3,7 +3,7 @@
 from models.access import AuditLog, Notification, SystemSetting, User
 from models.ai import AICall
 from models.analytics import AnalyticsSnapshot, LearningVersion, Metric
-from models.assistant import ChatAction, ChatMessage
+from models.assistant import ChatAction, ChatAttachment, ChatMessage
 from models.campaigns import Campaign, CampaignSubmission
 from models.channel_setup import ChannelSetupTask
 from models.channels import Channel, ChannelCredential, Platform
@@ -51,6 +51,7 @@ __all__ = [
     "ChannelCredential",
     "ChannelSetupTask",
     "ChatAction",
+    "ChatAttachment",
     "ChatMessage",
     "Clip",
     "Comment",

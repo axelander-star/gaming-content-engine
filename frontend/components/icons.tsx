@@ -29,9 +29,36 @@ export type IconName =
   | "calendar"
   | "image"
   | "wand"
-  | "userPlus";
+  | "userPlus"
+  | "paperclip"
+  | "mic"
+  | "speaker"
+  | "bell"
+  | "stop";
 
 const PATHS: Record<IconName, ReactNode> = {
+  paperclip: (
+    <path d="m21 11-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4L16 7.4" />
+  ),
+  mic: (
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    </>
+  ),
+  speaker: (
+    <>
+      <path d="M4 9v6h4l5 4V5L8 9H4Z" />
+      <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4l2-2Z" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </>
+  ),
+  stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
   userPlus: (
     <>
       <circle cx="9" cy="8" r="4" />

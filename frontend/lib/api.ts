@@ -60,6 +60,7 @@ import type {
   CalendarEntry,
   CalendarFocus,
   ChatAction,
+  ChatAttachment,
   Idea,
   IdeaStatus,
   LibraryInfo,
@@ -67,7 +68,9 @@ import type {
   LibraryKind,
   LibraryOrigin,
   LibraryStatus,
+  NotificationList,
   Production,
+  PushSettings,
   ProductionInput,
   ProductionSegment,
   ResearchItem,
@@ -190,6 +193,33 @@ export const api = {
   chatMessages: (limit = 50) => request<ChatMessage[]>(`/assistant/messages?limit=${limit}`),
   sendChat: (text: string) =>
     request<ChatExchange>("/assistant/messages", { method: "POST", body: json({ text }) }),
+  sendChatWithFiles: (text: string, attachmentIds: number[]) =>
+    request<ChatExchange>("/assistant/messages", {
+      method: "POST",
+      body: json({ text, attachment_ids: attachmentIds }),
+    }),
+  uploadChatFile: (file: File) => upload<ChatAttachment>("/assistant/attachments", file),
+  chatFileUrl: (id: number) => `/api/assistant/attachments/${id}/file`,
+  /** Spoken answer: a Blob from the server voice, or null = let the browser speak. */
+  chatSpeech: async (messageId: number): Promise<Blob | null> => {
+    const res = await fetch(`/api/assistant/messages/${messageId}/speech`, {
+      credentials: "same-origin",
+    });
+    if (res.status === 204) return null;
+    if (!res.ok) {
+      const body: unknown = await res.json().catch(() => null);
+      throw new ApiError(res.status, errorMessage(body, res.status));
+    }
+    return res.blob();
+  },
+  notifications: (limit = 30) => request<NotificationList>(`/notifications?limit=${limit}`),
+  markNotificationsRead: (ids?: number[]) =>
+    request<{ marked: number; unread: number }>("/notifications/read", {
+      method: "POST",
+      body: json({ ids: ids ?? null }),
+    }),
+  pushSettings: () => request<PushSettings>("/notifications/push"),
+  testPush: () => request<{ result: string }>("/notifications/push/test", { method: "POST" }),
   undoChatAction: (id: number) =>
     request<ChatAction>(`/assistant/actions/${id}/undo`, { method: "POST" }),
   weekPlan: (start?: string) =>

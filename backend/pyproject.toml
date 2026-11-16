@@ -26,6 +26,7 @@ dependencies = [
     "defusedxml>=0.7,<1",  # safe RSS/Atom parsing (extension phase E5)
     "piper-tts>=1.8,<2",  # local voice (decision 16.11.2026); GPL-3.0, runs as own process
     "pillow>=11,<13",  # profile pictures and banners of the channel assistant
+    "pypdf>=5,<7",  # read PDFs uploaded in the chat locally (BSD-3-Clause, pure Python)
 ]
 
 [project.optional-dependencies]

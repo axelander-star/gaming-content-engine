@@ -5,14 +5,16 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel, Field, model_validator
 from redis import Redis
 
 from api.deps import AppSettings, DbSession, Operator, Viewer, csrf_protect
 from core.enums import ChatActionStatus
-from models.assistant import ChatAction, ChatMessage
-from services import assistant, planning
+from models.assistant import ChatAction, ChatAttachment, ChatMessage
+from services import assistant, chat_media, planning, storage
 from services.queue import get_redis
 
 router = APIRouter(prefix="/assistant", tags=["assistant"], dependencies=[Depends(csrf_protect)])
@@ -33,6 +35,17 @@ class ChatActionOut(BaseModel):
     undone_at: datetime | None
 
 
+class AttachmentOut(BaseModel):
+    id: int
+    filename: str
+    content_type: str
+    size_bytes: int
+    pages: int | None
+    width: int | None
+    height: int | None
+    has_text: bool
+
+
 class ChatMessageOut(BaseModel):
     id: int
     created_at: datetime
@@ -40,10 +53,18 @@ class ChatMessageOut(BaseModel):
     text: str
     provider: str | None
     actions: list[ChatActionOut]
+    attachments: list[AttachmentOut] = []
 
 
 class ChatIn(BaseModel):
-    text: str = Field(min_length=1, max_length=assistant.MAX_TEXT)
+    text: str = Field(default="", max_length=assistant.MAX_TEXT)
+    attachment_ids: list[int] = Field(default_factory=list, max_length=10)
+
+    @model_validator(mode="after")
+    def _something(self) -> ChatIn:
+        if not self.text.strip() and not self.attachment_ids:
+            raise ValueError("Nachricht oder Datei fehlt")
+        return self
 
 
 class ChatExchangeOut(BaseModel):
@@ -65,7 +86,22 @@ def _action(a: ChatAction) -> ChatActionOut:
     )
 
 
-def _message(m: ChatMessage, actions: list[ChatAction]) -> ChatMessageOut:
+def _attachment(a: ChatAttachment) -> AttachmentOut:
+    return AttachmentOut(
+        id=a.id,
+        filename=a.filename,
+        content_type=a.content_type,
+        size_bytes=a.size_bytes,
+        pages=a.pages,
+        width=a.width,
+        height=a.height,
+        has_text=bool(a.extracted_text),
+    )
+
+
+def _message(
+    m: ChatMessage, actions: list[ChatAction], files: list[ChatAttachment] | None = None
+) -> ChatMessageOut:
     return ChatMessageOut(
         id=m.id,
         created_at=m.created_at,
@@ -73,6 +109,7 @@ def _message(m: ChatMessage, actions: list[ChatAction]) -> ChatMessageOut:
         text=m.text,
         provider=m.provider,
         actions=[_action(a) for a in actions],
+        attachments=[_attachment(a) for a in files or []],
     )
 
 
@@ -82,8 +119,10 @@ def list_messages(
 ) -> list[ChatMessageOut]:
     """The current user's chat history, oldest first."""
     rows = assistant.messages(db, user, limit)
-    actions = assistant.actions_for(db, [m.id for m in rows])
-    return [_message(m, actions.get(m.id, [])) for m in rows]
+    ids = [m.id for m in rows]
+    actions = assistant.actions_for(db, ids)
+    files = chat_media.for_messages(db, ids)
+    return [_message(m, actions.get(m.id, []), files.get(m.id)) for m in rows]
 
 
 @router.post("/messages", response_model=ChatExchangeOut)
@@ -94,12 +133,89 @@ def send_message(
     settings: AppSettings,
     redis: Annotated[Redis, Depends(get_redis)],
 ) -> ChatExchangeOut:
-    exchange = assistant.send(db, settings, user, body.text, redis)
+    try:
+        files = chat_media.claim(db, settings, user, body.attachment_ids)
+    except chat_media.ChatMediaError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    exchange = assistant.send(db, settings, user, body.text, redis, attachments=files)
     db.refresh(exchange.question)
     db.refresh(exchange.answer)
     return ChatExchangeOut(
-        question=_message(exchange.question, []),
+        question=_message(exchange.question, [], files),
         answer=_message(exchange.answer, exchange.actions),
+    )
+
+
+@router.post("/attachments", response_model=AttachmentOut, status_code=201)
+async def upload_attachment(
+    user: Operator,
+    db: DbSession,
+    settings: AppSettings,
+    file: Annotated[UploadFile, File()],
+) -> AttachmentOut:
+    """Upload an image or PDF for the next chat message."""
+    data = await file.read(settings.max_document_bytes + 1)
+    if len(data) > settings.max_document_bytes:
+        mb = settings.max_document_bytes // (1024 * 1024)
+        raise HTTPException(413, detail=f"Die Datei ist größer als {mb} MB.")
+    try:
+        att = await run_in_threadpool(
+            chat_media.save,
+            db,
+            settings,
+            user,
+            file.filename or "datei",
+            file.content_type or "",
+            data,
+        )
+    except chat_media.ChatMediaError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    db.commit()
+    return _attachment(att)
+
+
+@router.get("/attachments/{attachment_id}/file")
+def attachment_file(
+    attachment_id: int, user: Viewer, db: DbSession, settings: AppSettings
+) -> FileResponse:
+    att = db.get(ChatAttachment, attachment_id)
+    if att is None or att.user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Datei nicht gefunden")
+    try:
+        path = storage.resolve(settings, att.uri)
+    except storage.StorageError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Datei nicht gefunden") from exc
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Datei nicht gefunden")
+    return FileResponse(
+        path,
+        media_type=att.content_type,
+        filename=att.filename,
+        content_disposition_type="inline",
+        headers={
+            "Cache-Control": "private, max-age=3600",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "sandbox",
+        },
+    )
+
+
+@router.get("/messages/{message_id}/speech")
+def message_speech(message_id: int, user: Viewer, db: DbSession, settings: AppSettings) -> Response:
+    """Spoken answer. 204 with ``X-Voice: browser`` = let the browser read it aloud."""
+    msg = db.get(ChatMessage, message_id)
+    if msg is None or msg.user_id != user.id or msg.role != "assistant":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Nachricht nicht gefunden")
+    try:
+        speech = chat_media.speak(db, settings, msg)
+    except chat_media.ChatMediaError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    if speech.path is None:
+        return Response(status_code=204, headers={"X-Voice": "browser"})
+    return FileResponse(
+        speech.path,
+        media_type="audio/mp4",
+        headers={"X-Voice": speech.provider, "Cache-Control": "private, max-age=86400"},
     )
 
 

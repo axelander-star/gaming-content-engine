@@ -2331,3 +2331,181 @@ details summary {
 .cm-manual-text {
   flex: 1 1 320px;
 }
+
+/* --- Ausbau A4: chat files, voice, notification bell --- */
+.chat-toggle {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.chat-files,
+.chat-pending {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.chat-thumb {
+  display: block;
+  max-width: 160px;
+  max-height: 120px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+.chip-x {
+  margin-left: 6px;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.chat-bubble {
+  position: relative;
+}
+.chat-assistant .chat-bubble {
+  padding-right: 36px;
+}
+.chat-speak {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+}
+.chat-tools {
+  display: flex;
+  gap: 4px;
+}
+.icon-btn.is-recording {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.bell {
+  position: relative;
+}
+.bell-btn {
+  position: relative;
+}
+.bell-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+.bell-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.25);
+  z-index: 50;
+}
+.bell-head,
+.bell-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  flex-wrap: wrap;
+}
+.bell-head {
+  border-bottom: 1px solid var(--border);
+}
+.bell-foot {
+  border-top: 1px solid var(--border);
+}
+.bell-empty {
+  padding: 16px 12px;
+  margin: 0;
+}
+.bell-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+.bell-item {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+.bell-item:hover {
+  background: var(--surface-2);
+}
+.bell-list li.is-read .bell-item {
+  opacity: 0.6;
+}
+.bell-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.bell-dot.level-warning {
+  background: var(--warn);
+}
+.bell-dot.level-error,
+.bell-dot.level-critical {
+  background: var(--danger);
+}
+.bell-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bell-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.bell-body {
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  .bell-panel {
+    position: fixed;
+    right: 12px;
+    top: 56px;
+  }
+}
