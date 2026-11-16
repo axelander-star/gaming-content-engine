@@ -78,6 +78,8 @@ if [ -n "$ENV_FILE" ]; then
     for k in POSTGRES_PASSWORD REDIS_PASSWORD SECRET_KEY CREDENTIALS_ENCRYPTION_KEY BACKUP_PASSPHRASE; do
       [ -n "$(val "$k")" ] && ok "$k gesetzt" || bad "$k leer"
     done
+    # Caddy refuses to start with an empty "email" global option.
+    [ -n "$(val ACME_EMAIL)" ] && ok "ACME_EMAIL gesetzt" || bad "ACME_EMAIL leer (Caddy startet sonst nicht)"
     [ "$(val APP_ENV)" = "production" ] && ok "APP_ENV=production" || warn "APP_ENV ist nicht production"
     [ "$(val PUBLISHING_MODE)" != "live" ] && ok "PUBLISHING_MODE bleibt mock" \
       || warn "PUBLISHING_MODE=live: nur mit ausdrücklicher Freigabe des Betreibers"
