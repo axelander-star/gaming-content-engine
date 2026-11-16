@@ -111,7 +111,7 @@ for provider in youtube tiktok meta instagram; do
   set_kv "${upper}_OAUTH_REDIRECT_URI" "https://${host}/api/oauth/${provider}/callback"
 done
 echo "  Rückleitungs-Adressen für YouTube, TikTok, Meta und Instagram auf https://${host}/api/oauth/…/callback gesetzt"
-ask CF_ACCESS_TEAM_DOMAIN "Cloudflare-Teamdomäne (z. B. name.cloudflareaccess.com)"
+ask CF_ACCESS_TEAM_DOMAIN "Cloudflare-Teamdomäne (steht oben auf der Access-Anmeldeseite, z. B. name.cloudflareaccess.com)"
 ask CF_ACCESS_ALLOWED_EMAILS "E-Mail-Adresse(n) mit Zugang, durch Komma getrennt"
 ask CF_ACCESS_AUD "AUD-Tag der Cloudflare-Access-Anwendung (leer lassen, wenn noch nicht vorhanden)"
 ask CLOUDFLARE_TUNNEL_TOKEN "Cloudflare-Tunnel-Token (wird beim Tippen nicht angezeigt)" "" secret
@@ -120,6 +120,11 @@ token="${token##*--token }"; token="${token## }"
 set_kv CLOUDFLARE_TUNNEL_TOKEN "$token"
 ask LEGAL_OPERATOR_NAME "Name für die Datenschutzseite"
 ask LEGAL_CONTACT_EMAIL "Kontakt-E-Mail für die Datenschutzseite" "$(get CF_ACCESS_ALLOWED_EMAILS | cut -d, -f1)"
+# Caddy needs a contact address even when only the tunnel is used (empty value = crash loop).
+if is_unset ACME_EMAIL; then
+  set_kv ACME_EMAIL "$(get LEGAL_CONTACT_EMAIL)"
+  echo "  ACME_EMAIL auf die Kontakt-E-Mail gesetzt"
+fi
 ask LEGAL_UPDATED "Stand der Rechtstexte" "$(date +%d.%m.%Y)"
 ask SERVER_MONTHLY_EUR "Servermiete pro Monat in Euro (für die Kostenübersicht, z. B. 13.33)" "0"
 

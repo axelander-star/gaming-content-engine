@@ -22,7 +22,7 @@ fail() { printf 'FEHLER: %s\n' "$*" >&2; exit 1; }
 say "1. Konfiguration prüfen"
 [[ -f .env ]] || fail ".env fehlt (Vorlage: .env.example)"
 env_value() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- | tr -d '"' || true; }
-for key in POSTGRES_PASSWORD REDIS_PASSWORD SECRET_KEY CREDENTIALS_ENCRYPTION_KEY BACKUP_PASSPHRASE; do
+for key in POSTGRES_PASSWORD REDIS_PASSWORD SECRET_KEY CREDENTIALS_ENCRYPTION_KEY BACKUP_PASSPHRASE ACME_EMAIL; do
   [[ -n "$(env_value "$key")" ]] || fail "$key ist in .env nicht gesetzt"
 done
 [[ "$(env_value APP_ENV)" == "production" ]] || echo "Hinweis: APP_ENV ist nicht 'production'."
