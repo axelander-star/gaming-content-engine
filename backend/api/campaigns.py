@@ -125,9 +125,7 @@ def _campaigns_out(db: Session, items: list[Campaign]) -> list[CampaignOut]:
             .join(GameplayFile, GameplayFile.asset_id == Asset.id)
             .where(Asset.source_id.in_([c.source_id for c in items]))
             .group_by(Asset.source_id)
-        )
-        
-        .all()
+        ).all()
     )
     waiting: dict[int, int] = {}
     for _variant, campaign in _clip_rows(db, items, [VideoStatus.QUALITY_APPROVED]):
