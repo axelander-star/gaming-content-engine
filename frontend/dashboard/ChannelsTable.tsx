@@ -24,6 +24,8 @@ function connectMessage(provider: string, result: string): string {
       return `${name}: verbunden, aber noch eingeschränkt (z. B. App nicht geprüft oder Recht zum Veröffentlichen fehlt). Es wird nichts veröffentlicht.`;
     case "denied":
       return `${name}: Die Anmeldung wurde abgebrochen.`;
+    case "in_use":
+      return `${name}: Dieses Konto ist schon mit einem anderen Kanal verbunden. Jeder Kanal braucht sein eigenes Konto (z. B. einen eigenen YouTube-Kanal je Themenbereich). Beim Verbinden das passende Konto auswählen.`;
     case "invalid":
       return `${name}: Der Anmeldevorgang war ungültig oder abgelaufen. Bitte erneut verbinden.`;
     default:

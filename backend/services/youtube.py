@@ -105,7 +105,8 @@ def authorization_url(settings: Settings, state: str) -> str:
         "response_type": "code",
         "scope": " ".join(SCOPES),
         "access_type": "offline",
-        "prompt": "consent",
+        # select_account: pick the Google account or brand channel for this channel
+        "prompt": "consent select_account",
         "include_granted_scopes": "true",
         "state": state,
     }

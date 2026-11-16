@@ -90,7 +90,9 @@ docker compose exec -T backend python -m app.housekeeping report
 
 Die Fristen lassen sich anpassen: `--tmp-hours 12`, `--orphan-days 30`.
 
-**Bewusst nicht automatisch** (braucht deine Entscheidung, Abschnitt 4): Originale von eigenen Aufnahmen nach einer Frist löschen oder auslagern, archivierte Dateien endgültig löschen, Annahmestopp für neue Uploads ab einer Füllgrenze.
+**Automatisch seit 16.11.2026 (deine Entscheidung S1):** Originale hochgeladener Videos werden nach 30 Tagen gelöscht. Das macht der Mediathek-Agent bei seinem regelmäßigen Durchlauf; jede Löschung steht im Protokoll. Die 9:16-Fassung bleibt. Gibt es keine zweite Fassung (Video schon im Hochformat oder länger als 3 Minuten), wird das Video archiviert, sobald kein vorbereiteter oder eingeplanter Beitrag es mehr braucht. Dieselbe Datei in einem anderen Themenbereich wird erst gelöscht, wenn auch dort die Frist abgelaufen ist.
+
+**Bewusst nicht automatisch:** archivierte Dateien endgültig löschen, Annahmestopp für neue Uploads ab einer Füllgrenze (S2).
 
 ---
 
@@ -98,7 +100,7 @@ Die Fristen lassen sich anpassen: `--tmp-hours 12`, `--orphan-days 30`.
 
 | # | Frage | Möglichkeiten | Empfehlung |
 |---|---|---|---|
-| S1 | Wohin mit großen Originalen eigener Aufnahmen? | a) auf dem Server lassen und nach Frist löschen · b) nach Cloudflare R2 auslagern (10 GB frei, danach 0,015 $/GB und Monat, kein Abrufentgelt) · c) Hetzner Volume dazubuchen (Preis je GB am Bestelltag prüfen ⚠️) | Start mit a), Originale **30 Tage** nach der letzten Verwendung löschen; wenn du Originale behalten willst, b). Die Auslagerung nach R2 (B14) ist noch nicht gebaut. |
+| S1 | ✅ **Entschieden 16.11.: Originale nach 30 Tagen löschen** (läuft automatisch im Mediathek-Agenten, `LIBRARY_ORIGINAL_RETENTION_DAYS=30`). Ursprüngliche Frage: Wohin mit großen Originalen eigener Aufnahmen? | a) auf dem Server lassen und nach Frist löschen · b) nach Cloudflare R2 auslagern (10 GB frei, danach 0,015 $/GB und Monat, kein Abrufentgelt) · c) Hetzner Volume dazubuchen (Preis je GB am Bestelltag prüfen ⚠️) | Start mit a), Originale **30 Tage** nach der letzten Verwendung löschen; wenn du Originale behalten willst, b). Die Auslagerung nach R2 (B14) ist noch nicht gebaut. |
 | S2 | Annahmestopp bei vollem Speicher | ab 85 % keine neuen Uploads und Render-Aufträge, Veröffentlichung läuft weiter | einbauen, bevor eigene Aufnahmen hochgeladen werden (B16, Restpunkt) |
 | S3 | Server-Größe | CX33 (4 vCPU, 8 GB, 80 GB), Ausweichen auf CX43, falls CX33 nicht verfügbar ⚠️ | CX33 reicht für Szenario A und C |
 
@@ -183,4 +185,5 @@ Für alle gilt:
 5. `./scripts/deploy.sh`, Admin anlegen (C8), Uptime Kuma (C10).
 6. Erste Sicherung und Wiederherstellungstest (C12).
 7. Apps je Plattform nach Abschnitt 5, Kanäle verbinden, je Plattform ein privater Test nach einzelner Freigabe (C14–C16).
-8. Aufräumen einplanen (C18), nach einer Woche `housekeeping report` ansehen.
+8. Piper-Stimmen laden: `docker compose exec backend python -m app.piper_voices fetch` (ca. 180 MB, Prüfsumme wird kontrolliert), dann unter Einstellungen → Betrieb „Piper“ wählen.
+9. Aufräumen einplanen (C18), nach einer Woche `housekeeping report` ansehen.

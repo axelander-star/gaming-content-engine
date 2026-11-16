@@ -24,6 +24,19 @@
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
 
+## Einschub: Entscheidungen des Betreibers (16.11.2026)
+
+Alexander hat am 16.11. entschieden; umgesetzt im selben Pull Request:
+
+| Entscheidung | Umsetzung |
+|---|---|
+| **Stimme: Piper** | neuer Stimm-Anbieter `piper` (`services/voice.py`): läuft lokal als eigenes Programm (Paket `piper-tts`, GPL-3.0), kostenlos. Nur Stimmen mit Lizenz für kommerzielle Nutzung: Deutsch `de_DE-thorsten-medium` (Thorsten-Voice, CC0, aus dem CC0-Basismodell „rdh“ trainiert), Englisch `en_US-ljspeech-high` (LJ Speech, Public Domain, von Grund auf trainiert). `de_DE-thorsten-high` wurde bewusst nicht genommen, weil es auf der Stimme „lessac“ aufbaut, deren Lizenz nicht eindeutig ist. Stimmen laden mit `python -m app.piper_voices fetch` (SHA256 je Modell festgelegt, eigenes Volume). Auswahl in Einstellungen → Betrieb. |
+| **TikTok als Entwurf ins Postfach** | war seit E8 Standard (`TIKTOK_POST_MODE=inbox`); je Beitrag bleibt im Freigabecenter „Direkt posten“ wählbar (ohne Audit nur privat). Keine Codeänderung nötig. |
+| **Originale eigener Aufnahmen nach 30 Tagen löschen** | `library.expire_originals` im Durchlauf des Mediathek-Agenten, `LIBRARY_ORIGINAL_RETENTION_DAYS=30` (0 = behalten), neue Spalte `library_items.original_deleted_at` (Migration `66d12af8800d`). Die 9:16-Fassung bleibt; ohne zweite Fassung wird das Video archiviert, aber erst wenn kein offener Beitrag es braucht. Mediathek zeigt „Original gelöscht“. |
+| **Mehrere YouTube-Kanäle** (Frage) | ging schon: jeder Kanal hat seine eigene Verbindung. Neu: Google fragt beim Verbinden nach dem Konto bzw. Brand-Kanal (`select_account`), und dasselbe Konto kann nicht an zwei Kanälen hängen (sonst würden zwei Themenbereiche auf denselben echten Kanal posten). |
+
+**Tests:** 4 Tests Aufbewahrungsfrist (Frist, Hochformat mit offenem Beitrag, gemeinsame Datei, Agent und API), 5 Tests Piper (Aufruf mit Text nur über stdin, nur freigegebene und geladene Stimmen, Prüfsumme beim Laden, Liste, Agent wartet ohne Stimmen), 1 Test „ein Konto je Kanal“. **Nicht geprüft:** die echte Piper-Sprachausgabe, weil die Stimmen in der Entwicklungsumgebung nicht herunterladbar sind (Hugging Face gesperrt); das passiert beim ersten `fetch` auf dem Server.
+
 ## Einschub: private Nutzung (15.11.2026)
 
 Entscheidung des Betreibers: Die Anwendung ist ausschließlich für ihn bestimmt, kein öffentliches Produkt. Umgesetzt (ohne Deployment): Prüfung des Cloudflare-Access-Tokens im Backend (`ACCESS_GUARD=cloudflare`), Einzelbenutzer-Modus (`SINGLE_USER_MODE`), Dienst `cloudflared` (Profil `tunnel`), interner Caddy-Eingang für den Tunnel, `harden.sh --tunnel`, Warnungen in `deploy.sh`. 13 neue Tests, alle 372 Backend-Tests grün. Checkliste ohne öffentliche Website überarbeitet. Nachgezogen (15.11.): Prüfung des Zugangsschutzes ohne Blockieren der Ereignisschleife und mit 30 s Uhrentoleranz; statische Rechtstext-Seite für Google/Meta auf eigenem Caddy-Eingang `:8081` ohne Route zur Anwendung; fortsetzbarer Upload in Teilstücken (`/api/uploads`, Tabelle `upload_sessions`, Dashboard mit Fortschritt und Anhalten, 9 neue Tests, [UPLOADS.md](UPLOADS.md)). Offen: Einrichtung von Cloudflare und Server (gemeinsam, nach Prüfung durch den Betreiber), Rechtstexte lesen und `LEGAL_*` setzen. Details: [PRIVATE_ACCESS.md](PRIVATE_ACCESS.md), [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).

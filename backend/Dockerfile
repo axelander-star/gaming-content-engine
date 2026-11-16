@@ -26,7 +26,8 @@ RUN pip install --upgrade pip \
 COPY . .
 
 RUN useradd --create-home --uid 10001 app && chown -R app /app \
-    && mkdir -p /data/media /data/backups && chown app /data/media /data/backups
+    && mkdir -p /data/media /data/backups /data/piper-voices \
+    && chown app /data/media /data/backups /data/piper-voices
 USER app
 
 EXPOSE 8000

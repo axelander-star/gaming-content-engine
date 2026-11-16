@@ -3,8 +3,8 @@
 Only providers whose voices are cleared for commercial use may be used
 (PROJECT_SPEC section 6). The default provider ``mock`` produces a silent test
 voice of the right length: it exercises timing, mixing and subtitles without any
-cost or rights question. A real provider is added to ``PROVIDERS`` once the
-operator has chosen one and approved a budget.
+cost or rights question. ``piper`` is the real voice chosen by the operator on
+16.11.2026: local, free, and limited to voices whose licence allows commercial use.
 
 Timing: every script beat has a slot in the clip. The spoken length of a beat is
 estimated from its words and the calm speaking pace of the language; if it does
@@ -14,6 +14,7 @@ is reported for the quality check.
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from decimal import Decimal
@@ -81,8 +82,87 @@ class MockVoice:
         return seconds
 
 
-#: Real providers by operator setting ``tts_provider``. Empty until one is approved.
-PROVIDERS: dict[str, Callable[[Settings], VoiceProvider]] = {MOCK: MockVoice}
+PIPER = "piper"
+
+#: Piper voices cleared for commercial use (operator decision 16.11.2026, licences
+#: checked against each voice's MODEL_CARD in rhasspy/piper-voices on 16.11.2026):
+#: name -> (path in the repository, SHA256 of the .onnx, licence of the voice).
+PIPER_VOICES: dict[str, tuple[str, str, str]] = {
+    # Thorsten-Voice dataset, CC0; fine-tuned from the CC0 "rdh" base model.
+    "de_DE-thorsten-medium": (
+        "de/de_DE/thorsten/medium",
+        "7e64762d8e5118bb578f2eea6207e1a35a8e0c30595010b666f983fc87bb7819",
+        "CC0 1.0 (Thorsten-Voice)",
+    ),
+    # LJ Speech dataset, public domain; trained from scratch.
+    "en_US-ljspeech-high": (
+        "en/en_US/ljspeech/high",
+        "5d4f08ba6a2a48c44592eed3ce56bf85e9de3dd4e20df90541ae68a8310c029a",
+        "Public Domain (LJ Speech)",
+    ),
+}
+
+
+class PiperVoice:
+    """Local neural voice (Piper, runs on the server's CPU, no per-use cost).
+
+    Piper runs as a separate program (``piper``; the engine is GPL-3.0, the voices
+    have their own licences, see ``PIPER_VOICES``). Only voices from that list are
+    used, so a voice without clearance for commercial use cannot slip in.
+    """
+
+    name = PIPER
+    commercial_use_cleared = True  # only voices from PIPER_VOICES (CC0 / public domain)
+    cost_per_second_eur = Decimal("0")
+
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.voices = {Language.DE: settings.piper_voice_de, Language.EN: settings.piper_voice_en}
+
+    def model_path(self, voice_id: str) -> Path:
+        if voice_id not in PIPER_VOICES:
+            raise VoiceError(f"Piper-Stimme {voice_id} ist nicht für kommerzielle Nutzung geprüft")
+        path = Path(self.settings.piper_voice_dir) / f"{voice_id}.onnx"
+        if not path.is_file() or not path.with_suffix(".onnx.json").is_file():
+            raise VoiceError(
+                f"Piper-Stimme {voice_id} fehlt; "
+                "einmal `python -m app.piper_voices fetch` ausführen"
+            )
+        return path
+
+    def synthesize(self, text: str, language: Language, voice_id: str, out: Path) -> float:
+        model = self.model_path(voice_id)
+        spoken = " ".join(text.split())  # one line: Piper reads text line by line
+        if not spoken:
+            raise VoiceError("Kein Sprechtext")
+        wav = out.with_suffix(".piper.wav")
+        cmd = [self.settings.piper_bin, "--model", str(model), "--output_file", str(wav)]
+        try:
+            proc = subprocess.run(  # noqa: S603 - fixed argv, text only on stdin
+                cmd, input=spoken.encode(), capture_output=True, timeout=300, check=False
+            )
+        except FileNotFoundError as exc:
+            raise VoiceError("Piper ist nicht installiert (Paket piper-tts)") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise VoiceError("Piper hat zu lange gebraucht") from exc
+        if proc.returncode != 0 or not wav.is_file():
+            tail = proc.stderr.decode(errors="replace").strip().splitlines()[-2:]
+            raise VoiceError(f"Piper fehlgeschlagen: {' | '.join(tail)}")
+        try:
+            media.run(
+                [self.settings.ffmpeg_bin, "-v", "error", "-y", "-i", str(wav),
+                 "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", str(out)],
+                timeout=120,
+            )  # fmt: skip
+            return media.duration(self.settings, out)
+        except media.MediaError as exc:
+            raise VoiceError(f"Piper-Ausgabe nicht lesbar: {exc}") from exc
+        finally:
+            wav.unlink(missing_ok=True)
+
+
+#: Providers by operator setting ``tts_provider``.
+PROVIDERS: dict[str, Callable[[Settings], VoiceProvider]] = {MOCK: MockVoice, PIPER: PiperVoice}
 
 
 def get_provider(name: str, settings: Settings) -> VoiceProvider | None:

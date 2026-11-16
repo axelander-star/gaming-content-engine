@@ -374,6 +374,21 @@ def oauth_callback(
             extra={"provider": provider, "channel": channel_id, "error": str(exc)},
         )
         return back("failed")
+    # One real account belongs to exactly one channel: otherwise two topic areas
+    # (e.g. Gaming and Ernährung) would post to the same YouTube channel.
+    if cred.external_account_id and db.scalar(
+        select(Channel.id).where(
+            Channel.platform_id == channel.platform_id,
+            Channel.external_channel_id == cred.external_account_id,
+            Channel.id != channel.id,
+        )
+    ):
+        db.rollback()
+        log.warning(
+            "platform account already used by another channel",
+            extra={"provider": provider, "channel": channel_id},
+        )
+        return back("in_use")
     before = channel.auth_status.value
     channel.external_channel_id = cred.external_account_id
     channel.auth_status = _status_after_connect(settings, platform_code, cred)

@@ -111,6 +111,9 @@ function UploadPanel({
         Original bleibt unverändert; Videos bis{" "}
         {info ? Math.round(info.max_rendition_s / 60) : 3} Minuten bekommen zusätzlich eine
         Fassung im Hochformat 9:16.
+        {info && info.original_retention_days > 0
+          ? ` Originale hochgeladener Videos werden nach ${info.original_retention_days} Tagen gelöscht; die 9:16-Fassung bleibt.`
+          : ""}
       </p>
       <form className="source-form" aria-label="Datei hochladen" onSubmit={submit}>
         <label>
@@ -236,10 +239,16 @@ function ItemCard({
               : (skipped ?? "Keine Hochformat-Fassung")}
           </p>
         )}
+        {!item.has_original && item.original_deleted_at && (
+          <p className="muted small">
+            Original am {formatDateTime(item.original_deleted_at)} nach Ablauf der Frist gelöscht
+            {item.has_rendition ? "; die 9:16-Fassung bleibt nutzbar." : "."}
+          </p>
+        )}
         {item.error_message && <p className="feed-error small">{item.error_message}</p>}
         {open && (
           <div className="lib-preview">
-            {item.kind === "video" && (
+            {item.kind === "video" && (item.has_rendition || item.has_original) && (
               <video
                 controls
                 preload="metadata"
@@ -258,9 +267,11 @@ function ItemCard({
                 ? `Rechte bestätigt am ${formatDateTime(String(item.rights.confirmed_at ?? ""))}`
                 : `Selbst erzeugt, Stimme: ${String(item.rights.voice_provider ?? "–")}, kein fremdes Video`}
             </p>
-            <a className="btn btn-ghost btn-small" href={api.libraryFileUrl(item.id, "original")}>
-              Original herunterladen
-            </a>
+            {item.has_original && (
+              <a className="btn btn-ghost btn-small" href={api.libraryFileUrl(item.id, "original")}>
+                Original herunterladen
+              </a>
+            )}
           </div>
         )}
         {canEdit && (

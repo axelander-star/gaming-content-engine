@@ -37,8 +37,20 @@ class MediaLibraryAgent(Agent):
             items = [item] if item is not None and item.status == LibraryStatus.PROCESSING else []
         else:
             items = library.pending(s)
-        if not items:  # skipped runs do not count against the daily production limit
+        expired = [] if item_id is not None else library.expire_originals(s, settings)
+        for row in expired:
+            ctx.decide(
+                "library_original_deleted",
+                row,
+                "Original nach Ablauf der Aufbewahrungsfrist gelöscht"
+                + (" und Datei archiviert (keine 9:16-Fassung)" if row["archived"] else ""),
+                entity_type="library_items",
+                entity_id=row["item_id"],
+            )
+        if not items and not expired:  # skipped runs do not count against the daily limit
             raise AgentSkipError("Keine neuen Dateien in der Mediathek")
+        if not items:
+            return AgentResult(output={"processed": [], "originals_deleted": expired})
         limit = get_operations(s).max_parallel_render_jobs
         done = []
         with render.render_slot(get_redis(), limit, settings.render_slot_ttl_s):
@@ -57,7 +69,7 @@ class MediaLibraryAgent(Agent):
                     entity_type="library_items",
                     entity_id=item.id,
                 )
-        return AgentResult(output={"processed": done})
+        return AgentResult(output={"processed": done, "originals_deleted": expired})
 
 
 class OwnProductionAgent(Agent):
