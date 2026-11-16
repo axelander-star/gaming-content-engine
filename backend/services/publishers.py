@@ -114,7 +114,10 @@ def _verify_file(variant: Variant, path: Path) -> None:
 
 
 def _synthetic_voice(session: Session, variant: Variant) -> bool:
-    voice = session.scalar(select(Voiceover.id).where(Voiceover.variant_id == variant.id).limit(1))
+    # A copy for another platform (A6) has the voice of its original.
+    origin = (variant.concept or {}).get("crosspost_of")
+    vid = origin if isinstance(origin, int) and not isinstance(origin, bool) else variant.id
+    voice = session.scalar(select(Voiceover.id).where(Voiceover.variant_id == vid).limit(1))
     return voice is not None
 
 

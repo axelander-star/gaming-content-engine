@@ -325,6 +325,21 @@ def _item(session: Session, item_id: int) -> LibraryItem:
     return item
 
 
+def open_channels(session: Session, item_id: int) -> list[Channel]:
+    """Every channel of the video's topic area (all platforms, all languages) that can
+    post and does not have this video yet: "überall veröffentlichen" (Ausbau A6)."""
+    item = _item(session, item_id)
+    taken = set(
+        session.scalars(select(Variant.channel_id).where(Variant.library_item_id == item.id))
+    )
+    channels = session.scalars(
+        select(Channel)
+        .where(Channel.content_project_id == item.content_project_id)
+        .order_by(Channel.language, Channel.id)
+    ).all()
+    return [c for c in channels if c.id not in taken and c.platform.code in RULES]
+
+
 def prepare(
     session: Session,
     settings: Settings,
@@ -334,8 +349,13 @@ def prepare(
     *,
     texts: dict[int, dict[str, Any]] | None = None,
     now: datetime | None = None,
+    skip_unfit: bool = False,
 ) -> list[Variant]:
-    """Create one post (variant) per channel; nothing is approved yet."""
+    """Create one post (variant) per channel; nothing is approved yet.
+
+    With ``skip_unfit`` (A6, "überall") a channel whose platform does not take this
+    file (e.g. a landscape video for TikTok) is left out instead of failing all.
+    """
     now = now or datetime.now(UTC)
     item = _item(session, item_id)
     if not channel_ids:
@@ -365,6 +385,7 @@ def prepare(
 
     # Check everything before the first post is created: all or nothing.
     planned: list[tuple[Channel, dict[str, Any], dict[str, Any], list[quality.Check]]] = []
+    unfit: list[str] = []
     for channel in channels:
         code = channel.platform.code
         given = (texts or {}).get(channel.id) or suggest_texts(
@@ -374,8 +395,14 @@ def prepare(
         checks = file_checks(settings, item, code, opts.get("format"))
         failed = [c for c in checks if not c.passed]
         if failed:
-            raise ApprovalError(f"„{channel.name}“: " + "; ".join(c.detail for c in failed))
+            reason = f"„{channel.name}“: " + "; ".join(c.detail for c in failed)
+            if skip_unfit:
+                unfit.append(reason)
+                continue
+            raise ApprovalError(reason)
         planned.append((channel, given, opts, checks))
+    if not planned:
+        raise ApprovalError("Für keinen Kanal passend: " + " · ".join(unfit))
 
     path = storage.resolve(settings, video_uri(item))
     sha = storage.sha256_file(path) if path.exists() else None

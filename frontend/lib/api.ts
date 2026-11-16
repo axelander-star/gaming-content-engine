@@ -322,6 +322,11 @@ export const api = {
     request<LibraryItem>(`/library/${id}/archive`, { method: "POST" }),
   restoreLibraryItem: (id: number) =>
     request<LibraryItem>(`/library/${id}/restore`, { method: "POST" }),
+  splitLibraryItem: (id: number, count: number, lengthS: number) =>
+    request<LibraryItem>(`/library/${id}/split`, {
+      method: "POST",
+      body: json({ count, length_s: lengthS }),
+    }),
   reprocessLibraryItem: (id: number) =>
     request<LibraryItem>(`/library/${id}/reprocess`, { method: "POST" }),
   libraryFileUrl: (id: number, which: "original" | "rendition" | "thumb" = "rendition") =>
@@ -336,6 +341,11 @@ export const api = {
     id: number,
     changes: { title?: string; language?: Language; segments?: ProductionSegment[] },
   ) => request<Production>(`/productions/${id}`, { method: "PATCH", body: json(changes) }),
+  translateProduction: (id: number, language: Language) =>
+    request<Production>(`/productions/${id}/translate`, {
+      method: "POST",
+      body: json({ language }),
+    }),
   renderProduction: (id: number) =>
     request<Production>(`/productions/${id}/render`, { method: "POST" }),
   deleteProduction: (id: number) =>
@@ -362,6 +372,11 @@ export const api = {
     request<ApprovalPost[]>("/approval/prepare", {
       method: "POST",
       body: json({ item_id: itemId, channel_ids: channelIds, texts }),
+    }),
+  preparePostsEverywhere: (itemId: number) =>
+    request<ApprovalPost[]>("/approval/prepare", {
+      method: "POST",
+      body: json({ item_id: itemId, everywhere: true }),
     }),
   updatePost: (id: number, changes: PostChanges) =>
     request<ApprovalPost>(`/approval/${id}`, { method: "PATCH", body: json(changes) }),

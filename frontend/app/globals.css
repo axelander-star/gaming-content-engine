@@ -2545,3 +2545,25 @@ details summary {
 .cal-rule-mark {
   opacity: 0.7;
 }
+
+/* A6: split a long library video into shorts */
+.split-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin: 8px 0;
+}
+.split-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+.split-form input {
+  width: 90px;
+}
+.split-form p {
+  flex-basis: 100%;
+  margin: 0;
+}

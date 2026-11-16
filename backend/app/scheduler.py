@@ -17,7 +17,7 @@ from types import FrameType
 from core.config import Settings, get_settings
 from core.logging import configure_logging
 from database.session import get_sessionmaker
-from services import monitoring, notify, plan_rules, uploads, watchdog
+from services import crosspost, monitoring, notify, plan_rules, uploads, watchdog
 from services.controls import effective_controls
 from services.orchestrator import submit
 from services.queue import get_redis
@@ -112,6 +112,11 @@ class Monitor:
                     plan_rules.apply(session, settings)  # the week plan fills itself
             except Exception:
                 log.exception("plan rules failed")
+            try:
+                with get_sessionmaker()() as session:
+                    crosspost.sweep(session, settings)  # one video on every platform
+            except Exception:
+                log.exception("crosspost failed")
             try:
                 with get_sessionmaker()() as session:
                     watchdog.scan(session, settings)

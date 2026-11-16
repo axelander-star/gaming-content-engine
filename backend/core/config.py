@@ -277,6 +277,8 @@ class Settings(BaseSettings):
     comments_seconds: int = Field(default=1800, ge=300)
     #: Competitor radar (A5): about 3 YouTube quota units per watched channel and run.
     competitor_seconds: int = Field(default=12 * 3600, ge=3600)
+    #: A6: copy approved clips to the other platforms of the topic area and language.
+    crosspost_enabled: bool = True
     #: Push to the phone via ntfy (Ausbau A4). mock = recorded only, nothing leaves the server.
     push_mode: Literal["mock", "live"] = "mock"
     #: Full topic URL, e.g. https://ntfy.sh/<long-random-topic>; the topic name is the secret.

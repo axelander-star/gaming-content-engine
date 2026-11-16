@@ -35,7 +35,7 @@ from models.library import LibraryItem, OwnProduction
 from models.projects import ContentProject
 from models.research import Idea
 from models.uploads import UploadSession
-from services import ai, audit, library, own_production, storage, uploads
+from services import ai, audit, library, own_production, splitter, storage, uploads
 from services.controls import effective_controls
 from services.orchestrator import submit
 from services.queue import get_redis
@@ -92,6 +92,13 @@ class LibraryItemOut(BaseModel):
     has_original: bool
     original_deleted_at: datetime | None
     created_at: datetime
+    #: A6: the long video this short was cut from, and the state of splitting this one
+    parent_item_id: int | None = None
+    split_state: str | None = None
+    split_info: dict[str, Any] = Field(default_factory=dict)
+    #: A6: why it cannot be split (``None`` = can be split) and the suggested count/length
+    split_problem: str | None = None
+    split_suggestion: dict[str, Any] | None = None
 
 
 def _item_out(item: LibraryItem, project: str) -> LibraryItemOut:
@@ -125,6 +132,13 @@ def _item_out(item: LibraryItem, project: str) -> LibraryItemOut:
         has_original=item.original_deleted_at is None,
         original_deleted_at=item.original_deleted_at,
         created_at=item.created_at,
+        parent_item_id=item.parent_item_id,
+        split_state=item.split_state,
+        split_info=dict(item.split_info or {}),
+        split_problem=splitter.check(item),
+        split_suggestion=(
+            splitter.suggestion(item.duration_s or 0) if item.kind == LibraryKind.VIDEO else None
+        ),
     )
 
 
@@ -323,6 +337,40 @@ def reprocess_library_item(
     item.error_message = None
     audit.record(
         db, "library.reprocess", user_id=user.id, entity_type="library_items", entity_id=item.id
+    )
+    db.commit()
+    _queue_item(item.id, redis)
+    return _item_out(item, _project_names(db).get(item.content_project_id, "?"))
+
+
+class SplitIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    count: int | None = Field(default=None, ge=1, le=splitter.MAX_COUNT)
+    length_s: float | None = Field(default=None, ge=splitter.MIN_LENGTH_S, le=splitter.MAX_LENGTH_S)
+
+
+@router.post("/library/{item_id}/split", response_model=LibraryItemOut)
+def split_library_item(
+    item_id: int,
+    body: SplitIn,
+    user: Operator,
+    db: DbSession,
+    redis: Annotated[Redis, Depends(get_redis)],
+) -> LibraryItemOut:
+    """Cut a long video into shorts (A6); runs in the background."""
+    item = _item(db, item_id)
+    try:
+        splitter.request(db, item, count=body.count, length_s=body.length_s, user_id=user.id)
+    except splitter.SplitError as exc:
+        raise HTTPException(exc.status_code, detail=str(exc)) from exc
+    audit.record(
+        db,
+        "library.split",
+        user_id=user.id,
+        entity_type="library_items",
+        entity_id=item.id,
+        after=dict(item.split_info or {}),
     )
     db.commit()
     _queue_item(item.id, redis)
@@ -601,6 +649,48 @@ def create_production(
 
 
 BUSY = (ProductionStatus.QUEUED, ProductionStatus.RENDERING)
+
+
+class TranslateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    language: Language
+
+
+@router.post(
+    "/productions/{production_id}/translate", response_model=ProductionOut, status_code=201
+)
+def translate_production(
+    production_id: int,
+    body: TranslateIn,
+    user: Operator,
+    db: DbSession,
+    settings: AppSettings,
+) -> ProductionOut:
+    """Second language version of a production (A6): same pictures, new text; a draft."""
+    prod = db.get(OwnProduction, production_id)
+    if prod is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Produktion nicht gefunden")
+    try:
+        copy = own_production.translate(db, settings, prod, body.language, user.id)
+    except own_production.ProductionError as exc:
+        raise _production_error(exc) from exc
+    except ai.AIBlockedError as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail=f"KI nicht verfügbar: {exc.reason}"
+        ) from exc
+    except (ai.AIRefusedError, ai.AIFailedError) as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    audit.record(
+        db,
+        "production.translated",
+        user_id=user.id,
+        entity_type="own_productions",
+        entity_id=copy.id,
+        after={"from": prod.id, "language": body.language.value},
+    )
+    db.commit()
+    return _prod_out(db, copy)
 
 
 @router.patch("/productions/{production_id}", response_model=ProductionOut)

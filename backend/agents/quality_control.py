@@ -374,6 +374,8 @@ def _duplicates(s: Session, variant: Variant, clip: Clip) -> list[Check]:
             select(Variant.id).where(
                 Variant.sha256 == variant.sha256,
                 Variant.id != variant.id,
+                # copies of this variant for other platforms (A6) share its file
+                Variant.concept["crosspost_of"].as_integer().is_distinct_from(variant.id),
                 Variant.status.in_(DONE),
             )
         )
