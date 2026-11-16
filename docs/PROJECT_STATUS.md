@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A1 (Kanal-Assistent) abgeschlossen, weiter mit A2 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 16.11.2026 · **Aktuelle Phase:** Ausbau A2 (Konten-Übersicht) abgeschlossen, weiter mit A3 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -30,7 +30,8 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 
 | Schritt | Inhalt | Status |
 |---|---|---|
-| A1 | Kanal-Assistent: fehlende Kanäle je Themenbereich erkennen, Name, Benutzername, Bio, Profilbild, Banner, E-Mail-Weiterleitung, Aufgabe „Kanal erstellen“ | ✅ abgeschlossen |
+| A1 | Kanal-Assistent: fehlende Kanäle je Themenbereich erkennen, Name, Benutzername, Bio, Profilbild, Banner, E-Mail-Weiterleitung, Aufgabe „Kanal erstellen“ | ✅ abgeschlossen (PR #35) |
+| A2 | Konten-Übersicht für viele Konten: Reichweite, Einnahmen je Konto, Empfehlung, Vorschlag „Pausieren erwägen“ nach 90 Tagen | ✅ abgeschlossen |
 
 **A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
 - Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).
@@ -42,6 +43,14 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 - Die Engine legt nie selbst Plattform-Konten an (Nutzungsbedingungen, Telefon/Captcha).
 
 **Tests:** 17 Backend-Tests (`tests/integration/test_channel_setup.py`: Zeichenregeln, Bildgrößen, Abdeckung, Vorbereiten idempotent, KI-Antwort bereinigt, Rückfall auf Vorlage, YouTube-Prüfung über die offizielle Schnittstelle, Cloudflare-Regel anlegen und Fehler, kompletter API-Ablauf, Rechte), E2E-Schritt „Kanal-Assistent“. **Offen:** Cloudflare-Token anlegen und `MAIL_ROUTING_MODE=live` setzen (Anleitung in AUSBAU_PLAN.md); der echte Cloudflare-Aufruf ist nur gegen die Dokumentation geprüft, nicht live.
+
+**A2 Konten-Übersicht** (`services/accounts.py`, `api/accounts.py`, Seite `/konten`, Tabelle `revenue_entries`, Migration `69b23e4d1abd`):
+- Eine Zeile je Kanal: Beiträge, Aufrufe, Trend zu den 30 Tagen davor, Interaktionsrate, neue Follower, Einnahmen. Filter nach Themenbereich, Plattform, Status und Suche, sortierbare Spalten, 50 Zeilen je Seite. Alle Zahlen kommen aus wenigen gruppierten Abfragen (letzte Messung je Beitrag per Fensterfunktion), also auch bei 100+ Konten schnell.
+- Einnahmen: Alexander trägt Auszahlungen je Kanal ein (YouTube, Content Rewards, Affiliate, Sponsor, Sonstiges). Für eingereichte Content-Rewards-Clips zeigt die Übersicht zusätzlich eine Schätzung (Aufrufe × CPM, gedeckelt je Clip, grob in Euro umgerechnet), getrennt von echten Einnahmen.
+- Status je Kanal: Noch verbinden, Pausiert, Anlaufphase, Wächst (+20 %), Stabil, Lässt nach (−30 %), Keine Beiträge, **Pausieren erwägen**. Letzteres erst 90 Tage nach dem ersten Beitrag (Entscheidung Alexander 16.11.: 90 statt 60), bei mindestens drei Beiträgen, ohne Einnahmen und mit weniger als 25 % der üblichen Aufrufe je Beitrag im Themenbereich (ohne Vergleichskanäle: unter 200). Nur ein Vorschlag mit Begründung, pausiert wird nichts automatisch.
+- „Lohnt sich am meisten“: die fünf Kanäle mit den höchsten Einnahmen plus Schätzung.
+
+**Tests:** 6 Backend-Tests (`tests/integration/test_accounts.py`: Zusammenfassung mit nur letzter Messung, Pausieren-Vorschlag, Anlaufphase/keine Beiträge/Untergrenze, Einnahmen verhindern den Vorschlag, Content-Rewards-Schätzung mit Deckel, API und Rechte), E2E-Schritt „Konten“. **Offen:** Einnahmen automatisch aus der YouTube-Analytics-API holen (braucht den zusätzlichen Zugriff `yt-analytics-monetary.readonly` und ein Partnerprogramm-Konto); bis dahin Eintrag von Hand.
 
 ## Einschub: Entscheidungen des Betreibers (16.11.2026)
 

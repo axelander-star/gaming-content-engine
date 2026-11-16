@@ -4,6 +4,9 @@
 
 import type {
   Agent,
+  AccountsOverview,
+  RevenueEntry,
+  RevenueInput,
   ChannelSetupPatch,
   ChannelSetupStatus,
   ChannelSetupTask,
@@ -469,6 +472,14 @@ export const api = {
   costSummary: () => request<CostSummary>("/costs/summary"),
   systemStatus: () => request<SystemStatus>("/system/status"),
 
+  // account overview: every channel with reach, revenue and recommendation
+  accounts: () => request<AccountsOverview>("/accounts"),
+  revenue: (channelId?: number) =>
+    request<RevenueEntry[]>(`/accounts/revenue${channelId ? `?channel_id=${channelId}` : ""}`),
+  addRevenue: (data: RevenueInput) =>
+    request<RevenueEntry>("/accounts/revenue", { method: "POST", body: json(data) }),
+  deleteRevenue: (id: number) =>
+    request<void>(`/accounts/revenue/${id}`, { method: "DELETE" }),
   // channel assistant: coverage per topic area and "create channel" tasks
   channelCoverage: () => request<ProjectCoverage[]>("/channel-setup/coverage"),
   channelSetupTasks: (state: ChannelSetupStatus = "open") =>

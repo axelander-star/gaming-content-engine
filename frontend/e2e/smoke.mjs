@@ -783,6 +783,23 @@ try {
     assert.equal(await area.getByText("Angelegt, nicht verbunden").count(), 2);
   });
 
+  await step("Konten: filtern, suchen, Einnahme eintragen", async () => {
+    await page.getByRole("link", { name: "Konten", exact: true }).click();
+    await page.getByRole("heading", { name: "Konten", level: 1 }).waitFor();
+    await page.getByText("Einnahmen (30 Tage)").waitFor();
+    await page.getByLabel("Plattform").selectOption("tiktok");
+    await page.getByLabel("Suche").fill("Küchenwissen");
+    const row = page.getByRole("row", { name: /Küchenwissen E2E/ });
+    await row.getByText("Noch verbinden").waitFor();
+    await row.getByRole("button", { name: "Details Küchenwissen E2E" }).click();
+    const form = page.getByRole("form", { name: "Einnahme für Küchenwissen E2E" });
+    await form.getByLabel("Betrag in €").fill("12,50");
+    await form.getByRole("button", { name: "Einnahme speichern" }).click();
+    await page.getByText(/Affiliate: 12,50/).waitFor();
+    await row.getByText(/^12,50\s€$/).first().waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/konten.png`, fullPage: true });
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");

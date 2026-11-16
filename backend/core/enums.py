@@ -251,3 +251,13 @@ class MailAliasStatus(StrEnum):
     MOCK = "mock"  # test mode: address only proposed, nothing created
     CREATED = "created"  # routing rule exists at Cloudflare
     FAILED = "failed"
+
+
+class RevenueSource(StrEnum):
+    """Where money of a channel comes from (account overview)."""
+
+    YOUTUBE = "youtube"  # YouTube partner programme (ads, Shorts fund)
+    CONTENT_REWARDS = "content_rewards"  # clipping campaigns
+    AFFILIATE = "affiliate"  # partner links in bio/description
+    SPONSOR = "sponsor"  # brand deals
+    OTHER = "other"

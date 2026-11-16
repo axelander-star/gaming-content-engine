@@ -1387,3 +1387,91 @@ export interface ChannelSetupPatch {
   handle?: string;
   bio?: string;
 }
+
+// --- account overview (A2) -------------------------------------------------------------
+
+export type AccountStatus =
+  | "setup"
+  | "paused"
+  | "new"
+  | "growing"
+  | "stable"
+  | "declining"
+  | "idle"
+  | "pause_suggested";
+export type RevenueSource = "youtube" | "content_rewards" | "affiliate" | "sponsor" | "other";
+
+export interface AccountRow {
+  channel_id: number;
+  name: string;
+  platform: PlatformCode;
+  language: Language;
+  project_id: number;
+  project: string;
+  auth_status: ChannelAuthStatus;
+  is_paused: boolean;
+  handle: string | null;
+  first_post_at: string | null;
+  last_post_at: string | null;
+  total_posts: number;
+  posts_30d: number;
+  views_30d: number;
+  views_prev_30d: number;
+  followers_30d: number;
+  engagement_30d: number | null;
+  trend_30d: number | null;
+  views_per_post: number | null;
+  revenue_30d: string;
+  revenue_review: string;
+  revenue_by_source: Partial<Record<RevenueSource, string>>;
+  estimate_30d: string;
+  status: AccountStatus;
+  status_label: string;
+  reasons: string[];
+}
+
+export interface AccountSummary {
+  channels: number;
+  connected: number;
+  views_30d: number;
+  views_prev_30d: number;
+  followers_30d: number;
+  revenue_30d: string;
+  estimate_30d: string;
+  by_status: Partial<Record<AccountStatus, number>>;
+  projects: {
+    project_id: number;
+    project: string;
+    channels: number;
+    views_30d: number;
+    revenue_30d: string;
+    estimate_30d: string;
+  }[];
+  top_revenue: number[];
+  review_days: number;
+}
+
+export interface AccountsOverview {
+  summary: AccountSummary;
+  accounts: AccountRow[];
+}
+
+export interface RevenueEntry {
+  id: number;
+  channel_id: number;
+  source: RevenueSource;
+  amount_eur: string;
+  period_start: string;
+  period_end: string;
+  note: string | null;
+  created_at: string;
+}
+
+export interface RevenueInput {
+  channel_id: number;
+  source: RevenueSource;
+  amount_eur: string;
+  period_start: string;
+  period_end: string;
+  note?: string;
+}
