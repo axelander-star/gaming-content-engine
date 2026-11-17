@@ -63,6 +63,8 @@ import type {
   ChatAction,
   ChatAttachment,
   CompetitorChannel,
+  OutgoingMail,
+  WeeklyReport,
   SponsorInbox,
   SponsorInput,
   SponsorInquiry,
@@ -575,6 +577,8 @@ export const api = {
     request<NewsletterOverview>(`/newsletter${projectId ? `?project_id=${projectId}` : ""}`),
   deleteSubscriber: (id: number) => request<void>(`/newsletter/${id}`, { method: "DELETE" }),
   outbox: () => request<Outbox>("/mail/outbox"),
+  weeklyReport: () => request<WeeklyReport>("/reports/weekly"),
+  sendWeeklyReport: () => request<OutgoingMail>("/reports/weekly/send", { method: "POST" }),
   // Ausbau A9: sponsor inbox (drafts only, nothing is sent)
   sponsorInbox: (state?: SponsorStatus) =>
     request<SponsorInbox>(`/sponsors${state ? `?state=${state}` : ""}`),

@@ -1845,3 +1845,15 @@ export type SponsorPatch = Partial<{
   price_eur: number | null;
   note: string | null;
 }>;
+
+// --- Ausbau A10: weekly report ---
+
+export interface WeeklyReport {
+  subject: string;
+  text: string;
+  recipient: string | null;
+  mode: "mock" | "smtp";
+  problem: string | null;
+  schedule: string;
+  last_sent_at: string | null;
+}

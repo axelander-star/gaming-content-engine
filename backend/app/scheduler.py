@@ -26,6 +26,7 @@ from services import (
     plan_rules,
     uploads,
     watchdog,
+    weekly_report,
 )
 from services.controls import effective_controls
 from services.orchestrator import submit
@@ -134,6 +135,11 @@ class Monitor:
                     mailer.cleanup(session)
             except Exception:
                 log.exception("newsletter cleanup failed")
+            try:
+                with get_sessionmaker()() as session, session.begin():
+                    weekly_report.maybe_send(session, settings)  # Monday morning
+            except Exception:
+                log.exception("weekly report failed")
             try:
                 with get_sessionmaker()() as session:
                     watchdog.scan(session, settings)

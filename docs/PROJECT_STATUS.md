@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 17.11.2026 · **Aktuelle Phase:** Ausbau A9 (Sponsoren-Postfach) abgeschlossen, weiter mit A10 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 17.11.2026 · **Aktuelle Phase:** Ausbau A1–A10 abgeschlossen (zuletzt A10 Wochenbericht per E-Mail) laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Update auf dem Server einspielen und die offenen Einrichtungen aus [AUSBAU_PLAN.md](AUSBAU_PLAN.md) erledigen (Cloudflare-Token, ntfy, Linkseiten-Host, Impressum, SMTP, `REPORT_EMAIL`)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -38,7 +38,8 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A6 | Ein Video auf alle Plattformen inkl. Englisch, Texte je Plattform; lange Videos in Shorts zerlegen | ✅ abgeschlossen (PR #40) |
 | A7 | Natürlichere Hooks ohne Floskeln, Hook-A/B-Tests auswerten, Gewinner mit neuem Hook erneut einplanen, Idee „Teil 2“ | ✅ abgeschlossen (PR #41) |
 | A8 | Kampagnen je Themenbereich vorschlagen, Affiliate-Links mit „Anzeige“, Linkseite je Kanal mit Newsletter (Double-Opt-in) | ✅ abgeschlossen (PR #42) |
-| A9 | Sponsoren-Postfach: Anfragen einordnen, Warnungen, Preisvorschlag, Antwortentwurf (nichts wird gesendet) | ✅ abgeschlossen |
+| A9 | Sponsoren-Postfach: Anfragen einordnen, Warnungen, Preisvorschlag, Antwortentwurf (nichts wird gesendet) | ✅ abgeschlossen (PR #43) |
+| A10 | Wochenbericht per E-Mail (montags 8 Uhr, Vorschau und „Jetzt senden“ in Analytics) | ✅ abgeschlossen |
 
 **A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
 - Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).
@@ -123,6 +124,13 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 - **Nichts wird gesendet:** „Antwort kopieren“ oder „Im Mailprogramm öffnen“ (mailto), danach Status Beantwortet, Zusage, Abgelehnt oder Archiv. Bei Zusage Hinweis, die Zahlung unter „Konten“ als Einnahme „Sponsor“ einzutragen. Nur Bediener und Admins sehen die Anfragen.
 
 **Tests:** 6 Backend-Tests (`tests/integration/test_sponsors.py`: Einordnung und Warnungen, Marke aus Absender, Preis aus Median mit Mindestpreis und Paket, Entwurf auf Deutsch/Englisch mit Preis und „Anzeige“ und kein Mailversand, KI-Antwort ohne Preis fällt auf Vorlage zurück, API und Rechte), E2E-Schritt „Sponsoren-Postfach“.
+
+**A10 Wochenbericht per E-Mail** (`services/weekly_report.py`, `GET /reports/weekly`, `POST /reports/weekly/send`, Abschnitt „Wochenbericht per E-Mail“ in Analytics; keine neue Tabelle, Versand über `services/mailer.py` aus A8):
+- Montags um 8 Uhr (Ortszeit, `REPORT_WEEKDAY`/`REPORT_HOUR`) eine kurze Text-Mail über die letzte volle Woche (Montag bis Sonntag): Beiträge und Aufrufe mit Vergleich zur Vorwoche, je Themenbereich, die drei besten Beiträge mit Link, Kanäle mit deutlichem Plus oder Minus (±30 %) und „Pausieren erwägen“, eingetragene Einnahmen, Content-Rewards-Schätzung, Kosten im Monat, was wartet (Kommentare, Kampagnen-Links, Sponsorenanfragen, vorbereitete Konten), Warnungen der Woche, Newsletter-Leser, Plan der nächsten Woche, Link zum Dashboard.
+- Genau ein Bericht je Woche (auch nach Neustarts), abschaltbar mit `REPORT_ENABLED=false`. Im Testbetrieb steht oben „Testdaten“.
+- Empfänger `REPORT_EMAIL`. Ohne Empfänger oder mit `MAIL_MODE=mock` (Standard) liegt der Bericht nur im Postausgang (Seite „Linkseiten“).
+
+**Tests:** 4 Backend-Tests (`tests/integration/test_weekly_report.py`: Summen, Vorwochen-Vergleich, Reihenfolge der besten Beiträge, Aufgaben; einmal je Woche zur eingestellten Zeit und abschaltbar; ohne Empfänger nur Postausgang; API mit Rechten), E2E-Schritt „Wochenbericht“. **Offen:** `REPORT_EMAIL` setzen und für echten Versand SMTP wie bei A8.
 
 ## Einschub: Entscheidungen des Betreibers (16.11.2026)
 

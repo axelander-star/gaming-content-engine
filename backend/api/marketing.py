@@ -14,7 +14,7 @@ from core.enums import Language
 from models.channels import Channel
 from models.marketing import AffiliateLink, BioPage, NewsletterSubscriber, OutgoingMail
 from models.projects import ContentProject
-from services import affiliate, audit, biolinks, mailer
+from services import affiliate, audit, biolinks, mailer, weekly_report
 
 router = APIRouter(tags=["marketing"], dependencies=[Depends(csrf_protect)])
 
@@ -325,4 +325,49 @@ def outbox(
             )
             for m in mails
         ],
+    )  # fmt: skip
+
+
+class WeeklyReportOut(BaseModel):
+    subject: str
+    text: str
+    recipient: str | None
+    mode: str
+    problem: str | None
+    schedule: str
+    last_sent_at: datetime | None
+
+
+@router.get("/reports/weekly", response_model=WeeklyReportOut)
+def weekly_preview(_: Operator, db: DbSession, settings: AppSettings) -> WeeklyReportOut:
+    """Preview of the weekly report as it would go out now (A10)."""
+    report = weekly_report.build(db, settings)
+    last = db.scalar(
+        select(OutgoingMail.created_at)
+        .where(OutgoingMail.kind == weekly_report.KIND)
+        .order_by(OutgoingMail.id.desc())
+        .limit(1)
+    )
+    problem = mailer.ready(settings) or (
+        None if settings.report_email else "REPORT_EMAIL fehlt: Bericht nur im Postausgang"
+    )
+    when = f"{weekly_report.WEEKDAYS[settings.report_weekday]}s um {settings.report_hour} Uhr"
+    return WeeklyReportOut(
+        subject=report.subject, text=report.text, recipient=settings.report_email or None,
+        mode=settings.mail_mode, problem=problem,
+        schedule=when if settings.report_enabled else "ausgeschaltet", last_sent_at=last,
+    )  # fmt: skip
+
+
+@router.post("/reports/weekly/send", response_model=MailOut, status_code=201)
+def weekly_send(user: Operator, db: DbSession, settings: AppSettings) -> MailOut:
+    mail = weekly_report.send(db, settings)
+    audit.record(
+        db, "report.weekly", user_id=user.id, entity_type="outgoing_mail", entity_id=mail.id
+    )
+    db.commit()
+    return MailOut(
+        id=mail.id, to_address=mail.to_address, subject=mail.subject, body_text=mail.body_text,
+        kind=mail.kind, status=mail.status, error=mail.error, created_at=mail.created_at,
+        sent_at=mail.sent_at,
     )  # fmt: skip
