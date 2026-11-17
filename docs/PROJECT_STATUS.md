@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 17.11.2026 · **Aktuelle Phase:** Ausbau A8 (Kampagnen je Thema, Affiliate-Links, Linkseiten mit Newsletter) abgeschlossen, weiter mit A9 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
+**Stand:** 17.11.2026 · **Aktuelle Phase:** Ausbau A9 (Sponsoren-Postfach) abgeschlossen, weiter mit A10 laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Entscheidungen und Freigaben des Betreibers ([BEDIENUNGSANLEITUNG.md](BEDIENUNGSANLEITUNG.md), letzter Abschnitt), danach Bestellung und Einrichtung nach [HETZNER_VORBEREITUNG.md](HETZNER_VORBEREITUNG.md) laut [CONTENT_PLATFORM_PLAN.md](CONTENT_PLATFORM_PLAN.md)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -37,7 +37,8 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A5 | Feste Regeln im Redaktionsplan („jeden Donnerstag Uhren“), Feiertage und eigene Termine, Konkurrenz-Radar (YouTube) | ✅ abgeschlossen (PR #39) |
 | A6 | Ein Video auf alle Plattformen inkl. Englisch, Texte je Plattform; lange Videos in Shorts zerlegen | ✅ abgeschlossen (PR #40) |
 | A7 | Natürlichere Hooks ohne Floskeln, Hook-A/B-Tests auswerten, Gewinner mit neuem Hook erneut einplanen, Idee „Teil 2“ | ✅ abgeschlossen (PR #41) |
-| A8 | Kampagnen je Themenbereich vorschlagen, Affiliate-Links mit „Anzeige“, Linkseite je Kanal mit Newsletter (Double-Opt-in) | ✅ abgeschlossen |
+| A8 | Kampagnen je Themenbereich vorschlagen, Affiliate-Links mit „Anzeige“, Linkseite je Kanal mit Newsletter (Double-Opt-in) | ✅ abgeschlossen (PR #42) |
+| A9 | Sponsoren-Postfach: Anfragen einordnen, Warnungen, Preisvorschlag, Antwortentwurf (nichts wird gesendet) | ✅ abgeschlossen |
 
 **A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
 - Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).
@@ -111,6 +112,17 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 - Keine eigenen digitalen Produkte (Vorgabe).
 
 **Tests:** 11 Backend-Tests (`tests/integration/test_marketing.py`: Affiliate-Hinweis nur mit Einwilligung, Linkseite und Stichwort, Hinweis am Anfang und Sperre ohne Hinweis, Kopie ohne Linkseite ohne Hinweis, nur https; Linkseiten für alle Kanäle, aus und Adressen eindeutig; öffentliche Seite mit Profilen, nur echten Videos, „Anzeige“, ohne Skripte, mit CSP, Klickzähler; Double-Opt-in mit Honigtopf, ohne Einwilligung, gleiche Adresse kein zweites Mal, Öffnen bestätigt nicht, Knopf bestätigt, Abmelden; Löschfristen und Spam-Bremse; SMTP ohne Server bleibt im Postausgang; Kampagnen-Vorschlag mit Schätzung; API und Rechte; öffentliche Pfade ohne Access-Prüfung), E2E-Schritt „Linkseite einschalten, Affiliate-Link mit Anzeige, Newsletter-Anmeldung“. **Offen:** Tunnel-Hostname `links.kanalfabrik.de` → `http://caddy:8082` (ohne Access) anlegen, `PUBLIC_LINKS_BASE_URL` und `LEGAL_PAGE_URL` setzen, Datenschutzerklärung um den Newsletter ergänzen; für echten Versand ein SMTP-Postfach (z. B. vom Mail-Anbieter der Domain) und `MAIL_MODE=smtp`.
+
+**A9 Sponsoren-Postfach** (`services/sponsors.py`, `api/sponsors.py`, Seite `/sponsoren`, Tabelle `sponsor_inquiries`, Migration `6f1f7f4b3930`):
+- Alexander fügt eine Markenanfrage ein (Absender, Betreff, Text). Ein Postfach-Zugang ist nicht nötig und nicht eingebaut.
+- **Einordnung:** bezahlte Kooperation, Produkt zum Testen, nur Provision, Sonstiges oder Spam (SEO/Backlinks, Follower kaufen, Vorabzahlung). Spam landet direkt im Archiv, ohne Entwurf.
+- **Warnungen** vor dem Antworten: Vorabzahlung verlangt, Glücksspiel/Wetten (auch Case-Opening), Krypto/Trading, Inhalte für Erwachsene, kein Geld (nur Produkt oder „Reichweite“), sehr kurze Frist.
+- **Marke** aus der Absender-Domain (bei Gmail, GMX usw. aus dem Namen), **Themenbereich** nach passenden Wörtern, änderbar.
+- **Preisvorschlag** aus der eigenen Reichweite: Median-Aufrufe je Beitrag der Kanäle des Bereichs × 15 € je 1.000 (Spanne 10–25 €), mindestens 50 €, Paket aus drei Shorts mit 10 % Nachlass, auf runde Beträge. Ausdrücklich als Startpunkt für die Verhandlung.
+- **Antwortentwurf** in der Sprache der Anfrage (KI, Claude Haiku; ohne KI oder wenn die KI den Preis weglässt: Vorlage): kurz, freundlich, Preis und Leistung, Hinweis „wird als Anzeige gekennzeichnet“, Rückfragen zu Produkt, Zeitplan und Nutzungsrechten, keine Zusagen zu Ergebnissen. Bei „nur Provision“ und „nur Produkt“ höflich mit Preis für ein bezahltes Video.
+- **Nichts wird gesendet:** „Antwort kopieren“ oder „Im Mailprogramm öffnen“ (mailto), danach Status Beantwortet, Zusage, Abgelehnt oder Archiv. Bei Zusage Hinweis, die Zahlung unter „Konten“ als Einnahme „Sponsor“ einzutragen. Nur Bediener und Admins sehen die Anfragen.
+
+**Tests:** 6 Backend-Tests (`tests/integration/test_sponsors.py`: Einordnung und Warnungen, Marke aus Absender, Preis aus Median mit Mindestpreis und Paket, Entwurf auf Deutsch/Englisch mit Preis und „Anzeige“ und kein Mailversand, KI-Antwort ohne Preis fällt auf Vorlage zurück, API und Rechte), E2E-Schritt „Sponsoren-Postfach“.
 
 ## Einschub: Entscheidungen des Betreibers (16.11.2026)
 

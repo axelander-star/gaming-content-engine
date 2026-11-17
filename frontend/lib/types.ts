@@ -1792,3 +1792,56 @@ export interface CampaignFit {
   median_views: number | null;
   usd_per_clip: number | null;
 }
+
+// --- Ausbau A9: sponsor inbox ---
+
+export type SponsorStatus = "new" | "replied" | "won" | "declined" | "archived";
+
+export interface SponsorInquiry {
+  id: number;
+  project_id: number | null;
+  project: string | null;
+  brand: string;
+  contact_email: string | null;
+  subject: string | null;
+  body: string;
+  received_at: string;
+  language: string;
+  category: "sponsoring" | "product_test" | "affiliate" | "other" | "spam";
+  category_label: string;
+  status: SponsorStatus;
+  flags: string[];
+  fit_score: number;
+  price_eur: number | null;
+  price_basis: {
+    median_views?: number | null;
+    low?: number;
+    high?: number;
+    bundle?: number;
+    bundle_posts?: number;
+    note?: string;
+  };
+  draft: string;
+  draft_source: string;
+  note: string | null;
+}
+
+export interface SponsorInbox {
+  counts: Record<SponsorStatus, number>;
+  inquiries: SponsorInquiry[];
+}
+
+export interface SponsorInput {
+  sender: string;
+  subject?: string | null;
+  body: string;
+  project_id?: number | null;
+}
+
+export type SponsorPatch = Partial<{
+  status: SponsorStatus;
+  project_id: number | null;
+  draft: string;
+  price_eur: number | null;
+  note: string | null;
+}>;

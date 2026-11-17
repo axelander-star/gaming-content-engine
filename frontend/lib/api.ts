@@ -63,6 +63,11 @@ import type {
   ChatAction,
   ChatAttachment,
   CompetitorChannel,
+  SponsorInbox,
+  SponsorInput,
+  SponsorInquiry,
+  SponsorPatch,
+  SponsorStatus,
   AffiliateInput,
   AffiliateLink,
   BioPage,
@@ -570,6 +575,16 @@ export const api = {
     request<NewsletterOverview>(`/newsletter${projectId ? `?project_id=${projectId}` : ""}`),
   deleteSubscriber: (id: number) => request<void>(`/newsletter/${id}`, { method: "DELETE" }),
   outbox: () => request<Outbox>("/mail/outbox"),
+  // Ausbau A9: sponsor inbox (drafts only, nothing is sent)
+  sponsorInbox: (state?: SponsorStatus) =>
+    request<SponsorInbox>(`/sponsors${state ? `?state=${state}` : ""}`),
+  addSponsorInquiry: (data: SponsorInput) =>
+    request<SponsorInquiry>("/sponsors", { method: "POST", body: json(data) }),
+  updateSponsorInquiry: (id: number, data: SponsorPatch) =>
+    request<SponsorInquiry>(`/sponsors/${id}`, { method: "PATCH", body: json(data) }),
+  redraftSponsorInquiry: (id: number) =>
+    request<SponsorInquiry>(`/sponsors/${id}/redraft`, { method: "POST" }),
+  deleteSponsorInquiry: (id: number) => request<void>(`/sponsors/${id}`, { method: "DELETE" }),
   matchCampaign: (data: CampaignMatchInput) =>
     request<CampaignFit[]>("/campaigns/match", { method: "POST", body: json(data) }),
   rollbackLearning: (version: number) =>

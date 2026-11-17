@@ -1009,6 +1009,27 @@ try {
     await page.getByRole("list", { name: "Postausgang" }).getByText("Bitte bestätige deine Anmeldung").waitFor();
   });
 
+  await step("Sponsoren-Postfach: Anfrage einordnen, Preis und Antwortentwurf", async () => {
+    await page.getByRole("link", { name: "Sponsoren", exact: true }).click();
+    await page.getByRole("heading", { name: "Sponsoren-Postfach", level: 1 }).waitFor();
+    const form = page.getByRole("form", { name: "Anfrage einfügen" });
+    await form.getByLabel("Absender").fill("Lisa <lisa@hyper-gear.com>");
+    await form.getByLabel("Betreff").fill("Kooperation Headset");
+    await form
+      .getByLabel("Text der Mail")
+      .fill("Hallo, wir möchten eine bezahlte Kooperation für ein Short mit unserem Headset. Was kostet das?");
+    await form.getByRole("button", { name: "Einordnen und Antwort entwerfen" }).click();
+    const card = page.getByRole("article", { name: "Anfrage Hyper Gear" });
+    await card.locator(".chip", { hasText: "Bezahlte Kooperation" }).waitFor();
+    await card.getByText(/Preisvorschlag: .* je Short/).waitFor();
+    const draft = await card.getByLabel(/Antwortentwurf/).inputValue();
+    assert.ok(draft.includes("Anzeige"), draft);
+    await card.getByRole("link", { name: "Im Mailprogramm öffnen" }).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/sponsoren.png`, fullPage: true });
+    await card.getByRole("button", { name: "Beantwortet" }).click();
+    await card.getByText("Beantwortet", { exact: true }).first().waitFor();
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");
