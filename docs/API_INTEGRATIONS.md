@@ -267,6 +267,12 @@ Alle 12 Stunden je Kanal 2–3 Einheiten, bei 30 Kanälen also unter 200 Einheit
 
 Geprüft gegen https://docs.ntfy.sh/publish/ am 16.11.2026: `POST https://ntfy.sh/<thema>` mit dem Text als Body; Kopfzeilen `Title`, `Priority` (1–5), `Tags` (Emoji-Kurzcodes), `Click` (URL beim Antippen). Nicht-ASCII in Kopfzeilen wird nach RFC 2047 kodiert (`=?UTF-8?B?…?=`), wie die Doku empfiehlt; Nachrichten über 4.096 Byte würden als Anhang verschickt, die Engine kürzt auf 3.500 Zeichen. Optionaler Zugangstoken als `Authorization: Bearer …` (für geschützte Themen; dieser Teil der Doku wurde nicht live geprüft, Standard ist ein geheimer Themenname ohne Token). Kosten: keine. Die Themen-URL ist geheim und wird nie geloggt.
 
+## Linkseiten, Affiliate, Newsletter, Mailversand (Ausbau A8)
+
+- **Content Rewards:** weiterhin keine Schnittstelle für Clipper; Kampagnen werden von Hand übernommen, die Engine schlägt nur den passenden Themenbereich vor (lokale Berechnung, kein Abruf).
+- **Affiliate-Programme:** keine Schnittstelle. Die Engine speichert nur den Link, den Alexander aus dem Partnerprogramm kopiert, und zählt Klicks über die eigene Weiterleitung `/go/<id>`. Werbe-Labels der Plattformen (TikTok „Markeninhalt“, YouTube „Bezahlte Werbung“, Instagram „Bezahlte Partnerschaft“) werden nicht per API gesetzt; TikTok-Beiträge gehen als Entwurf ins Postfach, dort schaltet Alexander das Label ein. Die Kennzeichnung „Anzeige“ steht immer im Text.
+- **Mailversand:** SMTP mit STARTTLS (Port 587) oder TLS (Port 465) über Python `smtplib`, Zugangsdaten nur in `.env`. Standard `MAIL_MODE=mock`: nichts wird gesendet. Kosten: keine (Postfach des Domain-Anbieters).
+
 ## Speicher
 
 - **Cloudflare R2** (S3-kompatibel). Seit E8 nur für kurzlebige Video-Adressen beim Instagram-Login genutzt (`services/r2.py`, eigene SigV4-Signatur, kein SDK). Ablage der Medien sonst weiter lokal. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.

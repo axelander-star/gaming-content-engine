@@ -1676,3 +1676,119 @@ export interface CompetitorRadar {
   competitors: CompetitorChannel[];
   standouts: CompetitorVideo[];
 }
+
+// --- Ausbau A8: bio-link pages, affiliate links, newsletter, campaign fit ---
+
+export interface BioLinkItem {
+  title: string;
+  url: string;
+}
+
+export interface BioPage {
+  id: number;
+  channel_id: number;
+  channel: string;
+  platform: string;
+  language: string;
+  project_id: number;
+  project: string;
+  slug: string;
+  enabled: boolean;
+  headline: string;
+  intro: string | null;
+  links: BioLinkItem[];
+  show_videos: boolean;
+  newsletter_enabled: boolean;
+  views: number;
+  public_url: string | null;
+  preview_path: string;
+  subscribers: number;
+}
+
+export type BioPagePatch = Partial<
+  Pick<BioPage, "slug" | "enabled" | "headline" | "intro" | "links" | "show_videos" | "newsletter_enabled">
+>;
+
+export interface AffiliateLink {
+  id: number;
+  project_id: number;
+  project: string;
+  title: string;
+  url: string;
+  program: string | null;
+  language: string | null;
+  keywords: string[];
+  in_posts: boolean;
+  active: boolean;
+  clicks: number;
+  note: string | null;
+}
+
+export interface AffiliateInput {
+  project_id: number;
+  title: string;
+  url: string;
+  program?: string | null;
+  language?: string | null;
+  keywords?: string[];
+  in_posts?: boolean;
+  active?: boolean;
+  note?: string | null;
+}
+
+export interface NewsletterSubscriber {
+  id: number;
+  project_id: number;
+  channel_id: number | null;
+  email: string;
+  language: string;
+  status: "pending" | "confirmed" | "unsubscribed";
+  created_at: string;
+  confirmed_at: string | null;
+}
+
+export interface NewsletterOverview {
+  confirmed: number;
+  pending: number;
+  unsubscribed: number;
+  subscribers: NewsletterSubscriber[];
+}
+
+export interface OutgoingMail {
+  id: number;
+  to_address: string;
+  subject: string;
+  body_text: string;
+  kind: string;
+  status: "mock" | "sent" | "failed";
+  error: string | null;
+  created_at: string;
+  sent_at: string | null;
+}
+
+export interface Outbox {
+  mode: "mock" | "smtp";
+  problem: string | null;
+  mails: OutgoingMail[];
+}
+
+export interface CampaignMatchInput {
+  name: string;
+  brief?: string | null;
+  game?: string | null;
+  platforms: string[];
+  languages: string[];
+  cpm_usd?: number | null;
+  min_views?: number | null;
+  max_payout_per_clip_usd?: number | null;
+}
+
+export interface CampaignFit {
+  project_id: number;
+  project: string;
+  score: number;
+  reasons: string[];
+  channels: { id: number; name: string; platform: string; language: string }[];
+  median_views: number | null;
+  usd_per_clip: number | null;
+}

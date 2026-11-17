@@ -46,7 +46,7 @@ from models.production import (
     Variant,
     Voiceover,
 )
-from services import campaigns, gates, media, quality, storage, workflow
+from services import affiliate, campaigns, gates, media, quality, storage, workflow
 from services.controls import get_operations
 from services.quality import Check
 from services.voice import Segment
@@ -81,6 +81,9 @@ class QualityControlAgent(Agent):
         if campaign is not None:
             # Disclosure and hashtags of the brief belong in the text before the checks.
             campaigns.apply_texts(campaign, variant)
+        else:
+            # Affiliate hint (opt in per link) with the ad label at the very start.
+            affiliate.apply_texts(s, variant)
         probe = _technical(settings, variant, checks)
         if probe is not None:
             measured["probe"] = probe.as_dict()
@@ -88,6 +91,9 @@ class QualityControlAgent(Agent):
             checks += _picture_and_sound(settings, variant, probe, measured)
         checks += _rights_voice_subtitles(s, variant)
         checks += _duplicates(s, variant, clip)
+        ad_problem = affiliate.text_problem(variant)
+        if ad_problem is not None:
+            checks.append(Check("advertising", False, ad_problem, blocking=True))
         if campaign is not None:
             duration = (measured.get("probe") or {}).get("duration_s")
             checks += campaigns.rule_checks(s, campaign, variant, duration)

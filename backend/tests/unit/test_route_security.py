@@ -22,6 +22,16 @@ PUBLIC = {
     ("GET", "/health"),
     ("GET", "/health/ready"),
     ("GET", "/oauth/{provider}/callback"),
+    # Ausbau A8: public bio-link pages and newsletter double opt-in. No session is
+    # read there, so a forged cross-site POST gains nothing (CSRF needs a session);
+    # sign-up needs a ticked consent and a confirmation from the mailbox.
+    ("GET", "/public/l/{slug}"),
+    ("POST", "/public/l/{slug}/newsletter"),
+    ("GET", "/public/n/confirm/{token}"),
+    ("POST", "/public/n/confirm/{token}"),
+    ("GET", "/public/n/unsubscribe/{token}"),
+    ("POST", "/public/n/unsubscribe/{token}"),
+    ("GET", "/public/go/{link_id}"),
 }
 
 

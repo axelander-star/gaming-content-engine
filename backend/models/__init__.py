@@ -11,6 +11,7 @@ from models.comments import Comment
 from models.competitors import Competitor, CompetitorVideo
 from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.library import LibraryItem, OwnProduction
+from models.marketing import AffiliateLink, BioPage, NewsletterSubscriber, OutgoingMail
 from models.planning import CalendarEvent, ContentFocus, EditorialDay, PlanRule
 from models.production import (
     Clip,
@@ -40,12 +41,14 @@ from models.uploads import UploadSession
 
 __all__ = [
     "AICall",
+    "AffiliateLink",
     "AgentDecision",
     "AgentRun",
     "AgentState",
     "AnalyticsSnapshot",
     "Asset",
     "AuditLog",
+    "BioPage",
     "CalendarEvent",
     "Campaign",
     "CampaignSubmission",
@@ -72,7 +75,9 @@ __all__ = [
     "License",
     "LicenseDocument",
     "Metric",
+    "NewsletterSubscriber",
     "Notification",
+    "OutgoingMail",
     "OwnProduction",
     "PlanRule",
     "Platform",

@@ -193,6 +193,7 @@ services:
       LEGAL_OPERATOR_NAME: ${LEGAL_OPERATOR_NAME:-}
       LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
       LEGAL_UPDATED: ${LEGAL_UPDATED:-}
+      LEGAL_ADDRESS: ${LEGAL_ADDRESS:-}
     ports:
       # Private operation behind Cloudflare Tunnel: CADDY_BIND=127.0.0.1 keeps 80/443
       # closed to the internet; cloudflared reaches Caddy internally on port 8080.

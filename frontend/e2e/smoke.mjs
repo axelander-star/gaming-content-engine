@@ -972,6 +972,43 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/freigabe-ueberall.png`, fullPage: true });
   });
 
+  await step("Linkseite einschalten, Affiliate-Link mit Anzeige, Newsletter-Anmeldung", async () => {
+    await page.getByRole("link", { name: "Linkseiten", exact: true }).click();
+    await page.getByRole("heading", { name: "Linkseiten und Newsletter", level: 1 }).waitFor();
+    await page.getByRole("button", { name: /^Linkseite .* einschalten$/ }).first().click();
+    await page.getByRole("list", { name: "Linkseiten" }).getByText("online").first().waitFor();
+    const aff = page.getByRole("form", { name: "Affiliate-Link anlegen" });
+    await aff.getByLabel("Themenbereich").selectOption({ label: "Gaming" });
+    await aff.getByLabel("Titel").fill("E2E Headset");
+    await aff.getByLabel("Link", { exact: true }).fill("https://partner.example/headset");
+    await aff.getByLabel("Partnerprogramm").fill("Testprogramm");
+    await aff.getByRole("button", { name: "Hinzufügen" }).click();
+    await page.getByRole("list", { name: "Affiliate-Links" }).getByText("E2E Headset").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/linkseiten.png`, fullPage: true });
+
+    const href = await page
+      .getByRole("list", { name: "Linkseiten" })
+      .locator("li", { hasText: "online" })
+      .first()
+      .getByRole("link", { name: "Vorschau" })
+      .getAttribute("href");
+    const pub = await browser.newPage();
+    await pub.goto(new URL(href ?? "", BASE).toString());
+    await pub.getByText("E2E Headset").waitFor();
+    await pub.locator(".tag", { hasText: "Anzeige" }).first().waitFor();
+    await pub.getByLabel("E-Mail-Adresse").fill("fan@example.com");
+    await pub.getByRole("checkbox").check();
+    if (SHOTS) await pub.screenshot({ path: `${SHOTS}/linkseite-oeffentlich.png`, fullPage: true });
+    await pub.getByRole("button", { name: "Anmelden" }).click();
+    await pub.getByText("Fast geschafft").waitFor();
+    await pub.close();
+
+    await page.reload();
+    await page.getByRole("heading", { name: "Linkseiten und Newsletter", level: 1 }).waitFor();
+    await page.getByRole("list", { name: "Newsletter-Adressen" }).getByText("fan@example.com").waitFor();
+    await page.getByRole("list", { name: "Postausgang" }).getByText("Bitte bestätige deine Anmeldung").waitFor();
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");

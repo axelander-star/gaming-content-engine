@@ -14,6 +14,7 @@ import { hasRole } from "@/lib/roles";
 import { resumableUpload } from "@/lib/upload";
 import type { UploadProgress } from "@/lib/upload";
 import type {
+  CampaignFit,
   Campaign,
   CampaignClip,
   CampaignInput,
@@ -636,6 +637,26 @@ function NewCampaignForm({
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fits, setFits] = useState<CampaignFit[] | null>(null);
+
+  async function suggest() {
+    setError(null);
+    try {
+      const game = games.find((g) => String(g.id) === gameId);
+      setFits(
+        await api.matchCampaign({
+          name,
+          brief: brief.trim() || null,
+          game: game?.name ?? null,
+          platforms,
+          languages,
+          cpm_usd: num(cpm),
+        }),
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
 
   useEffect(() => {
     if (projectId === null && projects[0]) setProjectId(projects[0].id);
@@ -846,6 +867,48 @@ function NewCampaignForm({
           maxLength={10000}
         />
       </label>
+      <div className="camp-fit">
+        <button type="button" className="btn btn-ghost" onClick={() => void suggest()}>
+          Passenden Themenbereich vorschlagen
+        </button>
+        {fits && (
+          <ul className="feed" aria-label="Passende Themenbereiche">
+            {fits.map((f) => (
+              <li key={f.project_id}>
+                <div className="feed-body">
+                  <div className="feed-title">
+                    {f.project}{" "}
+                    <Badge tone={f.score >= 70 ? "ok" : f.score >= 40 ? "info" : "neutral"}>
+                      {f.score} / 100
+                    </Badge>
+                  </div>
+                  <div className="muted small">
+                    {f.reasons.join(" · ")}
+                    {f.usd_per_clip !== null
+                      ? ` · etwa ${money(f.usd_per_clip)} je Clip (Median ${(
+                          f.median_views ?? 0
+                        ).toLocaleString("de-DE")} Aufrufe)`
+                      : " · noch keine Aufrufzahlen für eine Schätzung"}
+                  </div>
+                </div>
+                <div className="row-actions">
+                  {f.project_id === projectId ? (
+                    <Badge tone="ok">gewählt</Badge>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      onClick={() => setProjectId(f.project_id)}
+                    >
+                      Übernehmen
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <label className="check-label">
         <input
           type="checkbox"

@@ -17,7 +17,16 @@ from types import FrameType
 from core.config import Settings, get_settings
 from core.logging import configure_logging
 from database.session import get_sessionmaker
-from services import crosspost, monitoring, notify, plan_rules, uploads, watchdog
+from services import (
+    crosspost,
+    mailer,
+    monitoring,
+    newsletter,
+    notify,
+    plan_rules,
+    uploads,
+    watchdog,
+)
 from services.controls import effective_controls
 from services.orchestrator import submit
 from services.queue import get_redis
@@ -118,6 +127,13 @@ class Monitor:
                     crosspost.sweep(session, settings)  # one video on every platform
             except Exception:
                 log.exception("crosspost failed")
+            try:
+                with get_sessionmaker()() as session, session.begin():
+                    # data minimisation: unconfirmed sign-ups and old mails go
+                    newsletter.cleanup(session, settings)
+                    mailer.cleanup(session)
+            except Exception:
+                log.exception("newsletter cleanup failed")
             try:
                 with get_sessionmaker()() as session:
                     watchdog.scan(session, settings)
