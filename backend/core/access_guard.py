@@ -25,7 +25,8 @@ HEADER = "Cf-Access-Jwt-Assertion"
 COOKIE = "CF_Authorization"
 #: Paths reachable without the Access token: container health checks and Uptime Kuma
 #: call the backend directly inside the Docker network, not through Cloudflare.
-EXEMPT_PREFIXES = ("/api/health",)
+#: Public bio-link pages (A8) have their own host without Cloudflare Access.
+EXEMPT_PREFIXES = ("/api/health", "/api/public")
 #: Tolerated clock difference between Cloudflare and the server.
 LEEWAY_S = 30
 

@@ -325,6 +325,25 @@ class Settings(BaseSettings):
     #: API token with the permission "Zone > Email Routing Rules > Edit" for that zone only.
     cloudflare_api_token: SecretStr = SecretStr("")
 
+    # --- Bio-link pages, affiliate links, newsletter (A8) ---
+    #: Public address of the bio-link pages, e.g. https://links.example.de (own tunnel host).
+    public_links_base_url: str = ""
+    #: Imprint and privacy page linked from every public page.
+    legal_page_url: str = ""
+    #: Unconfirmed newsletter sign-ups are deleted after this many days.
+    newsletter_pending_days: int = Field(default=7, ge=1, le=30)
+    #: Sign-ups per address and bio page within an hour (spam brake).
+    newsletter_signups_per_hour: int = Field(default=20, ge=1, le=1000)
+
+    # --- Outgoing e-mail (A8 newsletter confirmation, A10 weekly report) ---
+    #: ``mock`` keeps every mail in the dashboard outbox; ``smtp`` really sends.
+    mail_mode: Literal["mock", "smtp"] = "mock"
+    mail_from: str = ""
+    smtp_host: str = ""
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_user: str = ""
+    smtp_password: SecretStr = SecretStr("")
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy URL for psycopg 3."""

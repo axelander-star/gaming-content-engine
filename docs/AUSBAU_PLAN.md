@@ -35,3 +35,11 @@ ntfy ist eine Open-Source-App für Benachrichtigungen (Android im Play Store und
 5. Im Dashboard die Glocke öffnen und **Test-Push** drücken (nur Admin). Kommt die Meldung an, ist alles fertig.
 
 Ruhezeit, Mindeststufe und Wiederholung lassen sich in `.env` ändern (`PUSH_QUIET_START`, `PUSH_QUIET_END`, `PUSH_MIN_LEVEL`, `WATCHDOG_REPEAT_HOURS`).
+
+## Einrichtung Linkseiten und Newsletter (für A8)
+
+1. Impressum: in der `.env` auf dem Server `LEGAL_ADDRESS` (ladungsfähige Anschrift) eintragen und `LEGAL_UPDATED` auf das heutige Datum setzen. Ohne Impressum die Linkseiten nicht öffentlich machen.
+2. Cloudflare Zero Trust → Networks → Tunnels → `kanalfabrik-server` → Public Hostname hinzufügen: `links.kanalfabrik.de` → `http://caddy:8082`. **Keine** Access-Anwendung für diesen Hostnamen anlegen (die Seiten sind öffentlich; der Eingang `:8082` reicht nur die Linkseiten, die Newsletter-Anmeldung und `/go/<id>` durch).
+3. In der `.env`: `PUBLIC_LINKS_BASE_URL=https://links.kanalfabrik.de` und `LEGAL_PAGE_URL=https://rechtliches.kanalfabrik.de`, dann `docker compose up -d`.
+4. Im Dashboard unter „Linkseiten“ die gewünschten Seiten einschalten und die Adresse `https://links.kanalfabrik.de/l/<name>` in die Bio des Profils kopieren.
+5. Echter Versand der Bestätigungsmails: ein Postfach beim Mail-Anbieter der Domain (z. B. `newsletter@kanalfabrik.de`), dann `MAIL_MODE=smtp`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT=587`, `SMTP_USER`, `SMTP_PASSWORD`. Bis dahin liegen die Mails nur im Postausgang (Seite „Linkseiten“).

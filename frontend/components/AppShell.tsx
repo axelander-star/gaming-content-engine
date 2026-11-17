@@ -39,6 +39,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/kommentare", label: "Kommentare", icon: "chat" },
       { href: "/kanal-assistent", label: "Kanal-Assistent", icon: "userPlus" },
       { href: "/konkurrenz", label: "Konkurrenz-Radar", icon: "activity" },
+      { href: "/linkseiten", label: "Linkseiten", icon: "send" },
     ],
   },
   {

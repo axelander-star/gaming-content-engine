@@ -31,7 +31,7 @@ from core.config import Settings
 from core.enums import PlatformCode, VideoStatus
 from models.channels import Channel
 from models.production import Clip, QualityCheck, Variant
-from services import approval, campaigns, quality, workflow
+from services import affiliate, approval, campaigns, quality, workflow
 
 ACTOR = "crosspost"
 LOOKBACK_DAYS = 7
@@ -144,6 +144,7 @@ def copy_to(session: Session, variant: Variant, channel: Channel) -> Variant | s
         publish_options={},
         quality_score=variant.quality_score,
     )
+    affiliate.strip_for_channel(session, copy, channel.id)
     session.add(copy)
     session.flush()
     session.add(

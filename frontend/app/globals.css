@@ -2567,3 +2567,19 @@ details summary {
   flex-basis: 100%;
   margin: 0;
 }
+
+/* Ausbau A8: campaign fit, mail outbox */
+.camp-fit {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.mail-body {
+  white-space: pre-wrap;
+  font-size: 13px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  padding: 8px;
+  border-radius: 6px;
+  max-height: 240px;
+  overflow: auto;
+}

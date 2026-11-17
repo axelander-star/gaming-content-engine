@@ -24,7 +24,7 @@ from models.production import Clip, GameplayFile, QualityCheck, Scene, Variant
 from models.projects import ContentProject
 from models.publishing import Post, PublishingJob
 from models.rights import Asset
-from services import approval, campaigns
+from services import approval, campaign_fit, campaigns
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"], dependencies=[Depends(csrf_protect)])
 
@@ -186,6 +186,47 @@ def _campaign(db: Session, campaign_id: int) -> Campaign:
     if campaign is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Kampagne nicht gefunden")
     return campaign
+
+
+class MatchIn(BaseModel):
+    name: str = Field(default="", max_length=200)
+    brief: str | None = Field(default=None, max_length=20000)
+    game: str | None = Field(default=None, max_length=200)
+    platforms: list[str] = Field(default_factory=list, max_length=10)
+    languages: list[str] = Field(default_factory=list, max_length=10)
+    cpm_usd: Decimal | None = Field(default=None, ge=0, le=1000)
+    min_views: int | None = Field(default=None, ge=0)
+    max_payout_per_clip_usd: Decimal | None = Field(default=None, ge=0)
+
+
+class FitChannel(BaseModel):
+    id: int
+    name: str
+    platform: str
+    language: str
+
+
+class FitOut(BaseModel):
+    project_id: int
+    project: str
+    score: int
+    reasons: list[str]
+    channels: list[FitChannel]
+    median_views: int | None
+    usd_per_clip: float | None
+
+
+@router.post("/match", response_model=list[FitOut])
+def match_campaign(body: MatchIn, _: Viewer, db: DbSession) -> list[FitOut]:
+    """Which topic area fits a campaign the operator is looking at (A8)."""
+    return [FitOut(**f.as_dict()) for f in campaign_fit.rank(db, body.model_dump())]
+
+
+@router.get("/{campaign_id}/fit", response_model=list[FitOut])
+def campaign_fit_for(campaign_id: int, _: Viewer, db: DbSession) -> list[FitOut]:
+    return [
+        FitOut(**f.as_dict()) for f in campaign_fit.for_campaign(db, _campaign(db, campaign_id))
+    ]
 
 
 @router.get("", response_model=list[CampaignOut])

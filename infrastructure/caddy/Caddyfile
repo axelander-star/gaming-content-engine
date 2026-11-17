@@ -57,13 +57,42 @@ http://:8081 {
 	}
 	@page {
 		method GET HEAD
-		path / /index.html /datenschutz /nutzungsbedingungen /privacy /terms
+		path / /index.html /impressum /datenschutz /nutzungsbedingungen /privacy /terms
 	}
 	handle @page {
 		root * /srv/legal
 		rewrite * /index.html
 		templates
 		file_server
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
+
+# Public bio-link pages (Ausbau A8): own hostname, e.g. links.<domain>, tunnel ->
+# http://caddy:8082, WITHOUT Cloudflare Access. Only the page, the newsletter
+# sign-up/confirm/unsubscribe and the affiliate redirect reach the backend; the
+# dashboard, the login and every other API path are not routed here.
+http://:8082 {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		X-Robots-Tag "noindex"
+		-Server
+	}
+	@public {
+		path_regexp public ^/(l/[a-z0-9-]+(/newsletter)?|n/(confirm|unsubscribe)/[A-Za-z0-9_-]+|go/[0-9]+)$
+	}
+	handle @public {
+		rewrite * /api/public{path}
+		reverse_proxy backend:8000 {
+			header_up X-Public-Entry 1
+		}
 	}
 	handle {
 		respond "Not found" 404

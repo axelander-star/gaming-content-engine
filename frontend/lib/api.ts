@@ -63,6 +63,14 @@ import type {
   ChatAction,
   ChatAttachment,
   CompetitorChannel,
+  AffiliateInput,
+  AffiliateLink,
+  BioPage,
+  BioPagePatch,
+  CampaignFit,
+  CampaignMatchInput,
+  NewsletterOverview,
+  Outbox,
   CompetitorRadar,
   Idea,
   IdeaStatus,
@@ -544,6 +552,26 @@ export const api = {
   },
   learningVersions: () => request<LearningVersionOut[]>("/analytics/learning"),
   hookReport: () => request<HookReport>("/analytics/hooks"),
+
+  // Ausbau A8: bio-link pages, affiliate links, newsletter, campaign fit
+  bioPages: (projectId?: number) =>
+    request<BioPage[]>(`/bio-pages${projectId ? `?project_id=${projectId}` : ""}`),
+  updateBioPage: (id: number, data: BioPagePatch) =>
+    request<BioPage>(`/bio-pages/${id}`, { method: "PATCH", body: json(data) }),
+  affiliateLinks: (projectId?: number) =>
+    request<AffiliateLink[]>(`/affiliate-links${projectId ? `?project_id=${projectId}` : ""}`),
+  createAffiliateLink: (data: AffiliateInput) =>
+    request<AffiliateLink>("/affiliate-links", { method: "POST", body: json(data) }),
+  updateAffiliateLink: (id: number, data: Partial<Omit<AffiliateInput, "project_id">>) =>
+    request<AffiliateLink>(`/affiliate-links/${id}`, { method: "PATCH", body: json(data) }),
+  deleteAffiliateLink: (id: number) =>
+    request<void>(`/affiliate-links/${id}`, { method: "DELETE" }),
+  newsletter: (projectId?: number) =>
+    request<NewsletterOverview>(`/newsletter${projectId ? `?project_id=${projectId}` : ""}`),
+  deleteSubscriber: (id: number) => request<void>(`/newsletter/${id}`, { method: "DELETE" }),
+  outbox: () => request<Outbox>("/mail/outbox"),
+  matchCampaign: (data: CampaignMatchInput) =>
+    request<CampaignFit[]>("/campaigns/match", { method: "POST", body: json(data) }),
   rollbackLearning: (version: number) =>
     request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, { method: "POST" }),
   costSummary: () => request<CostSummary>("/costs/summary"),
