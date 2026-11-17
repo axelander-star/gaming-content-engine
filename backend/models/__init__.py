@@ -36,6 +36,7 @@ from models.rights import (
     RightsCheck,
     Source,
 )
+from models.sponsors import SponsorInquiry
 from models.trends import Game, Trend, TrendReport
 from models.uploads import UploadSession
 
@@ -92,6 +93,7 @@ __all__ = [
     "Scene",
     "Script",
     "Source",
+    "SponsorInquiry",
     "StrategyVersion",
     "Subtitle",
     "SystemSetting",

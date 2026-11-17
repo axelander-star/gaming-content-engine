@@ -2583,3 +2583,24 @@ details summary {
   max-height: 240px;
   overflow: auto;
 }
+
+/* Ausbau A9: sponsor inbox */
+.sponsor-list {
+  display: grid;
+  gap: 12px;
+}
+.sponsor-card {
+  display: grid;
+  gap: 8px;
+}
+.sponsor-card textarea {
+  width: 100%;
+}
+.sponsor-flags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
