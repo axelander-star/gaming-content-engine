@@ -1030,6 +1030,16 @@ try {
     await card.getByText("Beantwortet", { exact: true }).first().waitFor();
   });
 
+  await step("Wochenbericht: Vorschau und Jetzt senden (Postausgang)", async () => {
+    await page.getByRole("link", { name: "Analytics", exact: true }).click();
+    await page.getByText("Wochenbericht per E-Mail").waitFor();
+    await page.getByText(/Vorschau: Wochenbericht KW \d+/).click();
+    await page.getByLabel("Wochenbericht Vorschau").getByText(/Kurz: \d+ Beiträge/).waitFor();
+    await page.getByRole("button", { name: "Jetzt senden" }).click();
+    await page.getByText("Liegt im Postausgang").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/wochenbericht.png`, fullPage: true });
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");

@@ -344,6 +344,14 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: SecretStr = SecretStr("")
 
+    # --- Weekly report (A10) ---
+    report_enabled: bool = True
+    #: Recipient of the weekly report; empty = only in the dashboard outbox.
+    report_email: str = ""
+    #: 0 = Monday … 6 = Sunday, local time (TZ).
+    report_weekday: int = Field(default=0, ge=0, le=6)
+    report_hour: int = Field(default=8, ge=0, le=23)
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy URL for psycopg 3."""

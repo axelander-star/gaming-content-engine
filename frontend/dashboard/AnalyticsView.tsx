@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/labels";
 import { hasRole } from "@/lib/roles";
 import type {
+  WeeklyReport,
   AnalyticsFilters,
   AnalyticsOverview,
   HookReport,
@@ -282,6 +283,71 @@ function LearningSection({ admin }: { admin: boolean }) {
   );
 }
 
+function WeeklyReportSection() {
+  const [report, setReport] = useState<WeeklyReport | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    api
+      .weeklyReport()
+      .then(setReport)
+      .catch((e: Error) => setError(e.message));
+  }, []);
+  useEffect(load, [load]);
+
+  async function send() {
+    setError(null);
+    try {
+      const mail = await api.sendWeeklyReport();
+      setNotice(
+        mail.status === "sent"
+          ? `Gesendet an ${mail.to_address}.`
+          : "Liegt im Postausgang (Seite Linkseiten), nichts wurde verschickt.",
+      );
+      load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <Section title="Wochenbericht per E-Mail">
+      <ErrorText error={error} />
+      {report && (
+        <>
+          <p className="small">
+            {report.schedule} an {report.recipient ?? "niemanden"}
+            {report.last_sent_at ? ` · zuletzt ${formatDateTime(report.last_sent_at)}` : ""}
+            {report.problem ? (
+              <>
+                {" "}
+                <Badge tone="info">Testmodus</Badge> {report.problem}
+              </>
+            ) : null}
+          </p>
+          <details>
+            <summary className="small">Vorschau: {report.subject}</summary>
+            <pre className="mail-body" aria-label="Wochenbericht Vorschau">
+              {report.text}
+            </pre>
+          </details>
+          <div className="row-actions">
+            <button type="button" className="btn btn-small" onClick={() => void send()}>
+              Jetzt senden
+            </button>
+          </div>
+          {notice && (
+            <p className="notice" role="status">
+              {notice}
+            </p>
+          )}
+        </>
+      )}
+    </Section>
+  );
+}
+
 export function AnalyticsView() {
   const { user } = useAuth();
   const [filters, setFilters] = useState<AnalyticsFilters>({ days: 30 });
@@ -416,6 +482,7 @@ export function AnalyticsView() {
         )}
       </Section>
       <HooksSection />
+      {hasRole(user?.role, "operator") && <WeeklyReportSection />}
       <LearningSection admin={hasRole(user?.role, "admin")} />
     </>
   );

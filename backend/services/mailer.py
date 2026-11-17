@@ -43,8 +43,10 @@ def send(
     kind: str,
     headers: dict[str, str] | None = None,
 ) -> OutgoingMail:
-    mail = OutgoingMail(to_address=to, subject=subject[:300], body_text=body, kind=kind)
-    problem = ready(settings)
+    mail = OutgoingMail(
+        to_address=to or "(kein Empfänger)", subject=subject[:300], body_text=body, kind=kind
+    )
+    problem = ready(settings) or (None if "@" in (to or "") else "Kein Empfänger eingetragen")
     if problem is not None:
         mail.status = "mock"
         mail.error = None if settings.mail_mode == "mock" else problem

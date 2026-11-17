@@ -419,11 +419,14 @@ def test_scheduler_monitor_beats_and_checks(
     runs: list[int] = []
     monkeypatch.setattr(monitoring, "run", lambda *a, **k: runs.append(1))
     monkeypatch.setattr(sched, "get_redis", lambda: redis_client)
+    reports: list[int] = []  # the weekly report would commit a real mail row
+    monkeypatch.setattr("services.weekly_report.maybe_send", lambda *a, **k: reports.append(1))
     m = Monitor(interval_s=60)
     assert m.tick(1000.0, settings) is True
     assert m.tick(1030.0, settings) is False
     assert m.tick(1061.0, settings) is True
     assert runs == [1, 1]
+    assert reports == [1]  # watchdog block (15 min) ran once
     assert monitoring.heartbeat_age(redis_client, "scheduler", datetime.now(UTC)) is not None
 
 
