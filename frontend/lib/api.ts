@@ -636,6 +636,8 @@ export const api = {
       method: "POST",
       body: json({ project_id: projectId }),
     }),
+  prepareChannelSetupFor: (channelId: number) =>
+    request<ChannelSetupTask>(`/channel-setup/channels/${channelId}/prepare`, { method: "POST" }),
   updateChannelSetup: (id: number, changes: ChannelSetupPatch) =>
     request<ChannelSetupTask>(`/channel-setup/tasks/${id}`, { method: "PATCH", body: json(changes) }),
   retryChannelSetupEmail: (id: number) =>

@@ -226,9 +226,23 @@ def test_master_dispatches_once_per_channel_and_interval(db: Session, channel: C
     assert orchestrator.job_key("publishing_strategy", mine[0]).endswith(f"channel-{channel.id}")
 
 
+class _FrozenDatetime(datetime):
+    """``datetime.now`` pinned to MORNING, so the plan's job window does not age out."""
+
+    @classmethod
+    def now(cls, tz: Any = None) -> Any:
+        return MORNING if tz is None else MORNING.astimezone(tz)
+
+
 def test_api_shows_plan_and_admin_can_roll_back(
-    db: Session, channel: Channel, api: TestClient, make_user: Callable[..., User]
+    db: Session,
+    channel: Channel,
+    api: TestClient,
+    make_user: Callable[..., User],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # the API lists jobs from "now - 1 day"; the scenario uses a fixed date
+    monkeypatch.setattr("api.publishing.datetime", _FrozenDatetime)
     published(db, channel, [1000] * 10 + [1600] * 6, MORNING)
     ready_variants(db, 4, channel)
     plan(db, channel, MORNING - timedelta(days=4))
