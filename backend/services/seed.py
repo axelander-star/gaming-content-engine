@@ -67,6 +67,9 @@ def seed_base_data(session: Session) -> dict[str, int]:
                         is_paused=True,
                         min_posts_per_day=0,
                         max_posts_per_day=0,
+                        # no real account behind it yet; the channel assistant turns it
+                        # into a real channel (services/channel_setup.py)
+                        strategy={"placeholder": True},
                     )
                 )
                 created["channels"] += 1

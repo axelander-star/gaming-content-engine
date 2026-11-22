@@ -18,6 +18,7 @@ from core.enums import (
     PlatformCode,
 )
 from models.channel_setup import ChannelSetupTask
+from models.channels import Channel
 from models.projects import ContentProject
 from services import channel_setup, mail_alias, storage
 
@@ -209,6 +210,21 @@ def prepare(body: PrepareIn, admin: Admin, db: DbSession, settings: AppSettings)
     except channel_setup.SetupError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     return [_out(t) for t in tasks]
+
+
+@router.post("/channels/{channel_id}/prepare", response_model=TaskOut, status_code=201)
+def prepare_for_channel(
+    channel_id: int, admin: Admin, db: DbSession, settings: AppSettings
+) -> TaskOut:
+    """Prepare values for an existing channel that is not connected yet (placeholder)."""
+    channel = db.get(Channel, channel_id)
+    if channel is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Kanal nicht gefunden")
+    try:
+        task = channel_setup.prepare_for_channel(db, settings, channel, user_id=admin.id)
+    except channel_setup.SetupError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    return _out(task)
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskOut)
