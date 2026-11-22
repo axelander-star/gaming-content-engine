@@ -229,10 +229,13 @@ def test_master_dispatches_once_per_channel_and_interval(db: Session, channel: C
 def test_api_shows_plan_and_admin_can_roll_back(
     db: Session, channel: Channel, api: TestClient, make_user: Callable[..., User]
 ) -> None:
-    published(db, channel, [1000] * 10 + [1600] * 6, MORNING)
+    # The plan API lists jobs from the last day on, so plan around today (a fixed
+    # date made this test fail once that day was more than a day ago).
+    morning = datetime.now(UTC).replace(hour=7, minute=0, second=0, microsecond=0)
+    published(db, channel, [1000] * 10 + [1600] * 6, morning)
     ready_variants(db, 4, channel)
-    plan(db, channel, MORNING - timedelta(days=4))
-    plan(db, channel, MORNING)  # version 2: two per day
+    plan(db, channel, morning - timedelta(days=4))
+    plan(db, channel, morning)  # version 2: two per day
     db.commit()
 
     make_user("viewer@example.com", UserRole.VIEWER)
