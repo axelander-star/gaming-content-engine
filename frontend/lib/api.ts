@@ -76,6 +76,7 @@ import type {
   BioPagePatch,
   CampaignFit,
   CampaignMatchInput,
+  CampaignParseResult,
   NewsletterOverview,
   Outbox,
   CompetitorRadar,
@@ -651,6 +652,10 @@ export const api = {
     `/api/channel-setup/tasks/${id}/${kind}.png`,
   // clipping campaigns (Content Rewards)
   campaigns: () => request<Campaign[]>("/campaigns"),
+  parseCampaignPage: (text: string) =>
+    request<CampaignParseResult>("/campaigns/parse", { method: "POST", body: json({ text }) }),
+  refreshCampaignProposals: (id: number) =>
+    request<Campaign>(`/campaigns/${id}/proposals`, { method: "POST" }),
   createCampaign: (data: CampaignInput) =>
     request<Campaign>("/campaigns", { method: "POST", body: json(data) }),
   updateCampaign: (id: number, changes: CampaignFields) =>

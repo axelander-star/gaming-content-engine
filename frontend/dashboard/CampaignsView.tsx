@@ -18,6 +18,7 @@ import type {
   Campaign,
   CampaignClip,
   CampaignInput,
+  CampaignProposal,
   CampaignStatus,
   CampaignSubmission,
   Channel,
@@ -479,6 +480,95 @@ function MaterialUpload({ campaign, onDone }: { campaign: Campaign; onDone: () =
   );
 }
 
+function ProposalList({ campaign, canEdit, onChanged }: {
+  campaign: Campaign;
+  canEdit: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  async function refresh() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.refreshCampaignProposals(campaign.id);
+      await onChanged();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copy(p: CampaignProposal, i: number) {
+    try {
+      await navigator.clipboard.writeText(p.caption);
+      setCopied(i);
+      window.setTimeout(() => setCopied(null), 2000);
+    } catch {
+      setError("Kopieren nicht möglich – Text bitte markieren und kopieren.");
+    }
+  }
+
+  return (
+    <details className="camp-proposals">
+      <summary>
+        Videovorschläge ({campaign.proposals.length})
+        {campaign.proposals_at && (
+          <span className="muted small">
+            {" "}
+            · Stand {formatDateTime(campaign.proposals_at)}
+            {campaign.proposals_source === "template" ? " · Vorlage" : ""}
+          </span>
+        )}
+      </summary>
+      {campaign.proposals.length === 0 && (
+        <p className="muted small">Noch keine Vorschläge.</p>
+      )}
+      <ol className="camp-proposal-list">
+        {campaign.proposals.map((p, i) => (
+          <li key={`${p.title}-${i}`} className="camp-proposal">
+            <div className="feed-title">
+              {p.title} <Badge tone="info">{p.length_s} s</Badge>
+            </div>
+            <p className="small">
+              <strong>Einstieg:</strong> {p.hook}
+            </p>
+            {p.scenes.length > 0 && (
+              <ul className="small">
+                {p.scenes.map((sc) => (
+                  <li key={sc}>{sc}</li>
+                ))}
+              </ul>
+            )}
+            {p.on_screen_text.length > 0 && (
+              <p className="small">
+                <strong>Text im Bild:</strong> {p.on_screen_text.join(" · ")}
+              </p>
+            )}
+            <pre className="camp-caption">{p.caption}</pre>
+            {p.why && <p className="muted small">{p.why}</p>}
+            {p.facts.length > 0 && (
+              <p className="muted small">Fakten: {p.facts.join(" · ")}</p>
+            )}
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => void copy(p, i)}>
+              {copied === i ? "Kopiert ✓" : "Beschreibung kopieren"}
+            </button>
+          </li>
+        ))}
+      </ol>
+      {canEdit && (
+        <button type="button" className="btn btn-small" onClick={() => void refresh()} disabled={busy}>
+          {busy ? "Schreibt …" : "Neue Vorschläge schreiben"}
+        </button>
+      )}
+      <ErrorText error={error} />
+    </details>
+  );
+}
+
 function CampaignCard({
   campaign,
   canEdit,
@@ -511,6 +601,9 @@ function CampaignCard({
         </h3>
         <Badge tone={tone}>{label}</Badge>
       </div>
+      <p className="camp-next" aria-label="Nächster Schritt">
+        <strong>Nächster Schritt:</strong> {campaign.next_step}
+      </p>
       <dl className="camp-facts">
         <div>
           <dt>Vergütung</dt>
@@ -573,6 +666,7 @@ function CampaignCard({
       {canEdit && campaign.status === "active" && (
         <MaterialUpload campaign={campaign} onDone={onChanged} />
       )}
+      <ProposalList campaign={campaign} canEdit={canEdit} onChanged={onChanged} />
       {canEdit && (
         <div className="row-actions">
           {campaign.status !== "active" && (
@@ -638,6 +732,48 @@ function NewCampaignForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fits, setFits] = useState<CampaignFit[] | null>(null);
+  const [pasted, setPasted] = useState("");
+  const [reading, setReading] = useState(false);
+  const [readNote, setReadNote] = useState<string | null>(null);
+
+  async function readPage() {
+    setReading(true);
+    setError(null);
+    setReadNote(null);
+    try {
+      const r = await api.parseCampaignPage(pasted);
+      const f = r.fields;
+      if (f.name) setName(f.name);
+      if (f.url) setUrl(f.url);
+      if (f.cpm_usd !== null) setCpm(String(f.cpm_usd));
+      if (f.budget_usd !== null) setBudget(String(f.budget_usd));
+      const plats = f.platforms.filter((p): p is PlatformCode =>
+        (PLATFORMS as string[]).includes(p),
+      );
+      if (plats.length) setPlatforms(plats);
+      const langs = f.languages.filter((l): l is Language => (LANGUAGES as string[]).includes(l));
+      if (langs.length) setLanguages(langs);
+      if (f.game_id !== null) setGameId(String(f.game_id));
+      if (f.required_hashtags.length) setHashtags(f.required_hashtags.join(" "));
+      if (f.disclosure) setDisclosure(f.disclosure);
+      if (f.required_text) setRequiredText(f.required_text);
+      if (f.min_duration_s !== null) setMinS(String(f.min_duration_s));
+      if (f.max_duration_s !== null) setMaxS(String(f.max_duration_s));
+      if (f.ends_on) setEndsOn(f.ends_on);
+      if (f.material_links.length) setLinks(f.material_links.join("\n"));
+      if (f.brief) setBrief(f.brief);
+      setReadNote(
+        `${r.found.length} Angaben übernommen${r.game ? ` (Spiel: ${r.game})` : ""}.` +
+          (r.missing.length
+            ? ` Nicht gefunden, bitte selbst prüfen: ${r.missing.join(", ")}.`
+            : " Bitte alles kurz prüfen."),
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setReading(false);
+    }
+  }
 
   async function suggest() {
     setError(null);
@@ -718,6 +854,28 @@ function NewCampaignForm({
 
   return (
     <form className="camp-form" onSubmit={submit} aria-label="Neue Kampagne">
+      <div className="camp-paste">
+        <label>
+          Text der Kampagnenseite einfügen (auf Content Rewards alles markieren, kopieren,
+          hier einfügen)
+          <textarea
+            rows={5}
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            maxLength={20000}
+            placeholder="Name, Vergütung, Plattformen, Regeln, Hashtags …"
+          />
+        </label>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => void readPage()}
+          disabled={reading || pasted.trim().length < 20}
+        >
+          {reading ? "Liest …" : "Formular automatisch ausfüllen"}
+        </button>
+        {readNote && <p className="small" role="status">{readNote}</p>}
+      </div>
       <div className="form-grid">
         <label>
           Name

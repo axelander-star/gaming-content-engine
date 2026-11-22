@@ -1,9 +1,9 @@
 """Which topic area fits a campaign, and what would it earn there? (Ausbau A8)
 
-Content Rewards has no API for clippers and its terms forbid scraping, so the
-engine does not fetch campaigns. The operator pastes what the campaign page
-says (name, brief, game, platforms, languages, CPM); this module ranks the
-topic areas:
+Content Rewards has no API for clippers, and the operator decided (22.11.2026)
+that the engine does not read campaign pages itself. The operator pastes what
+the campaign page says (name, brief, game, platforms, languages, CPM); this
+module ranks the topic areas:
 
 * **topic** (up to 50 points): words of the brief and the game against name,
   sub-topics, description and audience of the area; a known game name counts

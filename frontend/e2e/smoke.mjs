@@ -579,7 +579,7 @@ try {
     assert.equal(selected, "Ernährung E2E");
     await card.getByText("1", { exact: true }).first().waitFor();
     await card.getByRole("button", { name: "Pausieren" }).click();
-    await card.getByText("Pausiert").waitFor();
+    await card.getByText("Pausiert", { exact: true }).waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/themenbereiche.png`, fullPage: true });
   });
 
@@ -756,8 +756,21 @@ try {
     await page.getByRole("heading", { name: "Kampagnen", level: 1 }).waitFor();
     await page.getByText(/Keine offenen Links/).waitFor();
     const form = page.getByRole("form", { name: "Neue Kampagne" });
-    await form.getByLabel("Name", { exact: true }).fill("Streamer E2E Highlights");
-    await form.getByLabel("Kampagnenseite (Content Rewards)").fill("https://contentrewards.com/e2e");
+    await form
+      .getByLabel(/^Text der Kampagnenseite einfügen/)
+      .fill(
+        "Streamer E2E Highlights\nhttps://contentrewards.com/e2e\n" +
+          "Earn $1.50 per 1,000 views. YouTube Shorts, English.\n" +
+          "Clips max 45 seconds. Use #ad #StreamerE2E\nShow the best moments of the stream.",
+      );
+    await form.getByRole("button", { name: "Formular automatisch ausfüllen" }).click();
+    await form.getByText(/Angaben übernommen/).waitFor();
+    assert.equal(await form.getByLabel("Name", { exact: true }).inputValue(), "Streamer E2E Highlights");
+    assert.equal(
+      await form.getByLabel("Kampagnenseite (Content Rewards)").inputValue(),
+      "https://contentrewards.com/e2e",
+    );
+    assert.equal(await form.getByLabel("Höchstlänge (s)").inputValue(), "45");
     // The project list may load after the first pick and reset it; pick until it sticks.
     const ytEn = form.getByLabel(/YouTube Shorts EN \(/);
     for (let i = 0; i < 5 && !(await ytEn.count()); i++) {
@@ -773,10 +786,13 @@ try {
     await create.click();
     const card = page.getByRole("article", { name: "Kampagne Streamer E2E Highlights" });
     await card.getByText("1,5 $ / 1.000 Aufrufe").waitFor();
-    await card.getByText("#ad #StreamerE2E").waitFor();
+    await card.getByText("#ad #StreamerE2E", { exact: true }).waitFor();
+    await card.getByText(/Nächster Schritt:/).waitFor();
+    await card.getByText("Videovorschläge (3)").click();
+    await card.getByRole("button", { name: "Neue Vorschläge schreiben" }).waitFor();
     await card.getByRole("form", { name: "Material für Streamer E2E Highlights" }).waitFor();
     await card.getByRole("button", { name: "Pausieren" }).click();
-    await card.getByText("Pausiert").waitFor();
+    await card.getByText("Pausiert", { exact: true }).waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kampagnen.png`, fullPage: true });
     await card.getByRole("button", { name: "Aktivieren" }).click();
     await card.getByText("Aktiv", { exact: true }).waitFor();

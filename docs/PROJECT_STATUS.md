@@ -40,6 +40,16 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A8 | Kampagnen je Themenbereich vorschlagen, Affiliate-Links mit „Anzeige“, Linkseite je Kanal mit Newsletter (Double-Opt-in) | ✅ abgeschlossen (PR #42) |
 | A9 | Sponsoren-Postfach: Anfragen einordnen, Warnungen, Preisvorschlag, Antwortentwurf (nichts wird gesendet) | ✅ abgeschlossen (PR #43) |
 | A10 | Wochenbericht per E-Mail (montags 8 Uhr, Vorschau und „Jetzt senden“ in Analytics) | ✅ abgeschlossen |
+| K1 | Kampagnen-Hilfe (22.11.): Kampagnenseite als Text einfügen und Formular füllen lassen, fertige Videovorschläge aus Brief, Trends und Fakten, Überwachung von Fristen, Enddatum und Material | ✅ abgeschlossen |
+
+**K1 Kampagnen-Hilfe** (`services/campaign_assist.py`, Endpunkte `POST /campaigns/parse` und `POST /campaigns/{id}/proposals`, Spalten `campaigns.proposals*`, Migration `89fc8399876b`):
+- Anlass: Alexander wollte Kampagnen auf Content Rewards „automatisch laufen lassen“. Klargestellt: Kampagnen legen Marken an, Alexander tritt bei. Beitreten, Konten verbinden und den Link einreichen bleiben Handarbeit (keine Clipper-Schnittstelle).
+- Entscheidung Alexander 22.11.: Die Engine liest die Discover-Seite nicht selbst, er kopiert den Text der Kampagnenseite.
+- Eingefügter Text → Formular: Vergütung je 1.000 Aufrufe, Budget, Höchstbetrag je Clip, Mindestaufrufe, Plattformen, Sprache, Hashtags, Werbehinweis, @Erwähnungen, Länge, Enddatum, Materiallinks, Spiel. Feste Regeln lesen, was eindeutig dasteht; die KI füllt nur Lücken, ihre Werte werden geprüft (Bereiche, erlaubte Plattformen, Datum in der Zukunft). Gespeichert wird erst mit „Kampagne anlegen“.
+- Videovorschläge (3 je Kampagne): Titel, Einstieg, Szenenfolge, Text im Bild, fertige Beschreibung mit Werbehinweis, Pflichttext und Pflicht-Hashtags, Länge innerhalb der Kampagnenregel, Begründung und genutzte Fakten. Quelle: Brief, Trends des Spiels (14 Tage) und Recherche-Meldungen des Themenbereichs. Ohne KI oder im Testmodus kommen Vorlagen.
+- Überwachung im Watchdog (alle 15 Min.): Erinnerung bei 20 Min. Restzeit und bei abgelaufener Einreichfrist, Kampagne endet in ≤ 3 Tagen, Enddatum vorbei, nach 24 h noch kein Material. Neue Vorschläge, wenn sich Trends oder Fakten ändern, höchstens einmal am Tag. Jede Kampagnenkarte zeigt den nächsten Schritt.
+
+**Tests:** 18 Backend-Tests (`tests/integration/test_campaign_assist.py`), E2E-Schritt „Kampagnen“ füllt das Formular aus eingefügtem Text.
 
 **A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
 - Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).
