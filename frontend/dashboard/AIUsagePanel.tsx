@@ -7,7 +7,12 @@ import { useAuth } from "@/components/AuthProvider";
 import { Badge, ErrorText, Section } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/labels";
-import type { AICallStatus, AIStatus, AITestResult, AIUsage } from "@/lib/types";
+import type {
+  AICallStatus,
+  AIStatus,
+  AITestResult,
+  AIUsage,
+} from "@/lib/types";
 
 const usd = (v: string | number, digits = 2) =>
   Number(v).toLocaleString("de-DE", {
@@ -17,7 +22,10 @@ const usd = (v: string | number, digits = 2) =>
     maximumFractionDigits: Math.max(digits, 4),
   });
 
-const STATUS: Record<AICallStatus, [string, "ok" | "warn" | "danger" | "neutral"]> = {
+const STATUS: Record<
+  AICallStatus,
+  [string, "ok" | "warn" | "danger" | "neutral"]
+> = {
   reserved: ["Läuft", "warn"],
   succeeded: ["Erfolgreich", "ok"],
   refused: ["Abgelehnt", "warn"],
@@ -36,21 +44,29 @@ const PURPOSES: Record<string, string> = {
 };
 
 /** Claude usage against the hard monthly cap (extension E3). */
-export function AIUsagePanel() {
+export function AIUsagePanel({ tick = 0 }: { tick?: number } = {}) {
   const { user } = useAuth();
   const [status, setStatus] = useState<AIStatus | null>(null);
   const [usage, setUsage] = useState<AIUsage | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState("Schlage einen kurzen Videotitel über Meal Prep vor.");
+  const [prompt, setPrompt] = useState(
+    "Schlage einen kurzen Videotitel über Meal Prep vor.",
+  );
   const [tier, setTier] = useState<"text" | "reasoning">("text");
   const [result, setResult] = useState<AITestResult | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    api.aiStatus().then(setStatus).catch((e: Error) => setError(e.message));
-    api.aiUsage().then(setUsage).catch((e: Error) => setError(e.message));
+    api
+      .aiStatus()
+      .then(setStatus)
+      .catch((e: Error) => setError(e.message));
+    api
+      .aiUsage()
+      .then(setUsage)
+      .catch((e: Error) => setError(e.message));
   }, []);
-  useEffect(load, [load]);
+  useEffect(load, [load, tick]);
 
   async function onTest(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -74,17 +90,27 @@ export function AIUsagePanel() {
         <>
           <div className="ai-head">
             <Badge tone={status.live ? "warn" : "neutral"}>
-              {status.live ? "Live: echte Aufrufe" : "Test (Mock): keine Kosten"}
+              {status.live
+                ? "Live: echte Aufrufe"
+                : "Test (Mock): keine Kosten"}
             </Badge>
-            {status.reason && <span className="muted small">{status.reason}</span>}
+            {status.reason && (
+              <span className="muted small">{status.reason}</span>
+            )}
           </div>
           <div className="ai-cap">
             <div className="ai-cap-row">
               <span>
-                <strong>{usd(Number(status.spent_usd) + Number(status.reserved_usd))}</strong>{" "}
-                <span className="muted">von {usd(status.cap_usd)} Monatsgrenze</span>
+                <strong>
+                  {usd(Number(status.spent_usd) + Number(status.reserved_usd))}
+                </strong>{" "}
+                <span className="muted">
+                  von {usd(status.cap_usd)} API-Monatsgrenze der Engine
+                </span>
               </span>
-              <span className="muted small">noch {usd(status.remaining_usd)}</span>
+              <span className="muted small">
+                noch {usd(status.remaining_usd)}
+              </span>
             </div>
             <div
               className="meter"
@@ -96,7 +122,13 @@ export function AIUsagePanel() {
             >
               <span
                 style={{ width: `${pct}%` }}
-                className={pct >= 90 ? "meter-danger" : pct >= 70 ? "meter-warn" : undefined}
+                className={
+                  pct >= 90
+                    ? "meter-danger"
+                    : pct >= 70
+                      ? "meter-warn"
+                      : undefined
+                }
               />
             </div>
           </div>
@@ -106,7 +138,8 @@ export function AIUsagePanel() {
               {status.model_text}{" "}
               <span className="muted small">
                 ({usd(status.prices[status.model_text]?.input ?? 0)} /{" "}
-                {usd(status.prices[status.model_text]?.output ?? 0)} je 1 Mio. Tokens)
+                {usd(status.prices[status.model_text]?.output ?? 0)} je 1 Mio.
+                Tokens)
               </span>
             </dd>
             <dt>Chat, Ideen, Planung</dt>
@@ -114,7 +147,8 @@ export function AIUsagePanel() {
               {status.model_reasoning}{" "}
               <span className="muted small">
                 ({usd(status.prices[status.model_reasoning]?.input ?? 0)} /{" "}
-                {usd(status.prices[status.model_reasoning]?.output ?? 0)} je 1 Mio. Tokens)
+                {usd(status.prices[status.model_reasoning]?.output ?? 0)} je 1
+                Mio. Tokens)
               </span>
             </dd>
             <dt>API-Schlüssel</dt>
@@ -132,13 +166,15 @@ export function AIUsagePanel() {
             <dt>Aufrufe diesen Monat</dt>
             <dd>
               {status.calls_this_month}
-              {status.blocked_this_month > 0 && ` (davon ${status.blocked_this_month} blockiert)`}
+              {status.blocked_this_month > 0 &&
+                ` (davon ${status.blocked_this_month} blockiert)`}
             </dd>
           </dl>
           <p className="muted small">
-            Vor jedem echten Aufruf wird der ungünstigste Preis reserviert. Passt er nicht mehr unter
-            die Grenze, wird der Aufruf nicht gesendet. Die Grenze lässt sich unter Einstellungen
-            senken, aber nie über {usd(status.cap_max_usd)} heben.
+            Vor jedem echten Aufruf wird der ungünstigste Preis reserviert.
+            Passt er nicht mehr unter die Grenze, wird der Aufruf nicht
+            gesendet. Die Grenze lässt sich unter Einstellungen senken, aber nie
+            über {usd(status.cap_max_usd)} heben.
           </p>
         </>
       )}
@@ -183,8 +219,8 @@ export function AIUsagePanel() {
                     {c.provider === "mock" ? " · Test" : ""}
                   </div>
                   <div className="muted small">
-                    {formatDateTime(c.created_at)} · {c.input_tokens} / {c.output_tokens} Tokens ·{" "}
-                    {usd(c.cost_usd, 4)}
+                    {formatDateTime(c.created_at)} · {c.input_tokens} /{" "}
+                    {c.output_tokens} Tokens · {usd(c.cost_usd, 4)}
                     {c.content_project ? ` · ${c.content_project}` : ""}
                   </div>
                   {c.error && <div className="feed-error small">{c.error}</div>}
@@ -213,7 +249,11 @@ export function AIUsagePanel() {
             <option value="text">Kurzer Text</option>
             <option value="reasoning">Chat / Planung</option>
           </select>
-          <button className="btn btn-ghost" type="submit" disabled={busy || !prompt.trim()}>
+          <button
+            className="btn btn-ghost"
+            type="submit"
+            disabled={busy || !prompt.trim()}
+          >
             KI testen
           </button>
         </form>

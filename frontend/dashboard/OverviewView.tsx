@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { formatDateTime, formatEur } from "@/lib/labels";
 import type {
   Budget,
+  CostSummary,
   Dashboard,
   DashboardActivity,
   DashboardStateKey,
@@ -25,15 +26,16 @@ const REFRESH_MS = 30_000;
 
 type Tone = "neutral" | "ok" | "warn" | "danger" | "info";
 
-const STATE_META: Record<DashboardStateKey, { label: string; color: string }> = {
-  draft: { label: "Entwurf", color: "#6b7282" },
-  in_progress: { label: "In Bearbeitung", color: "#4da0ff" },
-  ready: { label: "Bereit zur Veröffentlichung", color: "#8b7bff" },
-  scheduled: { label: "Geplant", color: "#f0b544" },
-  uploading: { label: "Wird hochgeladen", color: "#2fc7c0" },
-  published: { label: "Veröffentlicht", color: "#34c774" },
-  failed: { label: "Fehlgeschlagen", color: "#ff636b" },
-};
+const STATE_META: Record<DashboardStateKey, { label: string; color: string }> =
+  {
+    draft: { label: "Entwurf", color: "#6b7282" },
+    in_progress: { label: "In Bearbeitung", color: "#4da0ff" },
+    ready: { label: "Bereit zur Veröffentlichung", color: "#8b7bff" },
+    scheduled: { label: "Geplant", color: "#f0b544" },
+    uploading: { label: "Wird hochgeladen", color: "#2fc7c0" },
+    published: { label: "Veröffentlicht", color: "#34c774" },
+    failed: { label: "Fehlgeschlagen", color: "#ff636b" },
+  };
 
 const CONNECTION: Record<PlatformConnection, [string, Tone]> = {
   not_connected: ["Nicht verbunden", "neutral"],
@@ -94,7 +96,8 @@ const ENTITY: Record<string, string> = {
 };
 
 function activityIcon(a: DashboardActivity): [IconName, Tone] {
-  if (a.action.endsWith("failed") || a.status_after === "FAILED") return ["alert", "danger"];
+  if (a.action.endsWith("failed") || a.status_after === "FAILED")
+    return ["alert", "danger"];
   if (a.kind === "agent") return ["bot", "info"];
   if (a.action.startsWith("upload") || a.action.startsWith("material"))
     return ["upload", "neutral"];
@@ -145,7 +148,9 @@ function StateBar({ data }: { data: Dashboard }) {
       <div
         className="state-bar"
         role="img"
-        aria-label={segments.map((s) => `${STATE_META[s.key].label}: ${s.count}`).join(", ")}
+        aria-label={segments
+          .map((s) => `${STATE_META[s.key].label}: ${s.count}`)
+          .join(", ")}
       >
         {total === 0 ? (
           <span className="state-bar-empty" />
@@ -167,7 +172,10 @@ function StateBar({ data }: { data: Dashboard }) {
       <ul className="state-legend">
         {data.states.map((s) => (
           <li key={s.key}>
-            <span className="dot" style={{ background: STATE_META[s.key].color }} />
+            <span
+              className="dot"
+              style={{ background: STATE_META[s.key].color }}
+            />
             <span className="muted">{STATE_META[s.key].label}</span>
             <strong>{s.count}</strong>
           </li>
@@ -175,7 +183,8 @@ function StateBar({ data }: { data: Dashboard }) {
       </ul>
       {total === 0 && (
         <p className="muted small">
-          Noch keine Videos. Sie erscheinen hier, sobald Material analysiert und geschnitten wurde.
+          Noch keine Videos. Sie erscheinen hier, sobald Material analysiert und
+          geschnitten wurde.
         </p>
       )}
     </Section>
@@ -219,12 +228,16 @@ function PlatformCard({ tile }: { tile: PlatformTile }) {
         </dl>
       ) : (
         <p className="muted small tile-note">
-          Liefert Trends und Streamdaten. Videos können nicht zu Twitch hochgeladen werden.
+          Liefert Trends und Streamdaten. Videos können nicht zu Twitch
+          hochgeladen werden.
         </p>
       )}
       {tile.can_publish && (
         <div className="muted small">
-          Zuletzt: {tile.last_published_at ? formatDateTime(tile.last_published_at) : "noch nie"}
+          Zuletzt:{" "}
+          {tile.last_published_at
+            ? formatDateTime(tile.last_published_at)
+            : "noch nie"}
         </div>
       )}
     </article>
@@ -236,22 +249,27 @@ export function OverviewView() {
   const [data, setData] = useState<Overview | null>(null);
   const [ready, setReady] = useState<Readiness | null>(null);
   const [budget, setBudget] = useState<Budget | null>(null);
+  const [costs, setCosts] = useState<CostSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setBusy(true);
-    const [d, o, r, b] = await Promise.allSettled([
+    const [d, o, r, b, k] = await Promise.allSettled([
       api.dashboard(),
       api.overview(),
       api.readiness(),
       api.budget(),
+      api.costSummary(),
     ]);
+    setCosts(k.status === "fulfilled" ? k.value : null);
     if (d.status === "fulfilled") setDash(d.value);
     if (o.status === "fulfilled") setData(o.value);
     setReady(
-      r.status === "fulfilled" ? r.value : { status: "degraded", database: false, redis: false },
+      r.status === "fulfilled"
+        ? r.value
+        : { status: "degraded", database: false, redis: false },
     );
     setBudget(b.status === "fulfilled" ? b.value : null);
     const failed = [d, o].find((x) => x.status === "rejected");
@@ -299,9 +317,23 @@ export function OverviewView() {
       <ErrorText error={error} />
 
       <div className="grid kpis">
-        <KpiCard icon="film" label="Videos gesamt" value={dash?.videos_total ?? "–"} />
-        <KpiCard icon="check" label="Veröffentlicht" value={dash?.published ?? "–"} tone="ok" />
-        <KpiCard icon="clock" label="Geplant" value={dash?.scheduled ?? "–"} tone="warn" />
+        <KpiCard
+          icon="film"
+          label="Videos gesamt"
+          value={dash?.videos_total ?? "–"}
+        />
+        <KpiCard
+          icon="check"
+          label="Veröffentlicht"
+          value={dash?.published ?? "–"}
+          tone="ok"
+        />
+        <KpiCard
+          icon="clock"
+          label="Geplant"
+          value={dash?.scheduled ?? "–"}
+          tone="warn"
+        />
         <KpiCard
           icon="layers"
           label="Unveröffentlicht"
@@ -318,14 +350,26 @@ export function OverviewView() {
         <KpiCard
           icon="send"
           label="Aktive Kanäle"
-          value={data ? `${data.channels_active} / ${data.channels_total}` : "–"}
+          value={
+            data ? `${data.channels_active} / ${data.channels_total}` : "–"
+          }
           hint="Kanäle sind bis zur Einrichtung pausiert"
         />
         <KpiCard
           icon="coins"
           label="Kosten diesen Monat"
-          value={budget ? formatEur(budget.spent_eur) : "–"}
-          hint={budget ? `von ${formatEur(budget.budget_eur)} (${budget.used_pct} %)` : undefined}
+          value={
+            costs
+              ? formatEur(costs.costs.total)
+              : budget
+                ? formatEur(budget.spent_eur)
+                : "–"
+          }
+          hint={
+            budget
+              ? `Engine-Budget: ${formatEur(budget.spent_eur)} von ${formatEur(budget.budget_eur)} (${budget.used_pct} %)`
+              : undefined
+          }
         />
       </div>
 
@@ -347,20 +391,28 @@ export function OverviewView() {
               <li key={p.id}>
                 <PlatformMark code={p.platform} size={26} />
                 <div className="feed-body">
-                  <div className="feed-title">{p.title ?? `Video #${p.id}`}</div>
+                  <div className="feed-title">
+                    {p.title ?? `Video #${p.id}`}
+                  </div>
                   <div className="muted small">
                     {p.channel} · {p.content_project} ·{" "}
                     {p.published_at ? formatDateTime(p.published_at) : "–"}
                   </div>
                 </div>
-                {p.is_mock ? <Badge>Test</Badge> : <Badge tone="ok">Live</Badge>}
+                {p.is_mock ? (
+                  <Badge>Test</Badge>
+                ) : (
+                  <Badge tone="ok">Live</Badge>
+                )}
               </li>
             ))}
           </ul>
         </Section>
         <Section title="Fehler">
           {dash && dash.failures.length === 0 && (
-            <p className="muted">Keine fehlgeschlagenen Videos oder Veröffentlichungen.</p>
+            <p className="muted">
+              Keine fehlgeschlagenen Videos oder Veröffentlichungen.
+            </p>
           )}
           <ul className="feed">
             {dash?.failures.map((f) => (
@@ -370,11 +422,15 @@ export function OverviewView() {
                 </span>
                 <div className="feed-body">
                   <div className="feed-title">
-                    {f.title ?? (f.kind === "video" ? `Video #${f.id}` : `Auftrag #${f.id}`)}
+                    {f.title ??
+                      (f.kind === "video"
+                        ? `Video #${f.id}`
+                        : `Auftrag #${f.id}`)}
                   </div>
                   <div className="muted small">
                     {f.kind === "video" ? "Produktion" : "Veröffentlichung"}
-                    {f.channel ? ` · ${f.channel}` : ""} · {formatDateTime(f.at)}
+                    {f.channel ? ` · ${f.channel}` : ""} ·{" "}
+                    {formatDateTime(f.at)}
                   </div>
                   {f.error && <div className="feed-error small">{f.error}</div>}
                 </div>
@@ -391,7 +447,9 @@ export function OverviewView() {
 
       <div className="grid two">
         <Section title="Aktivitäten">
-          {dash && dash.activity.length === 0 && <p className="muted">Noch keine Aktivitäten.</p>}
+          {dash && dash.activity.length === 0 && (
+            <p className="muted">Noch keine Aktivitäten.</p>
+          )}
           <ul className="feed">
             {dash?.activity.map((a, i) => {
               const [icon, tone] = activityIcon(a);
@@ -415,7 +473,9 @@ export function OverviewView() {
                     <div className="muted small">
                       {a.actor ?? "System"} · {formatDateTime(a.at)}
                     </div>
-                    {a.message && <div className="muted small feed-msg">{a.message}</div>}
+                    {a.message && (
+                      <div className="muted small feed-msg">{a.message}</div>
+                    )}
                   </div>
                 </li>
               );
@@ -447,7 +507,9 @@ export function OverviewView() {
             <dt>Warteschlange (Redis)</dt>
             <dd>
               {ready ? (
-                <Badge tone={ready.redis ? "ok" : "danger"}>{ready.redis ? "OK" : "Fehler"}</Badge>
+                <Badge tone={ready.redis ? "ok" : "danger"}>
+                  {ready.redis ? "OK" : "Fehler"}
+                </Badge>
               ) : (
                 "–"
               )}

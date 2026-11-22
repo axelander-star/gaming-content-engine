@@ -39,6 +39,8 @@ import type {
   AnalyticsOverview,
   ChannelPlan,
   CostSummary,
+  FixedCost,
+  FixedCostInput,
   HookReport,
   LearningVersionOut,
   Clip,
@@ -131,7 +133,9 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 export function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.split("; ").find((c) => c.startsWith(`${name}=`));
+  const match = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(`${name}=`));
   return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
 }
 
@@ -141,14 +145,19 @@ function errorMessage(body: unknown, status: number): string {
     if (typeof detail === "string") return detail;
     if (Array.isArray(detail)) {
       return detail
-        .map((d) => (d && typeof d === "object" && "msg" in d ? String(d.msg) : String(d)))
+        .map((d) =>
+          d && typeof d === "object" && "msg" in d ? String(d.msg) : String(d),
+        )
         .join("; ");
     }
   }
   return `Request failed (${status})`;
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers);
   if (init.body !== undefined) headers.set("Content-Type", "application/json");
@@ -197,7 +206,10 @@ async function upload<T>(
 
 export const api = {
   login: (email: string, password: string) =>
-    request<User>("/auth/login", { method: "POST", body: json({ email, password }) }),
+    request<User>("/auth/login", {
+      method: "POST",
+      body: json({ email, password }),
+    }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
   me: () => request<User>("/auth/me"),
 
@@ -208,17 +220,25 @@ export const api = {
   aiStatus: () => request<AIStatus>("/ai/status"),
   aiUsage: (limit = 20) => request<AIUsage>(`/ai/usage?limit=${limit}`),
   aiTest: (prompt: string, tier: "text" | "reasoning") =>
-    request<AITestResult>("/ai/test", { method: "POST", body: json({ prompt, tier }) }),
+    request<AITestResult>("/ai/test", {
+      method: "POST",
+      body: json({ prompt, tier }),
+    }),
 
-  chatMessages: (limit = 50) => request<ChatMessage[]>(`/assistant/messages?limit=${limit}`),
+  chatMessages: (limit = 50) =>
+    request<ChatMessage[]>(`/assistant/messages?limit=${limit}`),
   sendChat: (text: string) =>
-    request<ChatExchange>("/assistant/messages", { method: "POST", body: json({ text }) }),
+    request<ChatExchange>("/assistant/messages", {
+      method: "POST",
+      body: json({ text }),
+    }),
   sendChatWithFiles: (text: string, attachmentIds: number[]) =>
     request<ChatExchange>("/assistant/messages", {
       method: "POST",
       body: json({ text, attachment_ids: attachmentIds }),
     }),
-  uploadChatFile: (file: File) => upload<ChatAttachment>("/assistant/attachments", file),
+  uploadChatFile: (file: File) =>
+    upload<ChatAttachment>("/assistant/attachments", file),
   chatFileUrl: (id: number) => `/api/assistant/attachments/${id}/file`,
   /** Spoken answer: a Blob from the server voice, or null = let the browser speak. */
   chatSpeech: async (messageId: number): Promise<Blob | null> => {
@@ -232,24 +252,41 @@ export const api = {
     }
     return res.blob();
   },
-  notifications: (limit = 30) => request<NotificationList>(`/notifications?limit=${limit}`),
+  notifications: (limit = 30) =>
+    request<NotificationList>(`/notifications?limit=${limit}`),
   markNotificationsRead: (ids?: number[]) =>
     request<{ marked: number; unread: number }>("/notifications/read", {
       method: "POST",
       body: json({ ids: ids ?? null }),
     }),
   pushSettings: () => request<PushSettings>("/notifications/push"),
-  testPush: () => request<{ result: string }>("/notifications/push/test", { method: "POST" }),
+  testPush: () =>
+    request<{ result: string }>("/notifications/push/test", { method: "POST" }),
   undoChatAction: (id: number) =>
     request<ChatAction>(`/assistant/actions/${id}/undo`, { method: "POST" }),
   weekPlan: (start?: string) =>
-    request<WeekPlan>(`/planning/week${start ? `?start=${encodeURIComponent(start)}` : ""}`),
+    request<WeekPlan>(
+      `/planning/week${start ? `?start=${encodeURIComponent(start)}` : ""}`,
+    ),
 
   researchSources: () => request<ResearchSources>("/research/sources"),
-  createResearchSource: (body: { content_project_id: number; name: string; url: string }) =>
-    request<ResearchSource>("/research/sources", { method: "POST", body: json(body) }),
-  updateResearchSource: (id: number, changes: { name?: string; enabled?: boolean }) =>
-    request<ResearchSource>(`/research/sources/${id}`, { method: "PATCH", body: json(changes) }),
+  createResearchSource: (body: {
+    content_project_id: number;
+    name: string;
+    url: string;
+  }) =>
+    request<ResearchSource>("/research/sources", {
+      method: "POST",
+      body: json(body),
+    }),
+  updateResearchSource: (
+    id: number,
+    changes: { name?: string; enabled?: boolean },
+  ) =>
+    request<ResearchSource>(`/research/sources/${id}`, {
+      method: "PATCH",
+      body: json(changes),
+    }),
   deleteResearchSource: (id: number) =>
     request<void>(`/research/sources/${id}`, { method: "DELETE" }),
   researchItems: (projectId?: number, limit = 30) =>
@@ -268,31 +305,60 @@ export const api = {
     return request<Idea[]>(`/ideas?${q.toString()}`);
   },
   acceptIdea: (id: number, day: string | null) =>
-    request<Idea>(`/ideas/${id}/accept`, { method: "POST", body: json({ day }) }),
-  rejectIdea: (id: number) => request<Idea>(`/ideas/${id}/reject`, { method: "POST" }),
-  reopenIdea: (id: number) => request<Idea>(`/ideas/${id}/reopen`, { method: "POST" }),
+    request<Idea>(`/ideas/${id}/accept`, {
+      method: "POST",
+      body: json({ day }),
+    }),
+  rejectIdea: (id: number) =>
+    request<Idea>(`/ideas/${id}/reject`, { method: "POST" }),
+  reopenIdea: (id: number) =>
+    request<Idea>(`/ideas/${id}/reopen`, { method: "POST" }),
 
   calendar: (start: string, end: string, projectId?: number) =>
     request<Calendar>(
       `/planning/calendar?start=${start}&end=${end}${projectId ? `&project_id=${projectId}` : ""}`,
     ),
-  addPlanDay: (body: { day: string; project_id: number; note?: string | null }) =>
-    request<CalendarEntry>("/planning/days", { method: "POST", body: json(body) }),
-  updatePlanDay: (id: number, changes: { day?: string; note?: string | null }) =>
-    request<CalendarEntry>(`/planning/days/${id}`, { method: "PATCH", body: json(changes) }),
-  deletePlanDay: (id: number) => request<void>(`/planning/days/${id}`, { method: "DELETE" }),
+  addPlanDay: (body: {
+    day: string;
+    project_id: number;
+    note?: string | null;
+  }) =>
+    request<CalendarEntry>("/planning/days", {
+      method: "POST",
+      body: json(body),
+    }),
+  updatePlanDay: (
+    id: number,
+    changes: { day?: string; note?: string | null },
+  ) =>
+    request<CalendarEntry>(`/planning/days/${id}`, {
+      method: "PATCH",
+      body: json(changes),
+    }),
+  deletePlanDay: (id: number) =>
+    request<void>(`/planning/days/${id}`, { method: "DELETE" }),
   addFocus: (body: {
     project_id: number;
     topic: string;
     starts_on: string;
     ends_on: string;
     note?: string | null;
-  }) => request<CalendarFocus>("/planning/focus", { method: "POST", body: json(body) }),
-  deleteFocus: (id: number) => request<void>(`/planning/focus/${id}`, { method: "DELETE" }),
+  }) =>
+    request<CalendarFocus>("/planning/focus", {
+      method: "POST",
+      body: json(body),
+    }),
+  deleteFocus: (id: number) =>
+    request<void>(`/planning/focus/${id}`, { method: "DELETE" }),
   planRules: () => request<PlanRule[]>("/planning/rules"),
-  addPlanRule: (body: { project_id: number; weekday: number; every_weeks?: number }) =>
+  addPlanRule: (body: {
+    project_id: number;
+    weekday: number;
+    every_weeks?: number;
+  }) =>
     request<PlanRule>("/planning/rules", { method: "POST", body: json(body) }),
-  deletePlanRule: (id: number) => request<void>(`/planning/rules/${id}`, { method: "DELETE" }),
+  deletePlanRule: (id: number) =>
+    request<void>(`/planning/rules/${id}`, { method: "DELETE" }),
   occasions: (start: string, end: string) =>
     request<Occasion[]>(`/planning/events?start=${start}&end=${end}`),
   addOccasion: (body: {
@@ -300,16 +366,21 @@ export const api = {
     day: string;
     languages: string[];
     project_id?: number | null;
-  }) => request<Occasion>("/planning/events", { method: "POST", body: json(body) }),
-  deleteOccasion: (id: number) => request<void>(`/planning/events/${id}`, { method: "DELETE" }),
+  }) =>
+    request<Occasion>("/planning/events", { method: "POST", body: json(body) }),
+  deleteOccasion: (id: number) =>
+    request<void>(`/planning/events/${id}`, { method: "DELETE" }),
   competitorRadar: (projectId?: number) =>
-    request<CompetitorRadar>(`/competitors${projectId ? `?project_id=${projectId}` : ""}`),
+    request<CompetitorRadar>(
+      `/competitors${projectId ? `?project_id=${projectId}` : ""}`,
+    ),
   addCompetitor: (projectId: number, handle: string) =>
     request<CompetitorChannel>("/competitors", {
       method: "POST",
       body: json({ project_id: projectId, handle }),
     }),
-  removeCompetitor: (id: number) => request<void>(`/competitors/${id}`, { method: "DELETE" }),
+  removeCompetitor: (id: number) =>
+    request<void>(`/competitors/${id}`, { method: "DELETE" }),
   runCompetitorRadar: () =>
     request<{ job_id: string | null }>("/competitors/run", { method: "POST" }),
 
@@ -332,8 +403,14 @@ export const api = {
     return request<LibraryItem[]>(`/library?${q.toString()}`);
   },
   libraryItem: (id: number) => request<LibraryItem>(`/library/${id}`),
-  updateLibraryItem: (id: number, changes: { title?: string; note?: string | null; tags?: string[] }) =>
-    request<LibraryItem>(`/library/${id}`, { method: "PATCH", body: json(changes) }),
+  updateLibraryItem: (
+    id: number,
+    changes: { title?: string; note?: string | null; tags?: string[] },
+  ) =>
+    request<LibraryItem>(`/library/${id}`, {
+      method: "PATCH",
+      body: json(changes),
+    }),
   archiveLibraryItem: (id: number) =>
     request<LibraryItem>(`/library/${id}/archive`, { method: "POST" }),
   restoreLibraryItem: (id: number) =>
@@ -345,18 +422,30 @@ export const api = {
     }),
   reprocessLibraryItem: (id: number) =>
     request<LibraryItem>(`/library/${id}/reprocess`, { method: "POST" }),
-  libraryFileUrl: (id: number, which: "original" | "rendition" | "thumb" = "rendition") =>
-    `/api/library/${id}/file?which=${which}`,
+  libraryFileUrl: (
+    id: number,
+    which: "original" | "rendition" | "thumb" = "rendition",
+  ) => `/api/library/${id}/file?which=${which}`,
 
   productions: (projectId?: number) =>
-    request<Production[]>(`/productions${projectId ? `?project_id=${projectId}` : ""}`),
+    request<Production[]>(
+      `/productions${projectId ? `?project_id=${projectId}` : ""}`,
+    ),
   production: (id: number) => request<Production>(`/productions/${id}`),
   createProduction: (body: ProductionInput) =>
     request<Production>("/productions", { method: "POST", body: json(body) }),
   updateProduction: (
     id: number,
-    changes: { title?: string; language?: Language; segments?: ProductionSegment[] },
-  ) => request<Production>(`/productions/${id}`, { method: "PATCH", body: json(changes) }),
+    changes: {
+      title?: string;
+      language?: Language;
+      segments?: ProductionSegment[];
+    },
+  ) =>
+    request<Production>(`/productions/${id}`, {
+      method: "PATCH",
+      body: json(changes),
+    }),
   translateProduction: (id: number, language: Language) =>
     request<Production>(`/productions/${id}/translate`, {
       method: "POST",
@@ -371,7 +460,9 @@ export const api = {
 
   // approval center (extension E8)
   approvalInfo: () => request<ApprovalInfo>("/approval/info"),
-  approvalPosts: (filter: { projectId?: number; itemId?: number; status?: VideoStatus } = {}) => {
+  approvalPosts: (
+    filter: { projectId?: number; itemId?: number; status?: VideoStatus } = {},
+  ) => {
     const q = new URLSearchParams();
     if (filter.projectId) q.set("project_id", String(filter.projectId));
     if (filter.itemId) q.set("item_id", String(filter.itemId));
@@ -384,7 +475,11 @@ export const api = {
       method: "POST",
       body: json({ item_id: itemId, channel_id: channelId }),
     }),
-  preparePosts: (itemId: number, channelIds: number[], texts: Record<number, PostTextsInput> = {}) =>
+  preparePosts: (
+    itemId: number,
+    channelIds: number[],
+    texts: Record<number, PostTextsInput> = {},
+  ) =>
     request<ApprovalPost[]>("/approval/prepare", {
       method: "POST",
       body: json({ item_id: itemId, channel_ids: channelIds, texts }),
@@ -395,18 +490,32 @@ export const api = {
       body: json({ item_id: itemId, everywhere: true }),
     }),
   updatePost: (id: number, changes: PostChanges) =>
-    request<ApprovalPost>(`/approval/${id}`, { method: "PATCH", body: json(changes) }),
-  approvePost: (id: number) => request<ApprovalPost>(`/approval/${id}/approve`, { method: "POST" }),
+    request<ApprovalPost>(`/approval/${id}`, {
+      method: "PATCH",
+      body: json(changes),
+    }),
+  approvePost: (id: number) =>
+    request<ApprovalPost>(`/approval/${id}/approve`, { method: "POST" }),
   withdrawPost: (id: number) =>
     request<ApprovalPost>(`/approval/${id}/withdraw`, { method: "POST" }),
-  discardPost: (id: number) => request<ApprovalPost>(`/approval/${id}/discard`, { method: "POST" }),
+  discardPost: (id: number) =>
+    request<ApprovalPost>(`/approval/${id}/discard`, { method: "POST" }),
 
   settings: () => request<SettingsResponse>("/settings"),
   updateControls: (
-    changes: Partial<Pick<EffectiveControls, "emergency_stop" | "auto_publish_enabled">>,
-  ) => request<EffectiveControls>("/settings/controls", { method: "PATCH", body: json(changes) }),
+    changes: Partial<
+      Pick<EffectiveControls, "emergency_stop" | "auto_publish_enabled">
+    >,
+  ) =>
+    request<EffectiveControls>("/settings/controls", {
+      method: "PATCH",
+      body: json(changes),
+    }),
   updateOperations: (changes: Partial<OperationsSettings>) =>
-    request<OperationsSettings>("/settings/operations", { method: "PATCH", body: json(changes) }),
+    request<OperationsSettings>("/settings/operations", {
+      method: "PATCH",
+      body: json(changes),
+    }),
 
   channels: () => request<Channel[]>("/channels"),
   createChannel: (body: ChannelInput) =>
@@ -421,34 +530,55 @@ export const api = {
   createProject: (body: ContentProjectInput) =>
     request<ContentProject>("/projects", { method: "POST", body: json(body) }),
   updateProject: (id: number, changes: ContentProjectPatch) =>
-    request<ContentProject>(`/projects/${id}`, { method: "PATCH", body: json(changes) }),
-  pauseChannel: (id: number) => request<Channel>(`/channels/${id}/pause`, { method: "POST" }),
-  resumeChannel: (id: number) => request<Channel>(`/channels/${id}/resume`, { method: "POST" }),
+    request<ContentProject>(`/projects/${id}`, {
+      method: "PATCH",
+      body: json(changes),
+    }),
+  pauseChannel: (id: number) =>
+    request<Channel>(`/channels/${id}/pause`, { method: "POST" }),
+  resumeChannel: (id: number) =>
+    request<Channel>(`/channels/${id}/resume`, { method: "POST" }),
   connectChannel: (id: number) =>
     request<{ url: string }>(`/channels/${id}/connect`, { method: "POST" }),
   disconnectChannel: (id: number) =>
     request<Channel>(`/channels/${id}/disconnect`, { method: "POST" }),
   setChannelLimits: (
     id: number,
-    limits: Pick<Channel, "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes">,
-  ) => request<Channel>(`/channels/${id}/limits`, { method: "PUT", body: json(limits) }),
+    limits: Pick<
+      Channel,
+      "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes"
+    >,
+  ) =>
+    request<Channel>(`/channels/${id}/limits`, {
+      method: "PUT",
+      body: json(limits),
+    }),
 
   agents: () => request<Agent[]>("/agents"),
   agentRuns: (name: string, limit = 20) =>
-    request<AgentRun[]>(`/agents/${encodeURIComponent(name)}/runs?limit=${limit}`),
+    request<AgentRun[]>(
+      `/agents/${encodeURIComponent(name)}/runs?limit=${limit}`,
+    ),
   agentDecisions: (agent?: string, limit = 50) =>
     request<AgentDecision[]>(
       `/agents/decisions?limit=${limit}${agent ? `&agent=${encodeURIComponent(agent)}` : ""}`,
     ),
   budget: () => request<Budget>("/agents/budget"),
   pauseAgent: (name: string) =>
-    request<void>(`/agents/${encodeURIComponent(name)}/pause`, { method: "POST" }),
-  resumeAgent: (name: string) =>
-    request<void>(`/agents/${encodeURIComponent(name)}/resume`, { method: "POST" }),
-  runAgent: (name: string) =>
-    request<{ agent: string; job_id: string }>(`/agents/${encodeURIComponent(name)}/run`, {
+    request<void>(`/agents/${encodeURIComponent(name)}/pause`, {
       method: "POST",
     }),
+  resumeAgent: (name: string) =>
+    request<void>(`/agents/${encodeURIComponent(name)}/resume`, {
+      method: "POST",
+    }),
+  runAgent: (name: string) =>
+    request<{ agent: string; job_id: string }>(
+      `/agents/${encodeURIComponent(name)}/run`,
+      {
+        method: "POST",
+      },
+    ),
 
   trends: (language: Language, limit = 10) =>
     request<TrendItem[]>(`/trends?language=${language}&limit=${limit}`),
@@ -457,19 +587,26 @@ export const api = {
   games: () => request<Game[]>("/games"),
   game: (id: number) => request<Game>(`/games/${id}`),
   gameHistory: (id: number, language: Language, days = 30) =>
-    request<TrendHistoryPoint[]>(`/games/${id}/history?language=${language}&days=${days}`),
+    request<TrendHistoryPoint[]>(
+      `/games/${id}/history?language=${language}&days=${days}`,
+    ),
   trendSources: () => request<TrendSourceStatus[]>("/trends/sources"),
   testTrendSource: (name: TrendSourceStatus["name"]) =>
-    request<TrendSourceStatus>(`/trends/sources/${name}/test`, { method: "POST" }),
+    request<TrendSourceStatus>(`/trends/sources/${name}/test`, {
+      method: "POST",
+    }),
 
   // rights management (Phase 6)
   creators: () => request<Creator[]>("/creators"),
   createCreator: (data: { name: string; contact?: string; notes?: string }) =>
     request<Creator>("/creators", { method: "POST", body: json(data) }),
   setCreatorBlocked: (id: number, blocked: boolean) =>
-    request<{ rechecked: number[] }>(`/creators/${id}/${blocked ? "block" : "unblock"}`, {
-      method: "POST",
-    }),
+    request<{ rechecked: number[] }>(
+      `/creators/${id}/${blocked ? "block" : "unblock"}`,
+      {
+        method: "POST",
+      },
+    ),
   sources: () => request<Source[]>("/sources"),
   createSource: (data: {
     creator_id: number | null;
@@ -479,20 +616,28 @@ export const api = {
     provenance_notes?: string;
   }) => request<Source>("/sources", { method: "POST", body: json(data) }),
   setSourceBlocked: (id: number, blocked: boolean) =>
-    request<{ rechecked: number[] }>(`/sources/${id}/${blocked ? "block" : "unblock"}`, {
-      method: "POST",
-    }),
+    request<{ rechecked: number[] }>(
+      `/sources/${id}/${blocked ? "block" : "unblock"}`,
+      {
+        method: "POST",
+      },
+    ),
   licenses: () => request<License[]>("/licenses"),
   createLicense: (data: Partial<LicenseTerms> & { source_id: number }) =>
     request<License>("/licenses", { method: "POST", body: json(data) }),
   updateLicense: (id: number, terms: LicenseTerms) =>
     request<License>(`/licenses/${id}`, { method: "PATCH", body: json(terms) }),
-  setLicenseStatus: (id: number, action: "approve" | "reject" | "revoke", note?: string) =>
+  setLicenseStatus: (
+    id: number,
+    action: "approve" | "reject" | "revoke",
+    note?: string,
+  ) =>
     request<License>(`/licenses/${id}/${action}`, {
       method: "POST",
       body: action === "approve" ? undefined : json({ note: note ?? null }),
     }),
-  licenseDocuments: (id: number) => request<LicenseDocument[]>(`/licenses/${id}/documents`),
+  licenseDocuments: (id: number) =>
+    request<LicenseDocument[]>(`/licenses/${id}/documents`),
   uploadLicenseDocument: (id: number, file: File) =>
     upload<LicenseDocument>(`/licenses/${id}/documents`, file),
   documentUrl: (licenseId: number, docId: number) =>
@@ -505,8 +650,17 @@ export const api = {
   policies: () => request<PublisherPolicy[]>("/policies"),
   setPolicy: (
     gameId: number,
-    data: { status: PolicyStatus; notes: string; publisher?: string; policy_url?: string },
-  ) => request<PublisherPolicy>(`/games/${gameId}/policy`, { method: "PUT", body: json(data) }),
+    data: {
+      status: PolicyStatus;
+      notes: string;
+      publisher?: string;
+      policy_url?: string;
+    },
+  ) =>
+    request<PublisherPolicy>(`/games/${gameId}/policy`, {
+      method: "PUT",
+      body: json(data),
+    }),
   materials: (status?: MaterialStatus) =>
     request<Material[]>(`/materials${status ? `?status=${status}` : ""}`),
   material: (id: number) => request<Material>(`/materials/${id}`),
@@ -520,7 +674,12 @@ export const api = {
   }) => request<Material>("/materials", { method: "POST", body: json(data) }),
   uploadMaterial: (
     file: File,
-    data: { source_id: number; license_id: number; game_id: number | null; title?: string },
+    data: {
+      source_id: number;
+      license_id: number;
+      game_id: number | null;
+      title?: string;
+    },
   ) => {
     const fields: Record<string, string> = {
       source_id: String(data.source_id),
@@ -530,10 +689,12 @@ export const api = {
     if (data.title) fields.title = data.title;
     return upload<Material>("/materials/upload", file, fields);
   },
-  rightsCriteria: () => request<{ key: string; label: string }[]>("/rights/criteria"),
+  rightsCriteria: () =>
+    request<{ key: string; label: string }[]>("/rights/criteria"),
 
   // video production (Phase 7)
-  productionClips: (limit = 50) => request<Clip[]>(`/production/clips?limit=${limit}`),
+  productionClips: (limit = 50) =>
+    request<Clip[]>(`/production/clips?limit=${limit}`),
   materialScenes: (id: number) => request<Scene[]>(`/materials/${id}/scenes`),
   clipFileUrl: (id: number) => `/api/clips/${id}/file`,
   variantFileUrl: (id: number) => `/api/variants/${id}/file`,
@@ -555,45 +716,82 @@ export const api = {
     for (const [key, value] of Object.entries(filters)) {
       if (value !== undefined && value !== "") params.set(key, String(value));
     }
-    return request<AnalyticsOverview>(`/analytics/overview?${params.toString()}`);
+    return request<AnalyticsOverview>(
+      `/analytics/overview?${params.toString()}`,
+    );
   },
   learningVersions: () => request<LearningVersionOut[]>("/analytics/learning"),
   hookReport: () => request<HookReport>("/analytics/hooks"),
 
   // Ausbau A8: bio-link pages, affiliate links, newsletter, campaign fit
   bioPages: (projectId?: number) =>
-    request<BioPage[]>(`/bio-pages${projectId ? `?project_id=${projectId}` : ""}`),
+    request<BioPage[]>(
+      `/bio-pages${projectId ? `?project_id=${projectId}` : ""}`,
+    ),
   updateBioPage: (id: number, data: BioPagePatch) =>
     request<BioPage>(`/bio-pages/${id}`, { method: "PATCH", body: json(data) }),
   affiliateLinks: (projectId?: number) =>
-    request<AffiliateLink[]>(`/affiliate-links${projectId ? `?project_id=${projectId}` : ""}`),
+    request<AffiliateLink[]>(
+      `/affiliate-links${projectId ? `?project_id=${projectId}` : ""}`,
+    ),
   createAffiliateLink: (data: AffiliateInput) =>
-    request<AffiliateLink>("/affiliate-links", { method: "POST", body: json(data) }),
-  updateAffiliateLink: (id: number, data: Partial<Omit<AffiliateInput, "project_id">>) =>
-    request<AffiliateLink>(`/affiliate-links/${id}`, { method: "PATCH", body: json(data) }),
+    request<AffiliateLink>("/affiliate-links", {
+      method: "POST",
+      body: json(data),
+    }),
+  updateAffiliateLink: (
+    id: number,
+    data: Partial<Omit<AffiliateInput, "project_id">>,
+  ) =>
+    request<AffiliateLink>(`/affiliate-links/${id}`, {
+      method: "PATCH",
+      body: json(data),
+    }),
   deleteAffiliateLink: (id: number) =>
     request<void>(`/affiliate-links/${id}`, { method: "DELETE" }),
   newsletter: (projectId?: number) =>
-    request<NewsletterOverview>(`/newsletter${projectId ? `?project_id=${projectId}` : ""}`),
-  deleteSubscriber: (id: number) => request<void>(`/newsletter/${id}`, { method: "DELETE" }),
+    request<NewsletterOverview>(
+      `/newsletter${projectId ? `?project_id=${projectId}` : ""}`,
+    ),
+  deleteSubscriber: (id: number) =>
+    request<void>(`/newsletter/${id}`, { method: "DELETE" }),
   outbox: () => request<Outbox>("/mail/outbox"),
   weeklyReport: () => request<WeeklyReport>("/reports/weekly"),
-  sendWeeklyReport: () => request<OutgoingMail>("/reports/weekly/send", { method: "POST" }),
+  sendWeeklyReport: () =>
+    request<OutgoingMail>("/reports/weekly/send", { method: "POST" }),
   // Ausbau A9: sponsor inbox (drafts only, nothing is sent)
   sponsorInbox: (state?: SponsorStatus) =>
     request<SponsorInbox>(`/sponsors${state ? `?state=${state}` : ""}`),
   addSponsorInquiry: (data: SponsorInput) =>
     request<SponsorInquiry>("/sponsors", { method: "POST", body: json(data) }),
   updateSponsorInquiry: (id: number, data: SponsorPatch) =>
-    request<SponsorInquiry>(`/sponsors/${id}`, { method: "PATCH", body: json(data) }),
+    request<SponsorInquiry>(`/sponsors/${id}`, {
+      method: "PATCH",
+      body: json(data),
+    }),
   redraftSponsorInquiry: (id: number) =>
     request<SponsorInquiry>(`/sponsors/${id}/redraft`, { method: "POST" }),
-  deleteSponsorInquiry: (id: number) => request<void>(`/sponsors/${id}`, { method: "DELETE" }),
+  deleteSponsorInquiry: (id: number) =>
+    request<void>(`/sponsors/${id}`, { method: "DELETE" }),
   matchCampaign: (data: CampaignMatchInput) =>
-    request<CampaignFit[]>("/campaigns/match", { method: "POST", body: json(data) }),
+    request<CampaignFit[]>("/campaigns/match", {
+      method: "POST",
+      body: json(data),
+    }),
   rollbackLearning: (version: number) =>
-    request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, { method: "POST" }),
+    request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, {
+      method: "POST",
+    }),
   costSummary: () => request<CostSummary>("/costs/summary"),
+  addFixedCost: (data: FixedCostInput) =>
+    request<FixedCost>("/costs/fixed", { method: "POST", body: json(data) }),
+  updateFixedCost: (id: number, data: Partial<FixedCostInput>) =>
+    request<FixedCost>(`/costs/fixed/${id}`, {
+      method: "PATCH",
+      body: json(data),
+    }),
+  deleteFixedCost: (id: number) =>
+    request<void>(`/costs/fixed/${id}`, { method: "DELETE" }),
   systemStatus: () => request<SystemStatus>("/system/status"),
 
   // comments: drafts, replies, review
@@ -601,13 +799,17 @@ export const api = {
     request<ViewerComment[]>(`/comments${state ? `?state=${state}` : ""}`),
   commentStats: () => request<CommentStats>("/comments/stats"),
   editCommentReply: (id: number, reply_text: string) =>
-    request<ViewerComment>(`/comments/${id}/reply`, { method: "PUT", body: json({ reply_text }) }),
+    request<ViewerComment>(`/comments/${id}/reply`, {
+      method: "PUT",
+      body: json({ reply_text }),
+    }),
   sendComment: (id: number, reply_text?: string) =>
     request<ViewerComment>(`/comments/${id}/send`, {
       method: "POST",
       body: json(reply_text === undefined ? {} : { reply_text }),
     }),
-  commentDone: (id: number) => request<ViewerComment>(`/comments/${id}/done`, { method: "POST" }),
+  commentDone: (id: number) =>
+    request<ViewerComment>(`/comments/${id}/done`, { method: "POST" }),
   ignoreComment: (id: number) =>
     request<ViewerComment>(`/comments/${id}/ignore`, { method: "POST" }),
   redraftComment: (id: number) =>
@@ -617,13 +819,19 @@ export const api = {
       method: "POST",
       body: json({ channel_id, text, author: author || undefined }),
     }),
-  runComments: () => request<{ job_id: string | null }>("/comments/run", { method: "POST" }),
+  runComments: () =>
+    request<{ job_id: string | null }>("/comments/run", { method: "POST" }),
   // account overview: every channel with reach, revenue and recommendation
   accounts: () => request<AccountsOverview>("/accounts"),
   revenue: (channelId?: number) =>
-    request<RevenueEntry[]>(`/accounts/revenue${channelId ? `?channel_id=${channelId}` : ""}`),
+    request<RevenueEntry[]>(
+      `/accounts/revenue${channelId ? `?channel_id=${channelId}` : ""}`,
+    ),
   addRevenue: (data: RevenueInput) =>
-    request<RevenueEntry>("/accounts/revenue", { method: "POST", body: json(data) }),
+    request<RevenueEntry>("/accounts/revenue", {
+      method: "POST",
+      body: json(data),
+    }),
   deleteRevenue: (id: number) =>
     request<void>(`/accounts/revenue/${id}`, { method: "DELETE" }),
   // channel assistant: coverage per topic area and "create channel" tasks
@@ -637,16 +845,26 @@ export const api = {
       body: json({ project_id: projectId }),
     }),
   updateChannelSetup: (id: number, changes: ChannelSetupPatch) =>
-    request<ChannelSetupTask>(`/channel-setup/tasks/${id}`, { method: "PATCH", body: json(changes) }),
-  retryChannelSetupEmail: (id: number) =>
-    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/email`, { method: "POST" }),
-  completeChannelSetup: (id: number, handle?: string) =>
-    request<{ task: ChannelSetupTask; channel_id: number }>(`/channel-setup/tasks/${id}/complete`, {
-      method: "POST",
-      body: json(handle ? { handle } : {}),
+    request<ChannelSetupTask>(`/channel-setup/tasks/${id}`, {
+      method: "PATCH",
+      body: json(changes),
     }),
+  retryChannelSetupEmail: (id: number) =>
+    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/email`, {
+      method: "POST",
+    }),
+  completeChannelSetup: (id: number, handle?: string) =>
+    request<{ task: ChannelSetupTask; channel_id: number }>(
+      `/channel-setup/tasks/${id}/complete`,
+      {
+        method: "POST",
+        body: json(handle ? { handle } : {}),
+      },
+    ),
   dismissChannelSetup: (id: number) =>
-    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/dismiss`, { method: "POST" }),
+    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/dismiss`, {
+      method: "POST",
+    }),
   channelSetupImage: (id: number, kind: "avatar" | "banner") =>
     `/api/channel-setup/tasks/${id}/${kind}.png`,
   // clipping campaigns (Content Rewards)
@@ -654,18 +872,30 @@ export const api = {
   createCampaign: (data: CampaignInput) =>
     request<Campaign>("/campaigns", { method: "POST", body: json(data) }),
   updateCampaign: (id: number, changes: CampaignFields) =>
-    request<Campaign>(`/campaigns/${id}`, { method: "PATCH", body: json(changes) }),
+    request<Campaign>(`/campaigns/${id}`, {
+      method: "PATCH",
+      body: json(changes),
+    }),
   setCampaignStatus: (id: number, status: CampaignStatus) =>
-    request<Campaign>(`/campaigns/${id}/status`, { method: "POST", body: json({ status }) }),
+    request<Campaign>(`/campaigns/${id}/status`, {
+      method: "POST",
+      body: json({ status }),
+    }),
   campaignClips: () => request<CampaignClip[]>("/campaigns/clips/list"),
   updateCampaignClip: (
     id: number,
     changes: { title?: string; description?: string; hashtags?: string[] },
-  ) => request<CampaignClip>(`/campaigns/clips/${id}`, { method: "PATCH", body: json(changes) }),
+  ) =>
+    request<CampaignClip>(`/campaigns/clips/${id}`, {
+      method: "PATCH",
+      body: json(changes),
+    }),
   approveCampaignClip: (id: number) =>
     request<CampaignClip>(`/campaigns/clips/${id}/approve`, { method: "POST" }),
   withdrawCampaignClip: (id: number) =>
-    request<CampaignClip>(`/campaigns/clips/${id}/withdraw`, { method: "POST" }),
+    request<CampaignClip>(`/campaigns/clips/${id}/withdraw`, {
+      method: "POST",
+    }),
   discardCampaignClip: (id: number) =>
     request<CampaignClip>(`/campaigns/clips/${id}/discard`, { method: "POST" }),
   submissions: (done = false) =>
@@ -678,20 +908,33 @@ export const api = {
       body: json({ url }),
     }),
   markSubmitted: (id: number) =>
-    request<CampaignSubmission>(`/campaigns/submissions/${id}/submitted`, { method: "POST" }),
+    request<CampaignSubmission>(`/campaigns/submissions/${id}/submitted`, {
+      method: "POST",
+    }),
   skipSubmission: (id: number, note?: string) =>
     request<CampaignSubmission>(`/campaigns/submissions/${id}/skip`, {
       method: "POST",
       body: json({ note: note ?? null }),
     }),
   reopenSubmission: (id: number) =>
-    request<CampaignSubmission>(`/campaigns/submissions/${id}/reopen`, { method: "POST" }),
+    request<CampaignSubmission>(`/campaigns/submissions/${id}/reopen`, {
+      method: "POST",
+    }),
 
   users: () => request<User[]>("/users"),
-  createUser: (data: { email: string; password: string; role: UserRole; display_name?: string }) =>
-    request<User>("/users", { method: "POST", body: json(data) }),
+  createUser: (data: {
+    email: string;
+    password: string;
+    role: UserRole;
+    display_name?: string;
+  }) => request<User>("/users", { method: "POST", body: json(data) }),
   updateUser: (
     id: number,
-    data: Partial<{ role: UserRole; is_active: boolean; display_name: string; password: string }>,
+    data: Partial<{
+      role: UserRole;
+      is_active: boolean;
+      display_name: string;
+      password: string;
+    }>,
   ) => request<User>(`/users/${id}`, { method: "PATCH", body: json(data) }),
 };

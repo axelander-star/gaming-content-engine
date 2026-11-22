@@ -465,16 +465,30 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/analytics.png`, fullPage: true });
     await page.getByRole("link", { name: "Kosten", exact: true }).click();
     await page.getByRole("heading", { name: "Kosten", level: 1 }).waitFor();
-    await page.getByText("Monatliche Gesamtkosten").waitFor();
+    await page.getByText("Monatskosten gesamt", { exact: true }).waitFor();
+    await page.getByText(/^Stand \d/).waitFor();
     await page.getByText("Budgetstufe:").waitFor();
     await page.getByRole("figure", { name: "Kosten im Monat" }).waitFor();
+    const fixed = page.getByRole("table", { name: "Fixkosten" });
+    await fixed.waitFor();
+    await page.getByText("Posten hinzufügen").click();
+    const form = page.getByRole("form", { name: "Neuen Fixkosten-Posten anlegen" });
+    await form.getByRole("textbox", { name: "Name" }).fill("E2E Testposten");
+    await form.getByRole("textbox", { name: "Betrag" }).fill("12,00");
+    await form.getByRole("combobox", { name: "Zahlweise" }).selectOption("year");
+    await form.getByRole("button", { name: "Speichern" }).click();
+    const row = fixed.getByRole("row").filter({ hasText: "E2E Testposten" });
+    await row.getByText("1,00 €").waitFor();
+    await row.getByRole("button", { name: "Löschen" }).click();
+    await row.waitFor({ state: "detached" });
+    await page.getByRole("table", { name: "Token-Verbrauch" }).waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kosten.png`, fullPage: true });
   });
 
   await step("KI-Schicht: Monatsgrenze sichtbar, Testaufruf im Mock-Modus kostenlos", async () => {
     const panel = page.locator("section").filter({ hasText: "KI-Nutzung (Claude)" });
     await panel.getByText("Test (Mock): keine Kosten").waitFor();
-    await panel.getByText(/von 20,00\s\$ Monatsgrenze/).waitFor();
+    await panel.getByText(/von 20,00\s\$ API-Monatsgrenze der Engine/).waitFor();
     await panel.getByText("claude-haiku-5-5").first().waitFor();
     await panel.getByText("claude-sonnet-5-5").first().waitFor();
     await panel.getByRole("button", { name: "KI testen" }).click();

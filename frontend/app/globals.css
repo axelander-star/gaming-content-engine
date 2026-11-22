@@ -25,7 +25,8 @@
   --info-bg: rgba(77, 160, 255, 0.14);
   --info: #6cb2ff;
   --radius: 12px;
-  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.25);
   --series-1: #3987e5;
   color-scheme: dark;
 }
@@ -2603,4 +2604,21 @@ details summary {
   display: grid;
   gap: 4px;
   font-size: 13px;
+}
+
+/* --- fixed costs ----------------------------------------------------------------- */
+.fixed-form .check {
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+.fixed-add {
+  margin-top: 12px;
+}
+.fixed-add summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.row-actions {
+  white-space: nowrap;
 }

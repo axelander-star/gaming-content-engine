@@ -10,6 +10,7 @@ from models.channels import Channel, ChannelCredential, Platform
 from models.comments import Comment
 from models.competitors import Competitor, CompetitorVideo
 from models.control import AgentDecision, AgentRun, AgentState, Cost
+from models.fixed_costs import FixedCost
 from models.library import LibraryItem, OwnProduction
 from models.marketing import AffiliateLink, BioPage, NewsletterSubscriber, OutgoingMail
 from models.planning import CalendarEvent, ContentFocus, EditorialDay, PlanRule
@@ -68,6 +69,7 @@ __all__ = [
     "Cost",
     "Creator",
     "EditorialDay",
+    "FixedCost",
     "Game",
     "GameplayFile",
     "Idea",
