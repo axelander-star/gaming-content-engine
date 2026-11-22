@@ -24,13 +24,13 @@ def agents_by_name(api: TestClient) -> dict[str, dict[str, object]]:
     return {a["name"]: a for a in r.json()}
 
 
-def test_list_agents_shows_all_25(api: TestClient, make_user: Callable[..., User]) -> None:
+def test_list_agents_shows_all_26(api: TestClient, make_user: Callable[..., User]) -> None:
     make_user(role=UserRole.VIEWER, email="v@example.com")
     login(api, "v@example.com")
     agents = agents_by_name(api)
-    assert len(agents) == 25
+    assert len(agents) == 26
     assert agents["master"]["status"] == "ready" and agents["master"]["can_run_manually"]
-    assert all(a["status"] != "not_available" for a in agents.values())  # all 25 built
+    assert all(a["status"] != "not_available" for a in agents.values())  # all 26 built
     assert agents["analytics"]["phase"] == 14
 
 

@@ -96,14 +96,14 @@ try {
     }
   });
 
-  await step("Agentenseite zeigt alle 25 Agenten", async () => {
+  await step("Agentenseite zeigt alle 26 Agenten", async () => {
     await page.getByRole("link", { name: "Agenten", exact: true }).click();
     await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
     await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
     const rows = page.locator("table").first().locator("tbody tr");
-    await rows.nth(24).waitFor();
-    assert.equal(await rows.count(), 25);
-    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 25 agents are built
+    await rows.nth(25).waitFor();
+    assert.equal(await rows.count(), 26);
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 26 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -628,6 +628,18 @@ try {
     await card.getByText("Quellen (1)").click();
     await card.getByRole("link").first().waitFor();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+    // five per page, best ranking first, with pages and a sort choice
+    assert.equal(await cards.count(), 5);
+    await page.getByText(/Seite 1 von \d+/).waitFor();
+    assert.equal(await page.getByText("#1", { exact: true }).count(), 1);
+    await page.getByRole("button", { name: "Weiter →" }).click();
+    await page.getByText(/Seite 2 von \d+/).waitFor();
+    await page.getByText("#6", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "← Zurück" }).click();
+    await page.getByText(/Seite 1 von \d+/).waitFor();
+    await page.getByLabel("Sortieren nach").selectOption("title");
+    await page.getByLabel("Sortieren nach").selectOption("score");
+    await page.getByText("#1", { exact: true }).waitFor();
     await card.getByLabel("Tag im Plan (optional)").fill(today);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/ideenlabor.png`, fullPage: true });
     await card.getByRole("button", { name: "Übernehmen" }).click();
@@ -636,6 +648,22 @@ try {
     await page.getByRole("article", { name: `Idee ${title}` }).getByText(/Übernommen für/).waitFor();
     await page.getByRole("link", { name: "Assistent", exact: true }).click();
     await page.getByRole("list", { name: "Wochenplan" }).locator(".is-today .chip").first().waitFor();
+  });
+
+  await step("Trend-Alarm: Test-Alarm mit Zahlen und Entwürfen, verwerfen", async () => {
+    await page.getByRole("link", { name: "Trend-Alarm", exact: true }).click();
+    await page.getByRole("heading", { name: "Trend-Alarm", level: 1 }).waitFor();
+    await page.getByText("Test: Beispieldaten").waitFor();
+    await page.getByText(/TREND_AUTOPILOT_ENABLED=false/).waitFor();
+    await page.getByRole("button", { name: "Jetzt prüfen" }).click();
+    await page.getByText(/Prüfung mit Testdaten läuft/).waitFor();
+    const alarm = page.getByRole("region", { name: /^Trend-Alarm / }).first();
+    await alarm.waitFor({ timeout: 70000 });
+    await alarm.getByText(/Aufrufe in \d+ Stunden/).waitFor();
+    await alarm.getByText("Kurz erklärt", { exact: true }).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/trend-alarm.png`, fullPage: true });
+    await alarm.getByRole("button", { name: "Alarm verwerfen" }).click();
+    await alarm.getByText("Verworfen", { exact: true }).waitFor();
   });
 
   await step("Redaktionsplan: Bereich einplanen, verschieben, entfernen", async () => {

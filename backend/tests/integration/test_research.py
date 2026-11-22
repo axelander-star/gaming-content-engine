@@ -174,7 +174,7 @@ def test_mock_collect_without_sources_is_idempotent(
 ) -> None:
     settings = get_settings()
     first = research.collect(db, settings, projects["food"])
-    assert first.new_items == 6 and first.sources == 0
+    assert first.new_items == len(research._MOCK_HEADLINES) and first.sources == 0
     items = db.scalars(select(ResearchItem)).all()
     assert all(i.is_mock and i.content_project_id == projects["food"].id for i in items)
     assert any("Meal Prep" in i.title for i in items)
@@ -234,8 +234,9 @@ def test_mock_ideas_are_scored_with_sources(
     used = db.scalars(select(ResearchItem).where(ResearchItem.used_at.is_not(None))).all()
     assert len(used) == settings.ideas_per_run
 
-    again = ideas.draft(db, settings, food)  # only one unused item left
-    assert len(again.ideas) == 1
+    left = len(research._MOCK_HEADLINES) - settings.ideas_per_run
+    again = ideas.draft(db, settings, food)  # only the unused items are left
+    assert len(again.ideas) == left
     assert ideas.draft(db, settings, food).ideas == []
 
 
@@ -410,3 +411,34 @@ def test_run_endpoint_queues_research_and_ideas(
     assert r.status_code == 200, r.text
     assert r.json()["jobs"] == {"research": "job-research", "idea_lab": "job-idea_lab"}
     assert submitted[0] == ("research", {"project_id": projects["food"].id})
+
+
+def test_ideas_page_sorts_and_pages(
+    api: TestClient, make_user: MakeUser, db: Session, projects: dict[str, ContentProject]
+) -> None:
+    settings = get_settings()
+    research.collect(db, settings, projects["food"])
+    created = ideas.draft(db, settings, projects["food"]).ideas
+    db.commit()
+    make_user(role=UserRole.OPERATOR, email="pager@example.com")
+    login(api, "pager@example.com")
+
+    first = api.get("/api/ideas/page", params={"status": "new"}).json()
+    assert first["total"] == len(created) and first["limit"] == 5 and first["sort"] == "score"
+    assert len(first["items"]) == 5
+    scores = [i["score"] for i in first["items"]]
+    assert scores == sorted(scores, reverse=True)
+    assert scores[0] == max(i.score for i in created)
+
+    rest = api.get("/api/ideas/page", params={"status": "new", "offset": 10}).json()
+    assert len(rest["items"]) == len(created) - 10
+    seen = {i["id"] for i in first["items"]} | {i["id"] for i in rest["items"]}
+    assert len(seen) == len(first["items"]) + len(rest["items"])  # no overlap
+
+    by_name = api.get("/api/ideas/page", params={"sort": "title", "limit": 50}).json()["items"]
+    titles = [i["title"].lower() for i in by_name]
+    assert titles == sorted(titles)
+    by_trend = api.get("/api/ideas/page", params={"sort": "trend", "limit": 50}).json()["items"]
+    trends = [i["trend_score"] for i in by_trend]
+    assert trends == sorted(trends, reverse=True)
+    assert api.get("/api/ideas/page", params={"sort": "nonsense"}).status_code == 422

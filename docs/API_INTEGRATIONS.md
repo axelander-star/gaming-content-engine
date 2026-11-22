@@ -263,6 +263,10 @@ Geprüft gegen die YouTube-Data-API-Dokumentation am 16.11.2026. Nur öffentlich
 
 Alle 12 Stunden je Kanal 2–3 Einheiten, bei 30 Kanälen also unter 200 Einheiten am Tag (Tageskontingent 10.000). Fehlermeldungen enthalten nie die URL (sie trägt den Schlüssel). TikTok und Instagram: keine offizielle Schnittstelle für Videos fremder Konten, daher nicht beobachtet.
 
+## Trend-Alarm: YouTube-Trendliste (Ausbau A11)
+
+Offizieller Aufruf der YouTube Data API v3, nur mit API-Schlüssel (kein OAuth): `GET /youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=DE&maxResults=50`, für Gaming-Themenbereiche zusätzlich mit `videoCategoryId=20`. Kosten 1 Einheit je Aufruf; bei `TREND_ALARM_REGIONS=DE,US` und einem Gaming-Bereich 4 Einheiten je Prüfung, alle 30 Minuten also rund 190 von 10.000 Einheiten am Tag. Gelesen werden nur Titel, Kanalname, Veröffentlichungszeit, Schlagwörter und Zahlen (Aufrufe, Likes, Kommentare). Fremde Videos werden **nicht** heruntergeladen oder verwendet (Nutzungsbedingungen, Urheberrecht); die Entwürfe sind Eigenproduktionen zum Thema. Fehlermeldungen enthalten nie die URL (Schlüssel). Vor dem ersten Live-Betrieb gegen die aktuelle Doku prüfen (`videos.list`, Parameter `chart`, `regionCode`, `videoCategoryId`). TikTok, Instagram und X haben keine offizielle Schnittstelle für fremde Trends und werden nicht beobachtet; „das ganze Internet“ ist damit bewusst auf freie, offizielle Quellen begrenzt (plus Recherche-Feeds und Konkurrenz-Radar).
+
 ## Push aufs Handy: ntfy (Ausbau A4)
 
 Geprüft gegen https://docs.ntfy.sh/publish/ am 16.11.2026: `POST https://ntfy.sh/<thema>` mit dem Text als Body; Kopfzeilen `Title`, `Priority` (1–5), `Tags` (Emoji-Kurzcodes), `Click` (URL beim Antippen). Nicht-ASCII in Kopfzeilen wird nach RFC 2047 kodiert (`=?UTF-8?B?…?=`), wie die Doku empfiehlt; Nachrichten über 4.096 Byte würden als Anhang verschickt, die Engine kürzt auf 3.500 Zeichen. Optionaler Zugangstoken als `Authorization: Bearer …` (für geschützte Themen; dieser Teil der Doku wurde nicht live geprüft, Standard ist ein geheimer Themenname ohne Token). Kosten: keine. Die Themen-URL ist geheim und wird nie geloggt.

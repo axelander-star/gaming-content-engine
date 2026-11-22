@@ -339,6 +339,59 @@ def list_ideas(
     return [_idea_out(i, name) for i, name in db.execute(query)]
 
 
+IdeaSort = Literal["score", "trend", "title", "newest", "oldest", "fit"]
+_SORTS: dict[str, tuple[Any, ...]] = {
+    "score": (Idea.score.desc(), Idea.created_at.desc()),
+    "trend": (Idea.trend_score.desc(), Idea.score.desc()),
+    "fit": (Idea.fit_score.desc(), Idea.score.desc()),
+    "title": (func.lower(Idea.title).asc(),),
+    "newest": (Idea.created_at.desc(), Idea.score.desc()),
+    "oldest": (Idea.created_at.asc(), Idea.score.desc()),
+}
+
+
+class IdeaPageOut(BaseModel):
+    total: int
+    offset: int
+    limit: int
+    sort: IdeaSort
+    items: list[IdeaOut]
+
+
+@router.get("/ideas/page", response_model=IdeaPageOut)
+def page_ideas(
+    _: Viewer,
+    db: DbSession,
+    project_id: int | None = None,
+    status_: Annotated[IdeaStatus | None, Query(alias="status")] = None,
+    sort: IdeaSort = "score",
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=5, ge=1, le=50),
+) -> IdeaPageOut:
+    """One page of ideas, sorted on the server (default: best ranking first)."""
+    filters = []
+    if project_id is not None:
+        filters.append(Idea.content_project_id == project_id)
+    if status_ is not None:
+        filters.append(Idea.status == status_)
+    total = int(db.scalar(select(func.count(Idea.id)).where(*filters)) or 0)
+    query = (
+        select(Idea, ContentProject.name)
+        .join(ContentProject, ContentProject.id == Idea.content_project_id)
+        .where(*filters)
+        .order_by(*_SORTS[sort], Idea.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    return IdeaPageOut(
+        total=total,
+        offset=offset,
+        limit=limit,
+        sort=sort,
+        items=[_idea_out(i, name) for i, name in db.execute(query)],
+    )
+
+
 class AcceptIn(BaseModel):
     day: date | None = None
 

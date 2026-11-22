@@ -80,6 +80,8 @@ import type {
   Outbox,
   CompetitorRadar,
   Idea,
+  IdeaPage,
+  IdeaSort,
   IdeaStatus,
   LibraryInfo,
   LibraryItem,
@@ -115,6 +117,9 @@ import type {
   TrendSourceStatus,
   User,
   UserRole,
+  TrendAlarm,
+  TrendAlarmChannel,
+  TrendAlarmInfo,
 } from "./types";
 
 export class ApiError extends Error {
@@ -267,6 +272,45 @@ export const api = {
     if (filters.status) q.set("status", filters.status);
     return request<Idea[]>(`/ideas?${q.toString()}`);
   },
+  ideasPage: (
+    filters: {
+      projectId?: number;
+      status?: IdeaStatus;
+      sort?: IdeaSort;
+      offset?: number;
+      limit?: number;
+    } = {},
+  ) => {
+    const q = new URLSearchParams({
+      sort: filters.sort ?? "score",
+      offset: String(filters.offset ?? 0),
+      limit: String(filters.limit ?? 5),
+    });
+    if (filters.projectId) q.set("project_id", String(filters.projectId));
+    if (filters.status) q.set("status", filters.status);
+    return request<IdeaPage>(`/ideas/page?${q.toString()}`);
+  },
+  trendAlarmInfo: () => request<TrendAlarmInfo>("/trend-alarms/info"),
+  trendAlarms: (view: "open" | "all" = "open") =>
+    request<TrendAlarm[]>(`/trend-alarms?view=${view}`),
+  trendAlarm: (id: number) => request<TrendAlarm>(`/trend-alarms/${id}`),
+  scanTrendAlarms: (projectId?: number) =>
+    request<{ job: string }>("/trend-alarms/scan", {
+      method: "POST",
+      body: json({ project_id: projectId ?? null }),
+    }),
+  approveTrendAlarm: (id: number, productionId: number) =>
+    request<TrendAlarm>(`/trend-alarms/${id}/approve`, {
+      method: "POST",
+      body: json({ production_id: productionId }),
+    }),
+  dismissTrendAlarm: (id: number) =>
+    request<TrendAlarm>(`/trend-alarms/${id}/dismiss`, { method: "POST" }),
+  setTrendAutopilot: (channelId: number, enabled: boolean) =>
+    request<TrendAlarmChannel>(`/trend-alarms/autopilot/${channelId}`, {
+      method: "PATCH",
+      body: json({ enabled }),
+    }),
   acceptIdea: (id: number, day: string | null) =>
     request<Idea>(`/ideas/${id}/accept`, { method: "POST", body: json({ day }) }),
   rejectIdea: (id: number) => request<Idea>(`/ideas/${id}/reject`, { method: "POST" }),

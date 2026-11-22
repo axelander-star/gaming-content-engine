@@ -66,6 +66,9 @@ class Channel(IdMixin, TimestampMixin, Base):
         default=ChannelAuthStatus.NOT_CONNECTED,
     )
     is_paused: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    #: Ausbau A11: a trend alarm may approve its best draft here without a person
+    #: (only with TREND_AUTOPILOT_ENABLED; publishing stays mock unless switched to live).
+    trend_autopilot: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     min_posts_per_day: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     max_posts_per_day: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     min_interval_minutes: Mapped[int] = mapped_column(Integer, default=60, server_default="60")

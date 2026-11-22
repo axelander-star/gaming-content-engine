@@ -11,6 +11,7 @@ import { hasRole } from "@/lib/roles";
 import type {
   ContentProject,
   Idea,
+  IdeaSort,
   IdeaStatus,
   ResearchItem,
   ResearchSources,
@@ -21,6 +22,54 @@ const STATUS_TABS: [IdeaStatus, string][] = [
   ["accepted", "Übernommen"],
   ["rejected", "Verworfen"],
 ];
+
+const SORTS: [IdeaSort, string][] = [
+  ["score", "Ranking (beste zuerst)"],
+  ["trend", "Trend (heißeste zuerst)"],
+  ["fit", "Passung"],
+  ["title", "Name (A–Z)"],
+  ["newest", "Datum (neueste zuerst)"],
+  ["oldest", "Datum (älteste zuerst)"],
+];
+
+const PAGE_SIZE = 5;
+
+function Pager({
+  page,
+  pages,
+  total,
+  onPage,
+}: {
+  page: number;
+  pages: number;
+  total: number;
+  onPage: (page: number) => void;
+}) {
+  if (total <= PAGE_SIZE) return null;
+  return (
+    <nav className="pager" aria-label="Seiten der Ideen">
+      <button
+        type="button"
+        className="btn btn-ghost"
+        disabled={page <= 0}
+        onClick={() => onPage(page - 1)}
+      >
+        ← Zurück
+      </button>
+      <span className="muted small">
+        Seite {page + 1} von {pages} · {total} Ideen
+      </span>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        disabled={page >= pages - 1}
+        onClick={() => onPage(page + 1)}
+      >
+        Weiter →
+      </button>
+    </nav>
+  );
+}
 
 const FORMAT_LABELS: Record<string, string> = {
   short: "Kurzvideo",
@@ -50,11 +99,13 @@ function ScoreBar({ label, value, inverse }: { label: string; value: number; inv
 
 function IdeaCard({
   idea,
+  rank,
   canDecide,
   onChange,
   onError,
 }: {
   idea: Idea;
+  rank?: number;
   canDecide: boolean;
   onChange: () => void;
   onError: (msg: string) => void;
@@ -78,7 +129,10 @@ function IdeaCard({
     <article className="card idea-card" aria-label={`Idee ${idea.title}`}>
       <div className="idea-head">
         <div>
-          <h3>{idea.title}</h3>
+          <h3>
+            {rank !== undefined && <span className="idea-rank">#{rank}</span>}
+            {idea.title}
+          </h3>
           <div className="idea-meta">
             <span className="chip">{idea.project}</span>
             <span className="muted small">{FORMAT_LABELS[idea.format] ?? idea.format}</span>
@@ -302,6 +356,9 @@ export function IdeasView() {
   const [projects, setProjects] = useState<ContentProject[]>([]);
   const [projectId, setProjectId] = useState<number | undefined>(undefined);
   const [status, setStatus] = useState<IdeaStatus>("new");
+  const [sort, setSort] = useState<IdeaSort>("score");
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
   const [items, setItems] = useState<ResearchItem[]>([]);
   const [sources, setSources] = useState<ResearchSources | null>(null);
@@ -310,8 +367,16 @@ export function IdeasView() {
 
   const load = useCallback(() => {
     api
-      .ideas({ projectId, status })
-      .then(setIdeas)
+      .ideasPage({ projectId, status, sort, offset: page * PAGE_SIZE, limit: PAGE_SIZE })
+      .then((res) => {
+        // a decision can empty the last page: step back instead of showing nothing
+        if (res.items.length === 0 && res.total > 0 && page > 0) {
+          setPage(Math.max(0, Math.ceil(res.total / PAGE_SIZE) - 1));
+          return;
+        }
+        setTotal(res.total);
+        setIdeas(res.items);
+      })
       .catch((e: Error) => setError(e.message));
     api
       .researchItems(projectId, 15)
@@ -321,7 +386,7 @@ export function IdeasView() {
       .researchSources()
       .then(setSources)
       .catch((e: Error) => setError(e.message));
-  }, [projectId, status]);
+  }, [projectId, status, sort, page]);
 
   useEffect(() => {
     api
@@ -353,7 +418,10 @@ export function IdeasView() {
           Themenbereich
           <select
             value={projectId ?? ""}
-            onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : undefined)}
+            onChange={(e) => {
+              setProjectId(e.target.value ? Number(e.target.value) : undefined);
+              setPage(0);
+            }}
           >
             <option value="">Alle</option>
             {projects.map((p) => (
@@ -371,12 +439,31 @@ export function IdeasView() {
               role="tab"
               aria-selected={status === key}
               className={`tab${status === key ? " is-active" : ""}`}
-              onClick={() => setStatus(key)}
+              onClick={() => {
+                setStatus(key);
+                setPage(0);
+              }}
             >
               {label}
             </button>
           ))}
         </div>
+        <label className="inline-label">
+          Sortieren nach
+          <select
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value as IdeaSort);
+              setPage(0);
+            }}
+          >
+            {SORTS.map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
         {isAdmin && (
           <button type="button" className="btn btn-primary" onClick={startResearch}>
             Recherche starten
@@ -394,15 +481,25 @@ export function IdeasView() {
                 : "Keine Ideen in dieser Ansicht."}
             </p>
           )}
-          {ideas?.map((idea) => (
+          {ideas?.map((idea, i) => (
             <IdeaCard
               key={idea.id}
               idea={idea}
+              rank={sort === "score" ? page * PAGE_SIZE + i + 1 : undefined}
               canDecide={canDecide}
               onChange={load}
               onError={setError}
             />
           ))}
+          <Pager
+            page={page}
+            pages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            onPage={(p) => {
+              setPage(p);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
         </div>
         <div className="side-stack">
           <SourcesPanel

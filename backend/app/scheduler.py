@@ -62,6 +62,7 @@ class Schedule:
                 "community": settings.comments_seconds,
                 "competitor_radar": settings.competitor_seconds,
                 "winner_recycling": settings.winner_seconds,
+                "trend_alarm": settings.trend_alarm_seconds,
             }
         )
 

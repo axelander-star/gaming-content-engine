@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 17.11.2026 · **Aktuelle Phase:** Ausbau A1–A10 abgeschlossen (zuletzt A10 Wochenbericht per E-Mail) laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Update auf dem Server einspielen und die offenen Einrichtungen aus [AUSBAU_PLAN.md](AUSBAU_PLAN.md) erledigen (Cloudflare-Token, ntfy, Linkseiten-Host, Impressum, SMTP, `REPORT_EMAIL`)
+**Stand:** 22.11.2026 · **Aktuelle Phase:** Ausbau A1–A11 abgeschlossen (zuletzt A11 Trend-Alarm und Ideenlabor mit Seiten) laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Update auf dem Server einspielen und die offenen Einrichtungen aus [AUSBAU_PLAN.md](AUSBAU_PLAN.md) erledigen (Cloudflare-Token, ntfy, Linkseiten-Host, Impressum, SMTP, `REPORT_EMAIL`)
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -40,6 +40,14 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A8 | Kampagnen je Themenbereich vorschlagen, Affiliate-Links mit „Anzeige“, Linkseite je Kanal mit Newsletter (Double-Opt-in) | ✅ abgeschlossen (PR #42) |
 | A9 | Sponsoren-Postfach: Anfragen einordnen, Warnungen, Preisvorschlag, Antwortentwurf (nichts wird gesendet) | ✅ abgeschlossen (PR #43) |
 | A10 | Wochenbericht per E-Mail (montags 8 Uhr, Vorschau und „Jetzt senden“ in Analytics) | ✅ abgeschlossen |
+| A11 | Ideenlabor: 12 Ideen je Lauf, 5 je Seite mit Weiter/Zurück, Sortierung; Trend-Alarm-Agent mit Entwürfen, Push und Ein-Tipp-Freigabe, Automatik je Kanal (Standard aus) | ✅ abgeschlossen |
+
+**A11 Ideenlabor und Trend-Alarm** (22.11.2026, Wunsch Alexander):
+- Ideenlabor: `IDEAS_PER_RUN` von 5 auf 12, mehr Beispiel-Schlagzeilen im Testmodus. Neuer Endpunkt `GET /api/ideas/page` (Sortierung `score`, `trend`, `fit`, `title`, `newest`, `oldest`; Standard Ranking). Dashboard zeigt 5 Ideen je Seite mit „← Zurück“/„Weiter →“, Platz (#1, #2 …) und Auswahl „Sortieren nach“.
+- Trend-Alarm (Agent 26, `services/trend_alarm.py`, `api/trend_alarms.py`, Seite `/trend-alarm`, Tabelle `trend_alarms`, Spalte `channels.trend_autopilot`, Migration `7433e2700ebb`): Signale aus YouTube-Trendliste und Konkurrenz-Radar, Wert 0–100 mit Fakten („2,4 Mio. Aufrufe in 8 Stunden …“), 3 eigene Video-Entwürfe je Alarm, Beiträge für alle passenden Kanäle vorbereitet, Push mit Link; ein Tipp gibt einen Entwurf frei. Details: [AGENTS.md](AGENTS.md), Schnittstelle: [API_INTEGRATIONS.md](API_INTEGRATIONS.md).
+- Vollautomatik je Kanal: Entscheidung Alexander 22.11.: als Schalter, Standard aus. Wirkt nur mit `TREND_AUTOPILOT_ENABLED=true` auf dem Server und ab 85 Punkten.
+- Grenzen: Fremde Videos werden nicht heruntergeladen oder „angeschaut“, nur Titel und Zahlen gelesen (Nutzungsbedingungen); TikTok/Instagram/X liefern keine offiziellen Trenddaten. Ohne `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` nur Test-Alarme per „Jetzt prüfen“.
+- **Offen:** YouTube-API-Schlüssel und `TREND_SOURCES_MODE=live` auf dem Server setzen, dann echte Alarme; `PUSH_CLICK_BASE_URL=https://studio.kanalfabrik.de` muss gesetzt sein, damit der Push direkt die Freigabeseite öffnet.
 
 **A1 Kanal-Assistent** (`services/channel_setup.py`, `services/branding.py`, `services/mail_alias.py`, `api/channel_setup.py`, Seite `/kanal-assistent`, Tabelle `channel_setup_tasks`, Migration `39d0ca70a01b`):
 - Je Themenbereich und Sprache wird geprüft, ob es einen Kanal auf YouTube, TikTok und Instagram gibt (verbunden, angelegt, vorbereitet, fehlt).

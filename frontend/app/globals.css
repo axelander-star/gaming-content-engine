@@ -2604,3 +2604,67 @@ details summary {
   gap: 4px;
   font-size: 13px;
 }
+
+/* idea lab: rank and pages */
+.idea-rank {
+  color: var(--muted);
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0;
+}
+
+/* trend alarm (A11) */
+.trend-alarm.is-highlight {
+  outline: 2px solid var(--accent);
+}
+.trend-facts {
+  margin: 0.5rem 0;
+  padding-left: 1.1rem;
+}
+.trend-facts li {
+  margin: 0.2rem 0;
+}
+.trend-drafts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.trend-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.trend-draft.is-chosen {
+  outline: 2px solid var(--accent-2);
+}
+.trend-draft h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.trend-draft video {
+  width: 100%;
+  max-height: 360px;
+  border-radius: 8px;
+  background: #000;
+}
+.trend-draft-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.trend-posts {
+  margin: 0;
+  padding-left: 1rem;
+}
+.trend-approve {
+  margin-top: auto;
+  width: 100%;
+}

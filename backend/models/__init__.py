@@ -37,6 +37,7 @@ from models.rights import (
     Source,
 )
 from models.sponsors import SponsorInquiry
+from models.trend_alarms import TrendAlarm
 from models.trends import Game, Trend, TrendReport
 from models.uploads import UploadSession
 
@@ -98,6 +99,7 @@ __all__ = [
     "Subtitle",
     "SystemSetting",
     "Trend",
+    "TrendAlarm",
     "TrendReport",
     "UploadSession",
     "User",

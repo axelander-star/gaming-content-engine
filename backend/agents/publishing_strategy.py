@@ -317,7 +317,8 @@ class PublishingStrategyAgent(Agent):
                     video_format=v.video_format,
                     hook_type=v.hook_type,
                     experiment=bool((v.concept or {}).get("experiment")),
-                    focus=_focus_match(focus, games.get(v.clip_id) if v.clip_id else None, v.title),
+                    focus=_focus_match(focus, games.get(v.clip_id) if v.clip_id else None, v.title)
+                    or ("Trend-Alarm" if (v.concept or {}).get("trend_alarm_id") else None),
                 )
             )
         chosen = strategy.choose(candidates, slots, groups)
