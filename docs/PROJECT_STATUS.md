@@ -24,6 +24,14 @@
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
 
+## Videoserien in der Eigenproduktion (22.–25.11.2026)
+
+- Neuer Reiter **Serien** in der Eigenproduktion: großes Thema → KI-Gliederung in 2–30 Teile (je 1–2 Minuten) → Skripte je Teil → alle Videos vorab erzeugen → „Alle fertigen Teile freigeben“ (Beiträge für alle echten Kanäle in der Sprache der Serie, menschliche Freigabe in einem Klick).
+- Veröffentlichungsplan je Kanal als Vorschau; der Publishing Strategy Agent hält die Reihenfolge ein und verteilt die Teile über die Tage (Regeln in docs/AGENTS.md). Serie pausierbar.
+- Ideen für Serien aus Ideenlabor, Redaktionsplan-Schwerpunkten und Serienformaten (ohne KI-Kosten); „Neue Ideen von der KI“ optional (Mock, solange Claude nicht freigegeben).
+- Behoben: Bei jedem erneuten Planungslauf wurden schon geplante Mediathek-Beiträge mit „Quellmaterial fehlt“ zurückgenommen und neu geplant. Ein Test hing vom heutigen Datum ab.
+- Offen: Gliederung und Skripte sind im Testmodus Platzhaltertexte; echte Texte brauchen die Claude-Freigabe. Englische Fassung gibt es je Teil (Einzelvideos), noch nicht für die ganze Serie.
+
 ## Ausbau ab 16.11.2026 abends (Kanal-Assistent und mehr)
 
 Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolge: [AUSBAU_PLAN.md](AUSBAU_PLAN.md). Testmodus bleibt, es wird nichts echt gepostet.

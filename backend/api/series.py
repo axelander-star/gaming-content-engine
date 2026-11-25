@@ -383,7 +383,11 @@ def prepare_series(
             )
     else:
         channels = [
-            c for c in channels if c.language == row.language and c.platform.code in approval.RULES
+            c
+            for c in channels
+            if c.language == row.language
+            and c.platform.code in approval.RULES
+            and not (c.strategy or {}).get("placeholder")  # seed slot, not a real channel
         ]
     if not channels:
         raise HTTPException(
@@ -470,7 +474,9 @@ def series_plan(
     )
     out = []
     for channel in channels:
-        if channel.platform.code not in approval.RULES:
+        if channel.platform.code not in approval.RULES or (channel.strategy or {}).get(
+            "placeholder"
+        ):
             continue
         out.append(
             ChannelPlan(

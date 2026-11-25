@@ -1,7 +1,7 @@
 """production series
 
 Revision ID: 213ad41e16e4
-Revises: 6f1f7f4b3930
+Revises: 3c9e1f2a7b44
 Create Date: 2026-11-22 10:39:44.116969
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = '213ad41e16e4'
-down_revision: str | None = '6f1f7f4b3930'
+down_revision: str | None = '3c9e1f2a7b44'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
