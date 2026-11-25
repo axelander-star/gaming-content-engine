@@ -117,9 +117,9 @@ def _rules(settings: Settings, http: httpx.Client) -> list[dict[str, object]]:
 def _errors(data: dict[str, object], status: int) -> str:
     errors = data.get("errors") or [{"message": f"HTTP {status}"}]
     items = errors if isinstance(errors, list) else [errors]
-    return "; ".join(
-        str(e.get("message", e)) if isinstance(e, dict) else str(e) for e in items
-    )[:500]
+    return "; ".join(str(e.get("message", e)) if isinstance(e, dict) else str(e) for e in items)[
+        :500
+    ]
 
 
 def _rule_for(rules: list[dict[str, object]], address: str) -> dict[str, object] | None:
@@ -209,7 +209,8 @@ def check(settings: Settings, client: httpx.Client | None = None) -> RoutingChec
             )
         elif used is not None and used >= RULE_WARN:
             findings.append(
-                f"{used} von {RULE_LIMIT} Weiterleitungsregeln belegt, bald ist die Grenze erreicht."
+                f"{used} von {RULE_LIMIT} Weiterleitungsregeln belegt, "
+                "bald ist die Grenze erreicht."
             )
     except (httpx.HTTPError, ValueError):
         findings.append("Cloudflare nicht erreichbar, bitte später erneut prüfen.")
@@ -218,7 +219,12 @@ def check(settings: Settings, client: httpx.Client | None = None) -> RoutingChec
             http.close()
     ok = enabled is True and (status in (None, "ready")) and used is not None and used < RULE_LIMIT
     return RoutingCheck(
-        ok=ok, mode="live", enabled=enabled, status=status, rules_used=used, findings=tuple(findings)
+        ok=ok,
+        mode="live",
+        enabled=enabled,
+        status=status,
+        rules_used=used,
+        findings=tuple(findings),
     )
 
 

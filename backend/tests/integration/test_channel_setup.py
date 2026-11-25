@@ -575,9 +575,7 @@ def test_api_needs_admin_for_changes(client: TestClient, db: Session, make_user:
     assert client.post("/api/channel-setup/mail/check", headers=headers).status_code == 403
 
 
-def test_api_mail_check_and_test_mail(
-    client: TestClient, db: Session, make_user: MakeUser
-) -> None:
+def test_api_mail_check_and_test_mail(client: TestClient, db: Session, make_user: MakeUser) -> None:
     project = watches(db, ("de",))
     make_user(email="admin@example.com", role=UserRole.ADMIN)
     headers = login(client, "admin@example.com")
