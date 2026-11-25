@@ -57,6 +57,7 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A10 | Wochenbericht per E-Mail (montags 8 Uhr, Vorschau und „Jetzt senden“ in Analytics) | ✅ abgeschlossen (PR #44) |
 | N1 | Platzhalter-Kanäle aus dem Seed: im Kanal-Assistenten vorbereiten und zum echten Kanal machen, in der Übersicht nicht mitzählen | ✅ abgeschlossen (PR #46) |
 | N2 | Kanalnamen aus Marktdaten: häufige Begriffe, Konkurrenz, bestehende YouTube-Kanäle; weitere Namensideen mit Begründung, „Neu recherchieren“ | ✅ abgeschlossen |
+| K1 | Kampagnen-Hilfe (22.11.): Kampagnenseite als Text einfügen und Formular füllen lassen, fertige Videovorschläge aus Brief, Trends und Fakten, Überwachung von Fristen, Enddatum und Material | ✅ abgeschlossen |
 
 **N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
 - Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.
@@ -65,6 +66,15 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 - Im Kanal-Assistenten stehen bis zu 5 weitere Namensideen mit Begründung (Knopf „Übernehmen“) und die „Datengrundlage“. „Neu recherchieren“ wertet die aktuellen Daten neu aus.
 - Die laufende Trendbeobachtung (Agent, der Themen und Kanäle vorschlägt) liegt im Thread „Ideenlabor und Trend-Alarm ausbauen“. Die Namensvorschläge nutzen dessen Daten automatisch mit.
 - Für Live-Daten auf dem Server: `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` in `.env`.
+
+**K1 Kampagnen-Hilfe** (`services/campaign_assist.py`, Endpunkte `POST /campaigns/parse` und `POST /campaigns/{id}/proposals`, Spalten `campaigns.proposals*`, Migration `89fc8399876b`):
+- Anlass: Alexander wollte Kampagnen auf Content Rewards „automatisch laufen lassen“. Klargestellt: Kampagnen legen Marken an, Alexander tritt bei. Beitreten, Konten verbinden und den Link einreichen bleiben Handarbeit (keine Clipper-Schnittstelle).
+- Entscheidung Alexander 22.11.: Die Engine liest die Discover-Seite nicht selbst, er kopiert den Text der Kampagnenseite.
+- Eingefügter Text → Formular: Vergütung je 1.000 Aufrufe, Budget, Höchstbetrag je Clip, Mindestaufrufe, Plattformen, Sprache, Hashtags, Werbehinweis, @Erwähnungen, Länge, Enddatum, Materiallinks, Spiel. Feste Regeln lesen, was eindeutig dasteht; die KI füllt nur Lücken, ihre Werte werden geprüft (Bereiche, erlaubte Plattformen, Datum in der Zukunft). Gespeichert wird erst mit „Kampagne anlegen“.
+- Videovorschläge (3 je Kampagne): Titel, Einstieg, Szenenfolge, Text im Bild, fertige Beschreibung mit Werbehinweis, Pflichttext und Pflicht-Hashtags, Länge innerhalb der Kampagnenregel, Begründung und genutzte Fakten. Quelle: Brief, Trends des Spiels (14 Tage) und Recherche-Meldungen des Themenbereichs. Ohne KI oder im Testmodus kommen Vorlagen.
+- Überwachung im Watchdog (alle 15 Min.): Erinnerung bei 20 Min. Restzeit und bei abgelaufener Einreichfrist, Kampagne endet in ≤ 3 Tagen, Enddatum vorbei, nach 24 h noch kein Material. Neue Vorschläge, wenn sich Trends oder Fakten ändern, höchstens einmal am Tag. Jede Kampagnenkarte zeigt den nächsten Schritt.
+
+**Tests:** 18 Backend-Tests (`tests/integration/test_campaign_assist.py`), E2E-Schritt „Kampagnen“ füllt das Formular aus eingefügtem Text.
 
 **N1 Platzhalter-Kanäle (22.11.2026)** (`services/channel_setup.py`, `services/seed.py`, `api/channel_setup.py`, `api/overview.py`, Datenmigration `3c9e1f2a7b44`):
 - Befund im Betrieb: Die 8 Seed-Kanäle („YouTube Shorts DE“ …) im Standardbereich Gaming galten als „angelegt“. Der Kanal-Assistent bot deshalb nichts zum Vorbereiten an, und die Übersicht zählte sie als Kanäle („0 / 8“), obwohl Alexander noch kein Konto hat.

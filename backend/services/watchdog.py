@@ -40,7 +40,7 @@ from models.channels import Channel
 from models.comments import Comment
 from models.control import AgentRun
 from models.publishing import PublishingJob
-from services import accounts, notify
+from services import accounts, campaign_assist, notify
 
 #: Error texts of the platforms that point at rights or account trouble.
 STRIKE = re.compile(
@@ -208,7 +208,13 @@ def _chat_jobs(session: Session, settings: Settings, now: datetime, result: Scan
         result.created.append(f"done:{action.id}")
 
 
-CHECKS = (_publishing, _connections, _reach, _comments, _chat_jobs)
+def _campaigns(session: Session, settings: Settings, now: datetime, result: ScanResult) -> None:
+    """Submission deadlines, ending campaigns, missing material; fresh video proposals."""
+    watched = campaign_assist.watch(session, settings, now)
+    result.created.extend(watched.created)
+
+
+CHECKS = (_publishing, _connections, _reach, _comments, _chat_jobs, _campaigns)
 
 
 def scan(session: Session, settings: Settings, now: datetime | None = None) -> ScanResult:

@@ -1,14 +1,30 @@
 # Clipping-Kampagnen (Content Rewards)
 
-Stand: 16.11.2026 · Dashboard-Seite **Kampagnen** (`/kampagnen`) · Backend `services/campaigns.py`, `api/campaigns.py`
+Stand: 22.11.2026 · Dashboard-Seite **Kampagnen** (`/kampagnen`) · Backend `services/campaigns.py`, `api/campaigns.py`
 
 ## Worum es geht
 
 Auf [Content Rewards](https://contentrewards.com) (gehört zu Whop) bezahlen Streamer und Marken pro 1.000 geprüfte Aufrufe, wenn Clips aus ihrem Material auf eigenen Kanälen laufen. Für die Engine ist das eine **lizenzierte Materialquelle**: Der Kampagnen-Inhaber stellt das Material bereit und erlaubt, daraus Clips zu schneiden. Die Erlaubnis gilt **nur für diese Kampagne**.
 
+## Was automatisch läuft und was du selbst machst
+
+Kampagnen legen Marken und Streamer auf Content Rewards an. Du trittst als Clipper einer Kampagne bei.
+
+| Schritt | Wer |
+|---|---|
+| Konten (YouTube, TikTok, Instagram) bei Content Rewards verbinden | du, einmalig |
+| Passende Kampagne finden und beitreten | du |
+| Text der Kampagnenseite kopieren und hier einfügen | du |
+| Formular ausfüllen | Engine (du prüfst kurz) |
+| Material herunterladen und hochladen | du (Download-Links stehen in der Karte) |
+| Videovorschläge, Schnitt, Texte, Werbehinweis, Regelprüfung | Engine |
+| Clip freigeben | du |
+| Veröffentlichen zum besten Zeitpunkt | Engine |
+| Link binnen 30 Minuten einreichen und abhaken | du (die Engine erinnert dich) |
+
 ## Ablauf
 
-1. **Kampagne anlegen** (Seite Kampagnen, „Neue Kampagne“): Werte aus der Kampagnenbeschreibung übernehmen, also Seite, Vergütung je 1.000 Aufrufe, Budget, Plattformen, Sprachen, Pflicht-Hashtags, Werbehinweis, Pflichttext (Credit, @Erwähnung), Clip-Länge, Enddatum, Materiallinks und die Regeln als Text. Dazu die Kanäle ankreuzen, die bei Content Rewards verbunden sind. Ohne die Bestätigung „Regeln gelesen“ lässt sich keine Kampagne anlegen.
+1. **Kampagne anlegen** (Seite Kampagnen, „Neue Kampagne“): Den ganzen Text der Kampagnenseite markieren, kopieren und oben in „Text der Kampagnenseite einfügen“ einsetzen, dann **Formular automatisch ausfüllen**. Die Engine liest Vergütung, Budget, Höchstbetrag je Clip, Mindestaufrufe, Plattformen, Sprache, Pflicht-Hashtags, Werbehinweis, @Erwähnungen, Clip-Länge, Enddatum, Materiallinks und das Spiel heraus und sagt, was sie nicht gefunden hat. Die Engine öffnet die Kampagnenseite nie selbst (Entscheidung 22.11.2026). Alternativ alle Werte von Hand eintragen: also Seite, Vergütung je 1.000 Aufrufe, Budget, Plattformen, Sprachen, Pflicht-Hashtags, Werbehinweis, Pflichttext (Credit, @Erwähnung), Clip-Länge, Enddatum, Materiallinks und die Regeln als Text. Dazu die Kanäle ankreuzen, die bei Content Rewards verbunden sind. Ohne die Bestätigung „Regeln gelesen“ lässt sich keine Kampagne anlegen.
 2. Daraus entstehen automatisch eine **Quelle vom Typ `campaign`** und eine **freigegebene Lizenz**, die nur die gewählten Plattformen und Sprachen und nur die Laufzeit bis zum Enddatum abdeckt. Nachweis ist die Kampagnenseite, geprüft von der Person, die die Kampagne angelegt hat. Die Publisher-Richtlinie des Spiels wird weiter geprüft (das Spiel wird beim Anlegen oder Hochladen gewählt).
 3. **Material hochladen** (Knopf in der Kampagnenkarte, fortsetzbarer Upload). Die Engine schneidet es wie jedes Gameplay: Szenen finden, Clips rendern, Konzept, Skript, Lokalisierung, Stimme, Untertitel. Clips entstehen **nur für die Kampagnenkanäle**, nicht für die übrigen Kanäle des Themenbereichs.
 4. Die **Qualitätskontrolle** setzt den Werbehinweis an den Anfang der Beschreibung, fügt Pflichttext und Pflicht-Hashtags hinzu und prüft zusätzlich: Kampagne aktiv, Kanal zählt in der Kampagne, Länge im erlaubten Bereich, Pflichtangaben im Text. Alles davon ist blockierend.
@@ -23,6 +39,12 @@ Hat ein Beitrag noch keinen öffentlichen Link (TikTok-Entwurf in der App, Testb
 - Für Clipper gibt es **keine offizielle Schnittstelle** zu Content-Rewards-Kampagnen. Die Whop-API kennt „Bounties“ (`POST /bounty_submissions` mit Benutzer-Zugang), es ist aber nicht belegt, dass Content-Rewards-Kampagnen darüber laufen.
 - Formulare automatisch ausfüllen oder Seiten auslesen widerspricht den [Whop-API-Bedingungen](https://whop.com/tos-developer-api/) und gefährdet das Konto.
 - Es zählen nur Konten, die in Content Rewards verbunden und bestätigt sind; bei Instagram nur Business-Konten.
+
+## Videovorschläge und Überwachung
+
+- Jede Kampagnenkarte zeigt **„Nächster Schritt“** (z. B. Material hochladen, Clips freigeben, Link einreichen) und unter **„Videovorschläge“** drei fertige Ideen: Einstieg, Szenenfolge, Text im Bild, Länge und eine Beschreibung mit Werbehinweis, Pflichttext und Pflicht-Hashtags zum Kopieren.
+- Grundlage sind der Kampagnentext, die aktuellen Trends des Spiels (Twitch, YouTube, Steam) und die Recherche-Meldungen des Themenbereichs. Zahlen kommen nur aus diesen Daten. Im Testmodus oder ohne KI entstehen Vorlagen („Vorlage“).
+- Die Überwachung läuft alle 15 Minuten und meldet sich über die Glocke (und aufs Handy, falls eingerichtet): noch 20 Minuten zum Einreichen, Frist abgelaufen, Kampagne endet in drei Tagen, Enddatum vorbei, nach einem Tag noch kein Material. Ändern sich Trends oder Fakten, schreibt sie die Vorschläge neu, höchstens einmal am Tag. **„Neue Vorschläge schreiben“** geht jederzeit.
 
 ## Kampagnenstatus
 
@@ -49,4 +71,5 @@ Das Enddatum wirkt über die Lizenz: Nach Ablauf meldet die Rechteprüfung „Ab
 
 - Aufrufzahlen je Kampagnen-Clip und geschätzter Ertrag im Dashboard (sobald Analytics echte Werte liefert).
 - Strategie-Agent: lohnende Kampagnen bevorzugen, Restbudget berücksichtigen.
+- Videovorschläge fließen noch nicht automatisch in den Schnitt ein; sie sind Vorlage für dich und die Texte.
 - Videos aus der Mediathek gehören bisher keiner Kampagne an; Kampagnenmaterial läuft über den Upload in der Kampagnenkarte.

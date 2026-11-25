@@ -2628,6 +2628,48 @@ details summary {
   font-size: 13px;
 }
 
+/* Campaign help: pasted page, next step, video proposals */
+.camp-paste {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+.camp-paste .btn {
+  justify-self: start;
+}
+.camp-next {
+  margin: 4px 0 8px;
+}
+.camp-proposals {
+  margin-top: 8px;
+}
+.camp-proposals summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.camp-proposal-list {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+  margin: 8px 0;
+}
+.camp-proposal ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+.camp-caption {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 0.9em;
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  padding: 8px;
+  border-radius: 6px;
+  margin: 6px 0;
+
 /* --- fixed costs ----------------------------------------------------------------- */
 .fixed-form .check {
   flex-direction: row;

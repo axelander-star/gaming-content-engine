@@ -91,7 +91,7 @@ Hier wird aus einem fertigen Video ein Beitrag je Kanal. **Ohne deine Freigabe g
 
 Clipping-Kampagnen von Content Rewards: Die Engine schneidet das Material der Kampagne, prüft die Regeln und veröffentlicht nach deiner Freigabe. Den Link reichst du selbst ein. Details: [CONTENT_REWARDS.md](CONTENT_REWARDS.md).
 
-1. **Neue Kampagne:** Werte aus der Kampagnenbeschreibung übernehmen, die bei Content Rewards verbundenen Kanäle ankreuzen und bestätigen, dass du die Regeln gelesen hast.
+1. **Neue Kampagne:** Den ganzen Text der Kampagnenseite kopieren, oben einfügen und **Formular automatisch ausfüllen** drücken. Werte kurz prüfen, die bei Content Rewards verbundenen Kanäle ankreuzen und bestätigen, dass du die Regeln gelesen hast. Danach zeigt die Karte den **nächsten Schritt** und drei **Videovorschläge** mit fertiger Beschreibung.
 2. In der Kampagnenkarte **Material hochladen**. Schnitt, Texte und Prüfung laufen automatisch.
 3. Unter **Clips zur Freigabe** Video ansehen, Texte prüfen, **Freigeben**. Werbehinweis und Pflicht-Hashtags setzt das System selbst.
 4. Nach dem Veröffentlichen steht der Clip unter **Jetzt einreichen** mit Countdown: **Link kopieren**, **Kampagnenseite öffnen**, dort einreichen, hier **Eingereicht ✓** drücken. Dann steht er unter **Erledigt**.

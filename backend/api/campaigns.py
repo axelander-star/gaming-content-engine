@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from api.deps import DbSession, Operator, Viewer, csrf_protect
+from api.deps import AppSettings, DbSession, Operator, Viewer, csrf_protect
 from core.enums import CampaignStatus, SubmissionStatus, VideoStatus
 from models.campaigns import Campaign, CampaignSubmission
 from models.channels import Channel
@@ -24,7 +24,7 @@ from models.production import Clip, GameplayFile, QualityCheck, Scene, Variant
 from models.projects import ContentProject
 from models.publishing import Post, PublishingJob
 from models.rights import Asset
-from services import approval, campaign_fit, campaigns
+from services import approval, campaign_assist, campaign_fit, campaigns
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"], dependencies=[Depends(csrf_protect)])
 
@@ -75,6 +75,17 @@ class StatusIn(BaseModel):
     status: CampaignStatus
 
 
+class ProposalOut(BaseModel):
+    title: str
+    hook: str
+    scenes: list[str]
+    on_screen_text: list[str]
+    caption: str
+    length_s: int
+    why: str
+    facts: list[str]
+
+
 class CampaignOut(BaseModel):
     id: int
     content_project_id: int
@@ -107,6 +118,10 @@ class CampaignOut(BaseModel):
     clips_waiting: int
     submissions_open: int
     submissions_done: int
+    next_step: str
+    proposals: list[ProposalOut]
+    proposals_at: datetime | None
+    proposals_source: str | None
     created_at: datetime
 
 
@@ -142,43 +157,73 @@ def _campaigns_out(db: Session, items: list[Campaign]) -> list[CampaignOut]:
             .group_by(CampaignSubmission.campaign_id, CampaignSubmission.status)
         )
     }
-    return [
-        CampaignOut(
-            id=c.id,
-            content_project_id=c.content_project_id,
-            project=projects.get(c.content_project_id, "?"),
-            source_id=c.source_id,
-            license_id=c.license_id,
-            game_id=c.game_id,
-            provider=c.provider,
-            name=c.name,
-            url=c.url,
-            status=c.status,
-            cpm_usd=_float(c.cpm_usd),
-            budget_usd=_float(c.budget_usd),
-            min_views=c.min_views,
-            max_payout_per_clip_usd=_float(c.max_payout_per_clip_usd),
-            platforms=list(c.platforms or []),
-            languages=list(c.languages or []),
-            channel_ids=[int(i) for i in c.channel_ids or []],
-            channels=[channels.get(int(i), f"#{i}") for i in c.channel_ids or []],
-            required_hashtags=list(c.required_hashtags or []),
-            disclosure=c.disclosure,
-            required_text=c.required_text,
-            min_duration_s=c.min_duration_s,
-            max_duration_s=c.max_duration_s,
-            submission_window_min=c.submission_window_min,
-            ends_on=c.ends_on,
-            brief=c.brief,
-            material_links=list(c.material_links or []),
-            materials=int(materials.get(c.source_id, 0)),
+    out = []
+    for c in items:
+        open_subs = counts.get((c.id, SubmissionStatus.OPEN), 0)
+        material_count = int(materials.get(c.source_id, 0))
+        proposals = []
+        for raw in c.proposals or []:
+            try:
+                proposals.append(ProposalOut.model_validate(raw))
+            except ValueError:
+                continue
+        out.append(_campaign_out(c, projects, channels, material_count, waiting, counts, proposals))
+        out[-1].next_step = campaign_assist.next_step(
+            c,
+            materials=material_count,
             clips_waiting=waiting.get(c.id, 0),
-            submissions_open=counts.get((c.id, SubmissionStatus.OPEN), 0),
-            submissions_done=counts.get((c.id, SubmissionStatus.SUBMITTED), 0),
-            created_at=c.created_at,
+            submissions_open=open_subs,
         )
-        for c in items
-    ]
+    return out
+
+
+def _campaign_out(
+    c: Campaign,
+    projects: dict[int, str],
+    channels: dict[int, str],
+    material_count: int,
+    waiting: dict[int, int],
+    counts: dict[tuple[int, SubmissionStatus], int],
+    proposals: list[ProposalOut],
+) -> CampaignOut:
+    return CampaignOut(
+        id=c.id,
+        content_project_id=c.content_project_id,
+        project=projects.get(c.content_project_id, "?"),
+        source_id=c.source_id,
+        license_id=c.license_id,
+        game_id=c.game_id,
+        provider=c.provider,
+        name=c.name,
+        url=c.url,
+        status=c.status,
+        cpm_usd=_float(c.cpm_usd),
+        budget_usd=_float(c.budget_usd),
+        min_views=c.min_views,
+        max_payout_per_clip_usd=_float(c.max_payout_per_clip_usd),
+        platforms=list(c.platforms or []),
+        languages=list(c.languages or []),
+        channel_ids=[int(i) for i in c.channel_ids or []],
+        channels=[channels.get(int(i), f"#{i}") for i in c.channel_ids or []],
+        required_hashtags=list(c.required_hashtags or []),
+        disclosure=c.disclosure,
+        required_text=c.required_text,
+        min_duration_s=c.min_duration_s,
+        max_duration_s=c.max_duration_s,
+        submission_window_min=c.submission_window_min,
+        ends_on=c.ends_on,
+        brief=c.brief,
+        material_links=list(c.material_links or []),
+        materials=material_count,
+        clips_waiting=waiting.get(c.id, 0),
+        submissions_open=counts.get((c.id, SubmissionStatus.OPEN), 0),
+        submissions_done=counts.get((c.id, SubmissionStatus.SUBMITTED), 0),
+        next_step="",
+        proposals=proposals,
+        proposals_at=c.proposals_at,
+        proposals_source=c.proposals_source,
+        created_at=c.created_at,
+    )
 
 
 def _campaign(db: Session, campaign_id: int) -> Campaign:
@@ -216,6 +261,46 @@ class FitOut(BaseModel):
     usd_per_clip: float | None
 
 
+class ParseIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=20, max_length=campaign_assist.MAX_PASTE)
+
+
+class ParseOut(BaseModel):
+    fields: dict[str, Any]
+    found: list[str]
+    missing: list[str]
+    source: str
+    game: str | None
+
+
+@router.post("/parse", response_model=ParseOut)
+def parse_campaign_page(
+    body: ParseIn, user: Operator, db: DbSession, settings: AppSettings
+) -> ParseOut:
+    """Fill the campaign form from text copied off the campaign page. Saves nothing."""
+    result = campaign_assist.parse_page(db, settings, body.text, user.id)
+    db.commit()
+    return ParseOut(
+        fields=result.fields,
+        found=result.found,
+        missing=result.missing,
+        source=result.source,
+        game=result.game,
+    )
+
+
+@router.post("/{campaign_id}/proposals", response_model=CampaignOut)
+def refresh_proposals(
+    campaign_id: int, user: Operator, db: DbSession, settings: AppSettings
+) -> CampaignOut:
+    """Write new video proposals from brief, current trends and research facts."""
+    campaign = _campaign(db, campaign_id)
+    campaign_assist.generate_proposals(db, settings, campaign, user.id)
+    db.commit()
+    return _campaigns_out(db, [campaign])[0]
+
+
 @router.post("/match", response_model=list[FitOut])
 def match_campaign(body: MatchIn, _: Viewer, db: DbSession) -> list[FitOut]:
     """Which topic area fits a campaign the operator is looking at (A8)."""
@@ -242,12 +327,16 @@ def list_campaigns(
 
 
 @router.post("", response_model=CampaignOut, status_code=201)
-def create_campaign(body: CampaignIn, user: Operator, db: DbSession) -> CampaignOut:
+def create_campaign(
+    body: CampaignIn, user: Operator, db: DbSession, settings: AppSettings
+) -> CampaignOut:
     try:
         campaign = campaigns.create(db, body.model_dump(), user.id)
     except campaigns.CampaignError as exc:
         db.rollback()
         raise _http(exc) from exc
+    db.commit()
+    campaign_assist.generate_proposals(db, settings, campaign, user.id)
     db.commit()
     return _campaigns_out(db, [campaign])[0]
 

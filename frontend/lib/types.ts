@@ -1503,7 +1503,51 @@ export interface Campaign {
   clips_waiting: number;
   submissions_open: number;
   submissions_done: number;
+  next_step: string;
+  proposals: CampaignProposal[];
+  proposals_at: string | null;
+  proposals_source: string | null;
   created_at: string;
+}
+
+export interface CampaignProposal {
+  title: string;
+  hook: string;
+  scenes: string[];
+  on_screen_text: string[];
+  caption: string;
+  length_s: number;
+  why: string;
+  facts: string[];
+}
+
+/** Form fields read from a pasted campaign page (nothing is saved). */
+export interface CampaignParseFields {
+  name: string | null;
+  url: string | null;
+  cpm_usd: number | null;
+  budget_usd: number | null;
+  max_payout_per_clip_usd: number | null;
+  min_views: number | null;
+  platforms: string[];
+  languages: string[];
+  required_hashtags: string[];
+  disclosure: string | null;
+  required_text: string | null;
+  min_duration_s: number | null;
+  max_duration_s: number | null;
+  ends_on: string | null;
+  material_links: string[];
+  game_id: number | null;
+  brief: string | null;
+}
+
+export interface CampaignParseResult {
+  fields: CampaignParseFields;
+  found: string[];
+  missing: string[];
+  source: string;
+  game: string | null;
 }
 
 export interface CampaignClip {
