@@ -70,14 +70,14 @@ def test_env_fallback_until_items_exist(db: Session, settings: Settings) -> None
     assert fixed_costs.seed_defaults(db, s) == 0  # only once
     t = fixed_costs.totals(db, s)
     assert not t.from_env
-    # Contabo counts in the budget, Claude Pro (20 USD) only in the total.
-    assert t.in_budget_eur == Decimal("13.3300")
-    expected_all = Decimal("13.33") + Decimal("20") * Decimal(str(s.eur_per_usd))
+    # Contabo and the domain count in the budget, Claude Pro only in the total.
+    assert t.in_budget_eur == Decimal("13.8275")
+    expected_all = Decimal("13.33") + Decimal("21.42") + Decimal("0.4975")
     assert t.all_eur == expected_all.quantize(Decimal("0.0001"))
     pro = next(i for i in t.items if i["category"] == "subscription")
-    assert pro["in_budget"] is False and pro["currency"] == "USD"
+    assert pro["in_budget"] is False and pro["monthly_eur"] == 21.42
     domain = next(i for i in t.items if i["category"] == "domain")
-    assert domain["missing_price"] is True
+    assert domain["missing_price"] is False and domain["monthly_eur"] == 0.4975
 
 
 def test_deleting_all_items_does_not_bring_back_env_values(db: Session, settings: Settings) -> None:
