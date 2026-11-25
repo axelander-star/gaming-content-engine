@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -365,10 +365,15 @@ export function IdeasView() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // only the newest request may fill the list: an older answer (e.g. the "Neu" tab
+  // reloaded after a decision) must not overwrite the tab the user switched to
+  const request = useRef(0);
   const load = useCallback(() => {
+    const current = ++request.current;
     api
       .ideasPage({ projectId, status, sort, offset: page * PAGE_SIZE, limit: PAGE_SIZE })
       .then((res) => {
+        if (current !== request.current) return;
         // a decision can empty the last page: step back instead of showing nothing
         if (res.items.length === 0 && res.total > 0 && page > 0) {
           setPage(Math.max(0, Math.ceil(res.total / PAGE_SIZE) - 1));
@@ -395,13 +400,19 @@ export function IdeasView() {
       .catch((e: Error) => setError(e.message));
   }, []);
   useEffect(load, [load]);
+  // the delayed reloads after a research start must use the current tab, area and page,
+  // not the ones from the moment the button was pressed
+  const latestLoad = useRef(load);
+  useEffect(() => {
+    latestLoad.current = load;
+  }, [load]);
 
   async function startResearch() {
     setError(null);
     try {
       await api.runResearch(projectId);
       setNotice("Recherche und Ideenlabor laufen. Neue Ideen erscheinen hier in Kürze.");
-      for (const ms of [3000, 8000, 15000]) setTimeout(load, ms);
+      for (const ms of [3000, 8000, 15000]) setTimeout(() => latestLoad.current(), ms);
     } catch (err) {
       setError((err as Error).message);
     }
