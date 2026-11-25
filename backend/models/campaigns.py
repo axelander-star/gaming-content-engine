@@ -81,6 +81,12 @@ class Campaign(IdMixin, TimestampMixin, Base):
     brief: Mapped[str | None] = mapped_column(Text)
     #: Links to the campaign material (streams, folders) from the brief.
     material_links: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    #: Ready-made video concepts (hook, scenes, caption ...) from brief, trends and facts.
+    proposals: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    proposals_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    #: Fingerprint of brief, trends and facts the proposals were written from.
+    proposals_basis: Mapped[str | None] = mapped_column(String(64))
+    proposals_source: Mapped[str | None] = mapped_column(String(32))
     created_by_user_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="SET NULL")
     )
