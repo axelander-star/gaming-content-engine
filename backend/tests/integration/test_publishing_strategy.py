@@ -226,16 +226,27 @@ def test_master_dispatches_once_per_channel_and_interval(db: Session, channel: C
     assert orchestrator.job_key("publishing_strategy", mine[0]).endswith(f"channel-{channel.id}")
 
 
+class _FrozenDatetime(datetime):
+    """``datetime.now`` pinned to MORNING, so the plan's job window does not age out."""
+
+    @classmethod
+    def now(cls, tz: Any = None) -> Any:
+        return MORNING if tz is None else MORNING.astimezone(tz)
+
+
 def test_api_shows_plan_and_admin_can_roll_back(
-    db: Session, channel: Channel, api: TestClient, make_user: Callable[..., User]
+    db: Session,
+    channel: Channel,
+    api: TestClient,
+    make_user: Callable[..., User],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The plan API lists jobs from the last day on, so plan around today (a fixed
-    # date made this test fail once that day was more than a day ago).
-    morning = datetime.now(UTC).replace(hour=7, minute=0, second=0, microsecond=0)
-    published(db, channel, [1000] * 10 + [1600] * 6, morning)
+    # the API lists jobs from "now - 1 day"; the scenario uses a fixed date
+    monkeypatch.setattr("api.publishing.datetime", _FrozenDatetime)
+    published(db, channel, [1000] * 10 + [1600] * 6, MORNING)
     ready_variants(db, 4, channel)
-    plan(db, channel, morning - timedelta(days=4))
-    plan(db, channel, morning)  # version 2: two per day
+    plan(db, channel, MORNING - timedelta(days=4))
+    plan(db, channel, MORNING)  # version 2: two per day
     db.commit()
 
     make_user("viewer@example.com", UserRole.VIEWER)

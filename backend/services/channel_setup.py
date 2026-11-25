@@ -145,8 +145,8 @@ LANGUAGE_NAMES = {Language.DE: "Deutsch", Language.EN: "Englisch"}
 class Slot:
     platform: PlatformCode
     language: Language
-    #: "connected", "added" (channel exists, not connected), "prepared" (open task)
-    #: or "missing".
+    #: "connected", "added" (channel exists, not connected), "placeholder" (seed
+    #: channel without a real account), "prepared" (open task) or "missing".
     state: str
     channel_id: int | None = None
     channel_name: str | None = None
@@ -160,10 +160,20 @@ class Coverage:
 
     @property
     def missing(self) -> list[Slot]:
-        return [s for s in self.slots if s.state == "missing"]
+        """Slots without a real account: nothing at all, or only a placeholder."""
+        return [s for s in self.slots if s.state in ("missing", "placeholder")]
 
 
 _CONNECTED = (ChannelAuthStatus.AUTHORIZED, ChannelAuthStatus.CONNECTED_RESTRICTED)
+
+
+def is_placeholder(channel: Channel) -> bool:
+    """A seed channel ("YouTube Shorts DE" …) that has no real account behind it yet."""
+    return (
+        bool((channel.strategy or {}).get("placeholder"))
+        and channel.auth_status not in _CONNECTED
+        and not channel.external_channel_id
+    )
 
 
 def languages_of(project: ContentProject) -> list[Language]:
@@ -193,13 +203,14 @@ def coverage(session: Session, project: ContentProject) -> Coverage:
             if connected:
                 c = connected[0]
                 result.slots.append(Slot(plat, lang, "connected", c.id, c.name))
-            elif mine:
-                c = mine[0]
-                result.slots.append(
-                    Slot(plat, lang, "added", c.id, c.name, task.id if task else None)
-                )
             elif task:
-                result.slots.append(Slot(plat, lang, "prepared", task_id=task.id))
+                # an open task, possibly for an existing placeholder channel
+                result.slots.append(Slot(plat, lang, "prepared", task.channel_id, task_id=task.id))
+            elif mine:
+                real = [c for c in mine if not is_placeholder(c)]
+                c = (real or mine)[0]
+                state = "added" if real else "placeholder"
+                result.slots.append(Slot(plat, lang, state, c.id, c.name))
             else:
                 result.slots.append(Slot(plat, lang, "missing"))
     return result
@@ -435,6 +446,7 @@ def prepare_one(
     platform: PlatformCode,
     language: Language,
     user_id: int | None = None,
+    channel_id: int | None = None,
 ) -> ChannelSetupTask:
     texts = write_texts(session, settings, project, platform, language, user_id)
     rules = RULES[platform]
@@ -450,6 +462,9 @@ def prepare_one(
         handle_check=check_handles(settings, platform, handles),
         bio=_clip(texts.bio, rules.bio_max),
         text_source=texts.source,
+        # set for an existing, not connected channel (e.g. a seed placeholder): finishing
+        # the task turns that channel into the real one instead of adding a second one
+        channel_id=channel_id,
     )
     # a free alternative goes first if the favourite is taken
     free = [h for h in handles if task.handle_check.get(h) == "free"]
@@ -493,10 +508,55 @@ def prepare(
             continue
         project = session.get(ContentProject, project_id) or project
         created.append(
-            prepare_one(session, settings, project, slot.platform, slot.language, user_id)
+            prepare_one(
+                session,
+                settings,
+                project,
+                slot.platform,
+                slot.language,
+                user_id,
+                # a placeholder becomes the real channel when the task is finished
+                channel_id=slot.channel_id if slot.state == "placeholder" else None,
+            )
         )
     session.commit()
     return created
+
+
+def prepare_for_channel(
+    session: Session, settings: Settings, channel: Channel, user_id: int | None = None
+) -> ChannelSetupTask:
+    """Prepare name, bio and pictures for an existing channel that is not connected yet.
+
+    Used for placeholders (e.g. the seed channels "YouTube Shorts DE"): the operator
+    creates the real account with these values, and :func:`complete` updates the
+    placeholder instead of adding a new channel."""
+    if channel.auth_status in _CONNECTED:
+        raise SetupError("Der Kanal ist schon verbunden.")
+    if channel.content_project_id is None:
+        raise SetupError("Der Kanal gehört zu keinem Themenbereich.")
+    project = session.get(ContentProject, channel.content_project_id)
+    if project is None or project.status == ContentProjectStatus.ARCHIVED:
+        raise SetupError("Der Themenbereich ist archiviert.")
+    plat = session.get(Platform, channel.platform_id)
+    if plat is None or plat.code not in TARGET_PLATFORMS:
+        raise SetupError("Für diese Plattform gibt es keinen Kanal-Assistenten.")
+    task = session.scalar(
+        select(ChannelSetupTask).where(
+            ChannelSetupTask.content_project_id == project.id,
+            ChannelSetupTask.platform == plat.code,
+            ChannelSetupTask.language == channel.language,
+            ChannelSetupTask.status == ChannelSetupStatus.OPEN,
+        )
+    )
+    if task is not None:
+        return task  # idempotent: one open task per slot
+    channel_id = channel.id
+    task = prepare_one(
+        session, settings, project, plat.code, channel.language, user_id, channel_id=channel_id
+    )
+    session.commit()
+    return task
 
 
 def update(
@@ -561,27 +621,38 @@ def complete(
     plat = session.scalar(select(Platform).where(Platform.code == task.platform))
     if plat is None:
         raise SetupError("Plattform fehlt in der Datenbank.")
+    placeholder = session.get(Channel, task.channel_id) if task.channel_id else None
+    if placeholder is not None and placeholder.auth_status in _CONNECTED:
+        placeholder = None  # connected meanwhile: never rename a live channel
     name = task.display_name
-    clash = session.scalar(
-        select(Channel.id).where(
-            Channel.platform_id == plat.id, Channel.language == task.language, Channel.name == name
-        )
+    same_name = select(Channel.id).where(
+        Channel.platform_id == plat.id, Channel.language == task.language, Channel.name == name
     )
-    if clash is not None:
+    if placeholder is not None:
+        same_name = same_name.where(Channel.id != placeholder.id)
+    if session.scalar(same_name) is not None:
         name = _clip(f"{task.display_name} (@{task.handle})", 120)
-    channel = Channel(
-        platform_id=plat.id,
-        content_project_id=task.content_project_id,
-        language=task.language,
-        name=name,
-        description=task.bio,
-        auth_status=ChannelAuthStatus.NOT_CONNECTED,
-        is_paused=True,
-        min_posts_per_day=0,
-        max_posts_per_day=0,
-        strategy={"handle": task.handle, "setup_task_id": task.id},
-    )
-    session.add(channel)
+    if placeholder is not None:
+        # the placeholder becomes the real channel; it stays paused until connected
+        channel = placeholder
+        channel.name = name
+        channel.description = task.bio
+        strategy = {k: v for k, v in (channel.strategy or {}).items() if k != "placeholder"}
+        channel.strategy = {**strategy, "handle": task.handle, "setup_task_id": task.id}
+    else:
+        channel = Channel(
+            platform_id=plat.id,
+            content_project_id=task.content_project_id,
+            language=task.language,
+            name=name,
+            description=task.bio,
+            auth_status=ChannelAuthStatus.NOT_CONNECTED,
+            is_paused=True,
+            min_posts_per_day=0,
+            max_posts_per_day=0,
+            strategy={"handle": task.handle, "setup_task_id": task.id},
+        )
+        session.add(channel)
     session.flush()
     task.status = ChannelSetupStatus.DONE
     task.channel_id = channel.id
