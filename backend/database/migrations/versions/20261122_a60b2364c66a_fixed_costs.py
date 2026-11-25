@@ -1,7 +1,7 @@
 """fixed costs
 
 Revision ID: a60b2364c66a
-Revises: 6f1f7f4b3930
+Revises: 3c9e1f2a7b44
 Create Date: 2026-11-22 10:32:06.428211
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 
 
 revision: str = 'a60b2364c66a'
-down_revision: str | None = '6f1f7f4b3930'
+down_revision: str | None = '3c9e1f2a7b44'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

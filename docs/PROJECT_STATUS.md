@@ -30,7 +30,6 @@
 - Startliste wird einmalig von `python -m app.seed` angelegt: Contabo Cloud VPS 8 (13,33 €/Monat), Domain kanalfabrik.de bei INWX (Betrag fehlt noch), Claude Pro 20 $/Monat (nur Summe, nicht im Engine-Budget, weil das Abo keinen API-Zugang enthält), Cloudflare Free und R2 (0 €). Gelöschte Posten kommen nicht zurück. `SERVER_MONTHLY_EUR`/`OTHER_FIXED_MONTHLY_EUR` gelten nur noch, solange nie Posten angelegt wurden.
 - Kostenseite und Übersicht laden sich selbst neu (Kosten alle 15 s, Übersicht alle 30 s): Monatskosten gesamt, „bisher angefallen“ (Fixkosten sekundengenau anteilig + echter Verbrauch), Verbrauch heute, KI-Tokens heute/Monat (Eingabe, Ausgabe, Cache, $), API-Kontingente heute.
 - Offen: INWX-Jahrespreis der Domain eintragen. Echte KI-Kosten entstehen erst mit eigenem Anthropic-API-Schlüssel in der Server-`.env` und ausdrücklicher Freigabe kostenpflichtiger Aufrufe.
-- Bekannter, schon vorher bestehender Testfehler: `test_publishing_strategy.py::test_api_shows_plan_and_admin_can_roll_back` schlägt auch auf main fehl (zeitabhängig), nicht Teil dieser Änderung.
 
 ## Ausbau ab 16.11.2026 abends (Kanal-Assistent und mehr)
 
