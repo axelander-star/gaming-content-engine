@@ -175,6 +175,12 @@ def _competitor_radar() -> Agent:
     return CompetitorRadarAgent()
 
 
+def _trend_alarm() -> Agent:
+    from agents.trend_alarm import TrendAlarmAgent
+
+    return TrendAlarmAgent()
+
+
 def _winner_recycling() -> Agent:
     from agents.winner_recycling import WinnerRecyclingAgent
 
@@ -270,6 +276,10 @@ _SPECS: tuple[AgentSpec, ...] = (
     AgentSpec("winner_recycling", 25, "Winner Recycling",
               "Wertet Hook-Tests aus und plant Gewinner mit neuem Hook erneut ein; legt eine "
               "Idee „Teil 2“ ins Ideenlabor.", 16, CostKind.LOCAL, factory=_winner_recycling),
+    AgentSpec("trend_alarm", 26, "Trend Alarm",
+              "Erkennt Themen, die gerade abheben (YouTube-Trends, Konkurrenz-Radar), erstellt "
+              "mehrere eigene Video-Entwürfe und schickt einen Alarm mit Zahlen aufs Handy.",
+              16, CostKind.PAID, factory=_trend_alarm),
 )  # fmt: skip
 
 _registry: dict[str, AgentSpec] = {s.name: s for s in _SPECS}

@@ -97,14 +97,14 @@ try {
     }
   });
 
-  await step("Agentenseite zeigt alle 25 Agenten", async () => {
+  await step("Agentenseite zeigt alle 26 Agenten", async () => {
     await page.getByRole("link", { name: "Agenten", exact: true }).click();
     await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
     await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
     const rows = page.locator("table").first().locator("tbody tr");
-    await rows.nth(24).waitFor();
-    assert.equal(await rows.count(), 25);
-    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 25 agents are built
+    await rows.nth(25).waitFor();
+    assert.equal(await rows.count(), 26);
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 26 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {
@@ -637,10 +637,30 @@ try {
     await page.getByText(/Recherche und Ideenlabor laufen/).waitFor();
     const cards = page.getByRole("article", { name: /^Idee / });
     await cards.first().waitFor({ timeout: 30000 });
-    const card = cards.first();
-    const title = (await card.getByRole("heading").textContent()).trim();
+    // five per page, best ranking first, with pages and a sort choice
+    await cards.nth(4).waitFor();
+    assert.equal(await cards.count(), 5);
+    await page.getByText(/Seite 1 von \d+/).waitFor();
+    assert.equal(await page.getByText("#1", { exact: true }).count(), 1);
+    await page.getByRole("button", { name: "Weiter →" }).click();
+    await page.getByText(/Seite 2 von \d+/).waitFor();
+    await page.getByText("#6", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "← Zurück" }).click();
+    await page.getByText(/Seite 1 von \d+/).waitFor();
+    await page.getByLabel("Sortieren nach").selectOption("title");
+    await page.getByLabel("Sortieren nach").selectOption("score");
+    await page.getByText("#1", { exact: true }).waitFor();
+    // the heading also shows the rank (#1), the card's label is the plain title; ideas of
+    // other areas may still arrive and reorder the list, so keep to this card by name
+    // research for other areas may still be running: keep to one area, its ideas are
+    // stored together, so this list no longer changes
+    const area = (await cards.first().locator(".chip").first().textContent()).trim();
+    await page.locator(".toolbar").getByLabel("Themenbereich").selectOption({ label: area });
+    await page.getByText(/Seite 1 von \d+/).waitFor();
+    const title = (await cards.first().getAttribute("aria-label")).replace(/^Idee /, "");
+    const card = page.getByRole("article", { name: `Idee ${title}` });
     await card.getByText("Rechte-Risiko", { exact: true }).waitFor();
-    await card.getByText("Quellen (1)").click();
+    await card.getByText(/^Quellen \(\d+\)$/).click();
     await card.getByRole("link").first().waitFor();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
     await card.getByLabel("Tag im Plan (optional)").fill(today);
@@ -651,6 +671,28 @@ try {
     await page.getByRole("article", { name: `Idee ${title}` }).getByText(/Übernommen für/).waitFor();
     await page.getByRole("link", { name: "Assistent", exact: true }).click();
     await page.getByRole("list", { name: "Wochenplan" }).locator(".is-today .chip").first().waitFor();
+  });
+
+  await step("Trend-Alarm: Test-Alarm mit Zahlen und Entwürfen, verwerfen", async () => {
+    await page.getByRole("link", { name: "Trend-Alarm", exact: true }).click();
+    await page.getByRole("heading", { name: "Trend-Alarm", level: 1 }).waitFor();
+    await page.getByText("Test: Beispieldaten").waitFor();
+    await page.getByText(/TREND_AUTOPILOT_ENABLED=false/).waitFor();
+    await page.getByRole("button", { name: "Jetzt prüfen" }).click();
+    await page.getByText(/Prüfung mit Testdaten läuft/).waitFor();
+    const alarm = page.getByRole("region", { name: /^Trend-Alarm / }).first();
+    await alarm.waitFor({ timeout: 70000 });
+    await alarm.getByText(/Aufrufe in \d+ Stunden/).waitFor();
+    await alarm.getByText("Kurz erklärt", { exact: true }).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/trend-alarm.png`, fullPage: true });
+    await alarm.getByRole("button", { name: "Alarm verwerfen" }).click();
+    await alarm.getByText("Verworfen", { exact: true }).waitFor();
+    // one test alarm per topic area: dismiss the rest so their drafts are not rendered
+    const more = page.getByRole("button", { name: "Alarm verwerfen" });
+    for (let n = await more.count(); n > 0; n = await more.count()) {
+      await more.first().click();
+      for (let i = 0; i < 50 && (await more.count()) >= n; i++) await page.waitForTimeout(200);
+    }
   });
 
   await step("Redaktionsplan: Bereich einplanen, verschieben, entfernen", async () => {

@@ -8,6 +8,7 @@ anything: the result waits in the library for the approval center (E8).
 
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -16,9 +17,11 @@ from sqlalchemy import select
 from agents.base import Agent, AgentContext, AgentResult, AgentSkipError
 from core.enums import CostCategory, LibraryStatus, NotificationLevel, ProductionStatus
 from models.library import LibraryItem, OwnProduction
-from services import library, notify, own_production, render, splitter, voice
+from services import library, notify, own_production, render, splitter, trend_alarm, voice
 from services.controls import get_operations
 from services.queue import get_redis
+
+log = logging.getLogger(__name__)
 
 
 def _int(payload: dict[str, Any], key: str) -> int | None:
@@ -130,6 +133,13 @@ class OwnProductionAgent(Agent):
         limit = get_operations(s).max_parallel_render_jobs
         with render.render_slot(get_redis(), limit, settings.render_slot_ttl_s):
             own_production.run(s, settings, prod)
+        s.commit()  # keep the render result, whatever the alarm follow-up does
+        try:  # A11: a finished trend-alarm draft may complete its alarm
+            trend_alarm.on_production_done(s, settings, prod)
+            s.commit()
+        except Exception:
+            s.rollback()
+            log.exception("trend alarm follow-up failed")
         done = prod.status.value == ProductionStatus.DONE.value  # status changed by run()
         if estimate > 0 and done and provider is not None:
             ctx.add_cost(

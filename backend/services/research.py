@@ -213,6 +213,14 @@ _MOCK_HEADLINES = (
     "Neue Studie zu {t} sorgt für Diskussionen",
     "{t} für Einsteiger: der schnelle Überblick",
     "Warum gerade alle über {t} reden",
+    "{t}: drei Tipps, die kaum jemand kennt",
+    "Das unterschätzte Detail bei {t}",
+    "{t} vorher und nachher: was sich wirklich ändert",
+    "Mythos oder Wahrheit: {t}",
+    "{t} mit kleinem Budget",
+    "Die größten Überraschungen bei {t} in diesem Monat",
+    "{t}: Profis verraten ihren Ablauf",
+    "Was Anfänger bei {t} zuerst lernen sollten",
 )
 
 

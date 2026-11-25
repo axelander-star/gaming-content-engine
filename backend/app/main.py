@@ -41,6 +41,7 @@ from api.series import router as series_router
 from api.settings import router as settings_router
 from api.sponsors import router as sponsors_router
 from api.system import router as system_router
+from api.trend_alarms import router as trend_alarms_router
 from api.trends import router as trends_router
 from api.uploads import router as uploads_router
 from api.users import router as users_router
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
         marketing_router,
         public_router,
         sponsors_router,
+        trend_alarms_router,
         fixed_costs_router,
     ):
         app.include_router(router, prefix=API_PREFIX)

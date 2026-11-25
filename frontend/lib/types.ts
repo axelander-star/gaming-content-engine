@@ -1088,6 +1088,16 @@ export interface ResearchItem {
   used: boolean;
 }
 
+export type IdeaSort = "score" | "trend" | "fit" | "title" | "newest" | "oldest";
+
+export interface IdeaPage {
+  total: number;
+  offset: number;
+  limit: number;
+  sort: IdeaSort;
+  items: Idea[];
+}
+
 export interface Idea {
   id: number;
   created_at: string;
@@ -2027,4 +2037,78 @@ export interface WeeklyReport {
   problem: string | null;
   schedule: string;
   last_sent_at: string | null;
+}
+
+// --- Trend alarm (Ausbau A11) ---
+
+export type TrendAlarmStatus =
+  | "drafting"
+  | "ready"
+  | "approved"
+  | "dismissed"
+  | "expired"
+  | "failed";
+
+export interface TrendAlarmChannel {
+  id: number;
+  name: string;
+  platform: string;
+  language: string;
+  project: string;
+  is_paused: boolean;
+  trend_autopilot: boolean;
+}
+
+export interface TrendAlarmInfo {
+  mode: "mock" | "live";
+  threshold: number;
+  max_per_day: number;
+  drafts: number;
+  min_views: number;
+  regions: string[];
+  autopilot_enabled: boolean;
+  autopilot_min_score: number;
+  publishing_mode: string;
+  push_mode: string;
+  channels: TrendAlarmChannel[];
+}
+
+export interface TrendAlarmPost {
+  variant_id: number;
+  channel: string;
+  platform: string;
+  status: string;
+}
+
+export interface TrendAlarmDraft {
+  angle: string | null;
+  production_id: number;
+  title: string | null;
+  status: string | null;
+  item_id: number | null;
+  duration_s: number | null;
+  error: string | null;
+  posts: TrendAlarmPost[];
+}
+
+export interface TrendAlarm {
+  id: number;
+  created_at: string;
+  content_project_id: number;
+  project: string;
+  source: string;
+  title: string;
+  url: string | null;
+  creator: string | null;
+  published_at: string | null;
+  metrics: Record<string, unknown>;
+  score: number;
+  facts: string[];
+  status: TrendAlarmStatus;
+  autopilot: boolean;
+  approved_production_id: number | null;
+  decided_at: string | null;
+  error: string | null;
+  is_mock: boolean;
+  drafts: TrendAlarmDraft[];
 }

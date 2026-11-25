@@ -254,7 +254,7 @@ class Settings(BaseSettings):
     research_max_feed_bytes: int = Field(default=2 * 1024**2, gt=0)
     research_items_per_source: int = Field(default=30, ge=1, le=200)
     #: Ideas the idea lab drafts per topic area and run.
-    ideas_per_run: int = Field(default=5, ge=1, le=20)
+    ideas_per_run: int = Field(default=12, ge=1, le=30)
 
     # --- Media library and own production (extension phase E7) ---
     #: Longer uploads keep only the original; the production cuts them later.
@@ -279,6 +279,22 @@ class Settings(BaseSettings):
     competitor_seconds: int = Field(default=12 * 3600, ge=3600)
     #: A7: winner recycling and hook tests, once a day
     winner_seconds: int = Field(default=24 * 3600, ge=3600)
+    #: A11 trend alarm: check every 30 min (YouTube trending list: 1 quota unit per call).
+    trend_alarm_seconds: int = Field(default=30 * 60, ge=300)
+    #: Alarm from this score (0-100) on.
+    trend_alarm_threshold: int = Field(default=75, ge=1, le=100)
+    #: At most this many alarms per day (so the phone stays quiet otherwise).
+    trend_alarm_max_per_day: int = Field(default=3, ge=0, le=20)
+    #: Video drafts (different angles) per alarm.
+    trend_alarm_drafts: int = Field(default=3, ge=1, le=5)
+    #: Ignore videos with fewer views.
+    trend_alarm_min_views: int = Field(default=50_000, ge=0)
+    #: Regions of the YouTube trending list (comma separated, ISO 3166-1 alpha-2).
+    trend_alarm_regions: str = "DE,US"
+    #: Master switch of the autopilot; each channel must also be switched on.
+    trend_autopilot_enabled: bool = False
+    #: The autopilot only acts from this score on.
+    trend_autopilot_min_score: int = Field(default=85, ge=1, le=100)
     #: A6: copy approved clips to the other platforms of the topic area and language.
     crosspost_enabled: bool = True
     #: Push to the phone via ntfy (Ausbau A4). mock = recorded only, nothing leaves the server.
