@@ -4,7 +4,7 @@ Sets the operator's real amounts (25.11.2026) on the seeded starting items, but
 only where they still carry the original placeholder values, so own edits stay.
 
 Revision ID: b7f2c4d91e30
-Revises: 7433e2700ebb
+Revises: c4a8f1e2d6b3
 Create Date: 2026-11-25 13:10:00
 """
 
@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = 'b7f2c4d91e30'
-down_revision: str | None = '7433e2700ebb'
+down_revision: str | None = 'c4a8f1e2d6b3'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
