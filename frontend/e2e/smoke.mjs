@@ -706,6 +706,7 @@ try {
 
     await page.getByRole("link", { name: "Eigenproduktion", exact: true }).click();
     await page.getByRole("heading", { name: "Eigenproduktion", level: 1 }).waitFor();
+    await page.getByRole("tab", { name: "Einzelvideos" }).click();
     const create = page.getByRole("form", { name: "Neue Produktion" });
     await create.getByLabel("Themenbereich").selectOption({ label: "Ernährung E2E" });
     await create.getByRole("textbox", { name: "Thema" }).fill("Haferflocken richtig lagern");
@@ -969,6 +970,7 @@ try {
 
     await page.getByRole("link", { name: "Eigenproduktion", exact: true }).click();
     await page.getByRole("heading", { name: "Eigenproduktion", level: 1 }).waitFor();
+    await page.getByRole("tab", { name: "Einzelvideos" }).click();
     await page.getByRole("button", { name: "Englische Fassung erstellen" }).click();
     await page.getByText(/übersetzt/).first().waitFor();
     await page.getByRole("button", { name: "Deutsche Fassung erstellen" }).waitFor();
@@ -1051,6 +1053,27 @@ try {
     await page.getByRole("button", { name: "Jetzt senden" }).click();
     await page.getByText("Liegt im Postausgang").waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/wochenbericht.png`, fullPage: true });
+  });
+
+  await step("Eigenproduktion: Serie planen, alle Teile erzeugen und freigeben", async () => {
+    await page.getByRole("link", { name: "Eigenproduktion", exact: true }).click();
+    await page.getByRole("heading", { name: "Eigenproduktion", level: 1 }).waitFor();
+    await page.getByRole("tab", { name: "Serien" }).click();
+    const form = page.getByRole("form", { name: "Neue Serie" });
+    await form.getByLabel("Themenbereich").selectOption({ label: "Ernährung E2E" });
+    await page.getByRole("list", { name: "Serienvorschläge" }).getByRole("listitem").first().waitFor();
+    await form.getByLabel("Thema der Serie").fill("Wie entsteht Brot");
+    await form.getByLabel("Umfang").selectOption("parts");
+    await form.getByLabel(/Teile \(2 bis 30\)/).fill("2");
+    await form.getByLabel("Länge je Teil").selectOption("60");
+    await form.getByRole("button", { name: "Serie planen" }).click();
+    const steps = page.getByRole("list", { name: "Schritte der Serie" });
+    await steps.getByText("2 von 2 geschrieben").waitFor({ timeout: 60000 });
+    await steps.getByText(/2 von 2 fertig/).waitFor({ timeout: 180000 });
+    await page.getByRole("button", { name: "Alle fertigen Teile freigeben" }).click();
+    await page.getByText(/Beiträge vorbereitet, \d+ freigegeben/).waitFor({ timeout: 30000 });
+    await page.getByLabel(/^Plan /).first().getByText(/Teil 1/).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/eigenproduktion-serie.png`, fullPage: true });
   });
 
   await step("Abmelden", async () => {
