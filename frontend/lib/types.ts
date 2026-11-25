@@ -1663,6 +1663,22 @@ export interface MailRoutingStatus {
   problem: string | null;
 }
 
+export interface MailRoutingCheck {
+  ok: boolean;
+  mode: "mock" | "live";
+  enabled: boolean | null;
+  status: string | null;
+  rules_used: number | null;
+  rule_limit: number;
+  findings: string[];
+}
+
+export interface AliasTestMail {
+  status: "sent" | "mock" | "failed";
+  to: string;
+  message: string;
+}
+
 export interface ChannelSetupPatch {
   display_name?: string;
   handle?: string;

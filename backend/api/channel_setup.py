@@ -87,6 +87,22 @@ class MailStatusOut(BaseModel):
     problem: str | None
 
 
+class MailCheckOut(BaseModel):
+    ok: bool
+    mode: str
+    enabled: bool | None
+    status: str | None
+    rules_used: int | None
+    rule_limit: int
+    findings: list[str]
+
+
+class TestMailOut(BaseModel):
+    status: str
+    to: str
+    message: str
+
+
 class PrepareIn(BaseModel):
     project_id: int
     platforms: list[PlatformCode] | None = None
@@ -194,6 +210,21 @@ def mail_status(_: Viewer, settings: AppSettings) -> MailStatusOut:
     )
 
 
+@router.post("/mail/check", response_model=MailCheckOut)
+def mail_check(_: Admin, settings: AppSettings) -> MailCheckOut:
+    """Read-only check at Cloudflare: Email Routing active, rules left before the limit."""
+    res = mail_alias.check(settings)
+    return MailCheckOut(
+        ok=res.ok,
+        mode=res.mode,
+        enabled=res.enabled,
+        status=res.status,
+        rules_used=res.rules_used,
+        rule_limit=res.rule_limit,
+        findings=list(res.findings),
+    )
+
+
 @router.get("/tasks", response_model=list[TaskOut])
 def list_tasks(
     _: Viewer, db: DbSession, state: ChannelSetupStatus = ChannelSetupStatus.OPEN
@@ -277,6 +308,27 @@ def retry_email(task_id: int, _: Admin, db: DbSession, settings: AppSettings) ->
     except channel_setup.SetupError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     return _out(task)
+
+
+@router.post("/tasks/{task_id}/test-mail", response_model=TestMailOut)
+def test_mail(task_id: int, _: Admin, db: DbSession, settings: AppSettings) -> TestMailOut:
+    """Send a test mail to the forwarding address; the operator checks the inbox."""
+    task = _task(db, task_id)
+    try:
+        mail = channel_setup.send_test_mail(db, settings, task)
+    except channel_setup.SetupError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    if mail.status == "sent":
+        message = "Testmail verschickt. Sie sollte in ein bis zwei Minuten in deinem Postfach sein."
+    elif mail.status == "mock":
+        message = (
+            "Mailversand im Testmodus (MAIL_MODE=mock): Die Mail liegt nur im Postausgang. "
+            "Für einen echten Test MAIL_MODE=smtp setzen oder selbst eine Mail an die Adresse "
+            "schicken."
+        )
+    else:
+        message = f"Versand fehlgeschlagen: {mail.error or 'unbekannter Fehler'}"
+    return TestMailOut(status=mail.status, to=mail.to_address, message=message)
 
 
 @router.post("/tasks/{task_id}/complete", response_model=CompleteOut)
