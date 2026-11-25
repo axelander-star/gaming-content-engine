@@ -319,8 +319,10 @@ def scan(
                 if use_live:
                     assert http is not None
                     videos = fetch_live(settings, comp, http)
-                else:
+                elif settings.sample_data_enabled:
                     videos = fetch_mock(comp, project, now)
+                else:
+                    videos = []  # production without a YouTube key: nothing invented
             except (RadarError, httpx.HTTPError, ValueError) as exc:
                 comp.last_error = (
                     str(exc)[:500]

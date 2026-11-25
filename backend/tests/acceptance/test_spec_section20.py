@@ -182,7 +182,7 @@ def _run(
 ) -> None:
     from services.seed import seed_base_data
 
-    seed_base_data(db)  # what the "migrate" service does on every deployment
+    seed_base_data(db, demo_channels=True)  # what the "migrate" service does on every deployment
     # Runs on the default daily production limit on purpose: it must cover one
     # material in two languages (the old default of 10 stalled the pipeline).
     assert get_operations(db).max_daily_production_jobs >= 16

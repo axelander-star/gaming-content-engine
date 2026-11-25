@@ -464,7 +464,7 @@ def test_viewer_cannot_change_rights(rights_api: TestClient, make_user: Callable
 def test_seeded_policy_for_gta_vi(db: Session) -> None:
     from services.seed import seed_base_data
 
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     game = db.scalar(select(Game).where(Game.slug == "grand-theft-auto-vi"))
     assert game is not None
     policy = db.scalar(select(PublisherPolicy).where(PublisherPolicy.game_id == game.id))

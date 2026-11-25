@@ -231,8 +231,14 @@ def update_project(project_id: int, body: ProjectPatch, admin: Admin, db: DbSess
     project = _get(db, project_id)
     before = _snapshot(project)
     data = body.model_dump(exclude_unset=True)
-    if data.get("status") == ContentProjectStatus.ARCHIVED and project.slug == DEFAULT_PROJECT_SLUG:
-        raise HTTPException(422, detail="The default project cannot be archived")
+    if (
+        data.get("status") == ContentProjectStatus.ARCHIVED
+        and project.slug == DEFAULT_PROJECT_SLUG
+        and db.scalar(select(Channel.id).where(Channel.content_project_id == project.id).limit(1))
+        is not None
+    ):
+        # the default area is the fallback for old data; empty it may go away
+        raise HTTPException(422, detail="The default project still has channels")
     if "name" in data and data["name"] is not None:
         name = " ".join(str(data["name"]).split())
         clash = db.scalar(

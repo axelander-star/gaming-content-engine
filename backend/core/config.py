@@ -249,6 +249,11 @@ class Settings(BaseSettings):
     steam_max_requests_per_run: int = Field(default=30, ge=0)
     http_timeout_s: float = Field(default=10.0, gt=0)
 
+    #: Invented sample data (fictional games, example feeds, test competitors and test
+    #: alarms) while a source is in mock mode. Unset means: on everywhere except
+    #: production, so the live dashboard only ever shows real data.
+    sample_data: bool | None = None
+
     # --- Research feeds (extension phase E5). "mock" makes no network calls. ---
     research_sources_mode: Literal["mock", "live"] = "mock"
     research_max_feed_bytes: int = Field(default=2 * 1024**2, gt=0)
@@ -391,6 +396,13 @@ class Settings(BaseSettings):
         return (
             self.auto_publish_enabled and self.publishing_mode == "live" and not self.emergency_stop
         )
+
+    @property
+    def sample_data_enabled(self) -> bool:
+        """Mock sources may invent sample data (never in production unless asked)."""
+        if self.sample_data is not None:
+            return self.sample_data
+        return self.app_env != "production"
 
     @model_validator(mode="after")
     def _check_consistency(self) -> Settings:

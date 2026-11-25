@@ -54,7 +54,7 @@ MakeUser = Callable[..., User]
 
 
 def channel_of(db: Session, code: PlatformCode, lang: Language) -> Channel:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     channel = db.scalar(
         select(Channel)
         .where(Channel.language == lang, Channel.content_project_id == default_project_id(db))

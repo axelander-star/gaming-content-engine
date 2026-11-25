@@ -281,7 +281,7 @@ function ProjectCard({
               Aktivieren
             </button>
           )}
-          {!project.is_default && project.status !== "archived" && (
+          {(!project.is_default || project.channels === 0) && project.status !== "archived" && (
             <button
               type="button"
               className="btn btn-ghost"

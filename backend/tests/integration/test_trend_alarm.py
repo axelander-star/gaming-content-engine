@@ -53,7 +53,7 @@ def settings(tmp_path: Path) -> Settings:
 
 @pytest.fixture
 def food(db: Session) -> ContentProject:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     project = ContentProject(
         slug="ernaehrung",
         name="Ernährung",

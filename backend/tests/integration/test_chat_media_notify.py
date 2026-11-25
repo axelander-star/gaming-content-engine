@@ -144,7 +144,7 @@ def test_content_blocks_downscale_and_bound_text(
 
 def test_chat_with_files_mock(db: Session, make_user: MakeUser, tmp_path: Any) -> None:
     settings = _settings(tmp_path)
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     user = make_user()
     pdf = chat_media.save(db, settings, user, "a.pdf", "application/pdf", _text_pdf("Sponsor"))
     img = chat_media.save(db, settings, user, "b.png", "image/png", _png(400, 300))
@@ -193,7 +193,7 @@ def test_live_chat_sends_image_and_pdf_text(
 ) -> None:
     client = FakeClient()
     monkeypatch.setattr(ai, "client_factory", lambda _s: client)
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     update_operations(db, None, {"ai_provider": "claude", "monthly_budget_eur": 50})
     db.flush()
     settings = _settings(
@@ -218,7 +218,7 @@ def test_spoken_text_and_browser_fallback(db: Session, make_user: MakeUser) -> N
     text = "**Fertig.**\n- Montag: Uhren\n- Link: https://example.com/x\n## Ende"
     assert chat_media.spoken_text(text) == "Fertig. Montag: Uhren. Link: Link. Ende"
     assert len(chat_media.spoken_text("Satz. " * 400)) <= chat_media.MAX_SPOKEN_CHARS
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     user = make_user()
     msg = ChatMessage(user_id=user.id, role="assistant", text="Hallo")
     db.add(msg)
@@ -257,7 +257,7 @@ def test_speak_with_server_voice(
             return 0.5
 
     monkeypatch.setitem(voice.PROVIDERS, "tone", ToneVoice)
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     update_operations(db, None, {"tts_provider": "tone"})
     user = make_user()
     msg = ChatMessage(user_id=user.id, role="assistant", text="Alles erledigt.")
@@ -416,7 +416,7 @@ def test_watchdog_findings_once(db: Session, make_user: MakeUser) -> None:
 
 
 def test_watchdog_reports_finished_chat_research(db: Session, make_user: MakeUser) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     user = make_user()
     msg = ChatMessage(user_id=user.id, role="assistant", text="")
     db.add(msg)
@@ -448,7 +448,7 @@ def test_watchdog_reports_finished_chat_research(db: Session, make_user: MakeUse
 def test_api_upload_send_file_speech_and_bell(
     api: TestClient, db: Session, make_user: MakeUser, tmp_path: Any
 ) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     make_user(email="op@example.com", role=UserRole.OPERATOR)
     headers = login(api, "op@example.com")
     api.app.dependency_overrides[get_settings] = lambda: _settings(tmp_path)  # type: ignore[attr-defined]
