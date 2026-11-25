@@ -124,7 +124,7 @@ def test_original_goes_after_30_days_and_the_916_version_stays(
 def test_vertical_upload_is_archived_but_waits_for_an_open_post(
     db: Session, settings: Settings, make: Maker
 ) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     plat = db.scalar(select(Platform).where(Platform.code == PlatformCode.YOUTUBE))
     assert plat is not None
     channel = Channel(
@@ -188,7 +188,7 @@ def test_sweep_and_api(
     make_user: Callable[..., User],
 ) -> None:
     api.app.dependency_overrides[get_settings] = lambda: settings  # type: ignore[attr-defined]
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     real_old = datetime.now(UTC) - timedelta(days=31)
     kept = make.item(created=real_old)
     gone = make.item(created=real_old, vertical=True)

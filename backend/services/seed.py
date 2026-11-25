@@ -1,7 +1,10 @@
-"""Idempotent base data: platforms, the eight DE/EN channels and known publisher policies.
+"""Idempotent base data: platforms, the default project and known publisher policies.
 
-Channels are created *not connected*, *paused* and with ``max_posts_per_day=0``
-so nothing can be published until the operator configures them.
+No channels are created in production: the operator picks the topics and
+creates every channel through the channel assistant. Tests and the dashboard
+smoke test can ask for the eight DE/EN demo channels with ``demo_channels=True``;
+those are created *not connected*, *paused*, with ``max_posts_per_day=0`` and
+marked as placeholders so nothing can be published on them.
 """
 
 from __future__ import annotations
@@ -38,8 +41,8 @@ PLATFORM_NAMES: dict[PlatformCode, str] = {
 }
 
 
-def seed_base_data(session: Session) -> dict[str, int]:
-    """Create missing platforms and channels. Returns counts of created rows."""
+def seed_base_data(session: Session, *, demo_channels: bool = False) -> dict[str, int]:
+    """Create missing platforms (and demo channels on request). Returns created counts."""
     created = {"platforms": 0, "channels": 0, "policies": 0}
     project_id = default_project_id(session)  # Gaming, the first content project
     for code, name in PLATFORM_NAMES.items():
@@ -49,6 +52,8 @@ def seed_base_data(session: Session) -> dict[str, int]:
             session.add(platform)
             session.flush()
             created["platforms"] += 1
+        if not demo_channels:
+            continue
         for lang in Language:
             channel_name = f"{name} {lang.value.upper()}"
             exists = session.scalar(

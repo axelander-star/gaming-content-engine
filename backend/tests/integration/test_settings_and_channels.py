@@ -122,7 +122,7 @@ def test_operator_cannot_change_operations(api: TestClient, make_user: MakeUser)
 def test_channels_pause_resume_and_limits(
     api: TestClient, make_user: MakeUser, db: Session
 ) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     make_user(role=UserRole.OPERATOR, email="op@example.com")
     make_user()
     op_headers = login(api, "op@example.com")
@@ -151,7 +151,7 @@ def test_channels_pause_resume_and_limits(
 
 
 def test_overview_counts(api: TestClient, make_user: MakeUser, db: Session) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     make_user(role=UserRole.VIEWER, email="v@example.com")
     login(api, "v@example.com")
     data = api.get("/api/overview").json()
@@ -170,3 +170,32 @@ def test_overview_counts(api: TestClient, make_user: MakeUser, db: Session) -> N
 def test_protected_endpoints_require_login(api: TestClient) -> None:
     for path in ("/api/settings", "/api/channels", "/api/overview", "/api/users"):
         assert api.get(path).status_code == 401, path
+
+
+def test_base_seed_creates_no_channels(db: Session) -> None:
+    """The operator creates every channel himself; the seed only adds platforms."""
+    created = seed_base_data(db)
+    assert created["platforms"] == 4
+    assert created["channels"] == 0
+    assert db.scalars(select(Channel)).first() is None
+    # demo channels exist only on request (tests, dashboard smoke test)
+    assert seed_base_data(db, demo_channels=True)["channels"] == 8
+    assert seed_base_data(db, demo_channels=True)["channels"] == 0
+
+
+def test_production_mock_sources_invent_no_sample_data(db: Session) -> None:
+    """Mock mode in production stays empty instead of showing invented data."""
+    from core.config import Settings
+    from services import research
+    from services.projects import ensure_default_project
+    from services.sources import get_sources
+
+    prod = Settings(app_env="test", sample_data=False)
+    dev = Settings(app_env="test")
+    assert dev.sample_data_enabled
+    assert not prod.sample_data_enabled
+    assert get_sources(prod) == []
+    assert len(get_sources(dev)) == 3
+    project = ensure_default_project(db)
+    assert research.collect(db, prod, project).new_items == 0
+    assert research.collect(db, dev, project).new_items > 0

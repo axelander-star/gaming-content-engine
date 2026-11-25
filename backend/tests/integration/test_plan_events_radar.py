@@ -36,7 +36,7 @@ MakeUser = Callable[..., User]
 
 @pytest.fixture
 def uhren(db: Session) -> ContentProject:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     p = ContentProject(
         slug="uhren", name="Uhren", languages=["de"], subtopics=["Rolex", "Smartwatch"],
         priority=300,

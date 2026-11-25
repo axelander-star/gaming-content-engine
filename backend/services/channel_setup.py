@@ -45,8 +45,9 @@ from core.enums import (
 )
 from models.channel_setup import ChannelSetupTask
 from models.channels import Channel, Platform
+from models.marketing import OutgoingMail
 from models.projects import ContentProject
-from services import ai, audit, branding, mail_alias, name_research
+from services import ai, audit, branding, mail_alias, mailer, name_research
 from services.name_research import MarketContext, norm_name
 from services.queue import get_redis
 
@@ -724,6 +725,35 @@ def retry_email(session: Session, settings: Settings, task: ChannelSetupTask) ->
     _email(settings, task, task.content_project)
     session.commit()
     return task
+
+
+def send_test_mail(session: Session, settings: Settings, task: ChannelSetupTask) -> OutgoingMail:
+    """Send a short mail to the task's forwarding address over the engine's own SMTP.
+
+    If it arrives in the operator's inbox, the whole chain (MX records, routing
+    rule, verified destination) works and the address is safe to use for the
+    account. Nothing is published; the mail only goes to the operator's domain."""
+    if task.status != ChannelSetupStatus.OPEN:
+        raise SetupError("Die Aufgabe ist schon abgeschlossen.")
+    if not task.email:
+        raise SetupError("Für diesen Kanal gibt es keine eigene E-Mail-Adresse.")
+    if task.email_status != MailAliasStatus.CREATED:
+        raise SetupError(
+            "Die Weiterleitung ist noch nicht bei Cloudflare angelegt. Erst anlegen, dann testen."
+        )
+    mail = mailer.send(
+        session,
+        settings,
+        task.email,
+        f"Kanalfabrik Testmail für {task.display_name}",
+        "Diese Mail prüft die Weiterleitung für das neue Konto.\n\n"
+        f"Adresse: {task.email}\nPlattform: {task.platform.value}, Sprache: "
+        f"{task.language.value}\n\nWenn du sie in deinem Postfach siehst, funktioniert die "
+        "Adresse und du kannst das Konto damit anlegen.",
+        kind="alias_test",
+    )
+    session.commit()
+    return mail
 
 
 def complete(

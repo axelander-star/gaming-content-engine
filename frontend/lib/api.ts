@@ -14,6 +14,8 @@ import type {
   ChannelSetupStatus,
   ChannelSetupTask,
   MailRoutingStatus,
+  MailRoutingCheck,
+  AliasTestMail,
   ProjectCoverage,
   ApprovalInfo,
   ApprovalPost,
@@ -715,6 +717,10 @@ export const api = {
   channelSetupTasks: (state: ChannelSetupStatus = "open") =>
     request<ChannelSetupTask[]>(`/channel-setup/tasks?state=${state}`),
   mailRoutingStatus: () => request<MailRoutingStatus>("/channel-setup/mail"),
+  checkMailRouting: () =>
+    request<MailRoutingCheck>("/channel-setup/mail/check", { method: "POST" }),
+  sendAliasTestMail: (id: number) =>
+    request<AliasTestMail>(`/channel-setup/tasks/${id}/test-mail`, { method: "POST" }),
   prepareChannels: (projectId: number) =>
     request<ChannelSetupTask[]>("/channel-setup/prepare", {
       method: "POST",

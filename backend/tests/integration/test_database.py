@@ -52,8 +52,8 @@ def test_all_spec_tables_exist(engine: Engine) -> None:
 
 
 def test_seed_creates_eight_blocked_channels_idempotently(db: Session) -> None:
-    first = seed_base_data(db)
-    second = seed_base_data(db)
+    first = seed_base_data(db, demo_channels=True)
+    second = seed_base_data(db, demo_channels=True)
     assert first == {"platforms": 4, "channels": 8, "policies": 1}
     assert second == {"platforms": 0, "channels": 0, "policies": 0}
     channels = db.scalars(select(Channel)).all()
@@ -64,7 +64,7 @@ def test_seed_creates_eight_blocked_channels_idempotently(db: Session) -> None:
 
 
 def test_channel_max_must_not_be_below_min(db: Session) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     channel = db.scalars(select(Channel)).first()
     assert channel is not None
     channel.min_posts_per_day = 3
@@ -74,13 +74,13 @@ def test_channel_max_must_not_be_below_min(db: Session) -> None:
 
 
 def test_invalid_enum_value_rejected_by_database(db: Session) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     with pytest.raises(IntegrityError):
         db.execute(text("UPDATE channels SET auth_status = 'hacked'"))
 
 
 def test_invalid_enum_value_rejected_by_orm(db: Session) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     channel = db.scalars(select(Channel)).first()
     assert channel is not None
     channel.auth_status = "hacked"  # type: ignore[assignment]

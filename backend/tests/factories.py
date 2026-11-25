@@ -65,7 +65,7 @@ def full_license(**overrides: Any) -> dict[str, Any]:
 
 
 def build_chain(db: Session, language: Language = Language.DE) -> Chain:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     channel = db.scalars(select(Channel).where(Channel.language == language)).first()
     assert channel is not None
     suffix = uuid4().hex[:8]

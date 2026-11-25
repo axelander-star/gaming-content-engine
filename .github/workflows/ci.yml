@@ -140,7 +140,7 @@ jobs:
         run: |
           pip install -e .
           alembic upgrade head
-          python -m app.seed
+          python -m app.seed --demo-channels
           python -m app.create_admin --email admin@example.com
           nohup uvicorn app.main:app --port 8000 > /tmp/backend.log 2>&1 &
           nohup python -m app.worker > /tmp/worker.log 2>&1 &

@@ -59,6 +59,7 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | N2 | Kanalnamen aus Marktdaten: häufige Begriffe, Konkurrenz, bestehende YouTube-Kanäle; weitere Namensideen mit Begründung, „Neu recherchieren“ | ✅ abgeschlossen |
 | A11 | Ideenlabor: 12 Ideen je Lauf, 5 je Seite mit Weiter/Zurück, Sortierung; Trend-Alarm-Agent mit Entwürfen, Push und Ein-Tipp-Freigabe, Automatik je Kanal (Standard aus) | ✅ abgeschlossen |
 | K1 | Kampagnen-Hilfe (22.11.): Kampagnenseite als Text einfügen und Formular füllen lassen, fertige Videovorschläge aus Brief, Trends und Fakten, Überwachung von Fristen, Enddatum und Material | ✅ abgeschlossen |
+| N3 | Keine vorgefertigten Daten mehr: Seed ohne Kanäle, unbenutzte Platzhalter-Kanäle und erfundene Testdaten werden gelöscht, leerer Gaming-Bereich archiviert, im Betrieb keine erfundenen Testdaten | ✅ abgeschlossen |
 
 **N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
 - Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.
@@ -67,6 +68,14 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 - Im Kanal-Assistenten stehen bis zu 5 weitere Namensideen mit Begründung (Knopf „Übernehmen“) und die „Datengrundlage“. „Neu recherchieren“ wertet die aktuellen Daten neu aus.
 - Die laufende Trendbeobachtung (Agent, der Themen und Kanäle vorschlägt) liegt im Thread „Ideenlabor und Trend-Alarm ausbauen“. Die Namensvorschläge nutzen dessen Daten automatisch mit.
 - Für Live-Daten auf dem Server: `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` in `.env`.
+
+**N3 Keine vorgefertigten Daten (25.11.2026)** (`services/seed.py`, `core/config.py` `SAMPLE_DATA`, Migrationen `b7d2e4c91f05` und `c4a8f1e2d6b3`):
+- Wunsch von Alexander: Er wählt Themen und Kanäle selbst. Auf dem Server standen 8 vorgefertigte Gaming-Kanäle und erfundene Testdaten (Fantasie-Spiele, Beispiel-Artikel, Ideen daraus).
+- Der Seed legt nur noch Plattformen, Fixkosten und die GTA-VI-Rechteregel an. Die 8 Demo-Kanäle gibt es nur noch für Tests und den Dashboard-Smoke-Test (`python -m app.seed --demo-channels`).
+- Migration `b7d2e4c91f05` löscht Platzhalter-Kanäle, die nicht verbunden sind, keine Plattform-ID und keinen Assistenten-Auftrag haben und auf die keine Zeile irgendeiner Tabelle verweist (Tabellen werden aus dem Datenbankkatalog gelesen). Alles andere bleibt.
+- Neue Einstellung `SAMPLE_DATA` (leer = an außer bei `APP_ENV=production`): Im Betrieb erfinden die Mock-Quellen (Trends, Recherche, Konkurrenz-Radar, Trend-Alarm) nichts mehr. Echte Daten kommen mit `TREND_SOURCES_MODE=live` bzw. `RESEARCH_SOURCES_MODE=live`.
+- Migration `c4a8f1e2d6b3` löscht vorhandene Testdaten (Mock-Meldungen, nur daraus entstandene neue Ideen, Mock-Trends und -Berichte, Test-Spiele ohne Verweise, unentschiedene Test-Alarme, Mock-Konkurrenzvideos). Nur mit `APP_ENV=production`: Der Bereich „Gaming“ wird archiviert, wenn nichts außer der Kostenhistorie auf ihn verweist; „Aktivieren“ holt ihn zurück.
+- Der Standardbereich lässt sich jetzt archivieren, solange er keine Kanäle hat.
 
 **K1 Kampagnen-Hilfe** (`services/campaign_assist.py`, Endpunkte `POST /campaigns/parse` und `POST /campaigns/{id}/proposals`, Spalten `campaigns.proposals*`, Migration `89fc8399876b`):
 - Anlass: Alexander wollte Kampagnen auf Content Rewards „automatisch laufen lassen“. Klargestellt: Kampagnen legen Marken an, Alexander tritt bei. Beitreten, Konten verbinden und den Link einreichen bleiben Handarbeit (keine Clipper-Schnittstelle).

@@ -35,7 +35,7 @@ def settings(tmp_path: Path) -> Settings:
 
 
 def watches(db: Session) -> ContentProject:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     project = ContentProject(slug="uhren", name="Uhren", languages=["de"])
     db.add(project)
     db.flush()
@@ -100,7 +100,7 @@ def test_keywords_competitors_and_facts_from_local_data(db: Session, settings: S
 
 
 def test_no_data_gives_a_hint(db: Session, settings: Settings) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     project = ContentProject(slug="leer", name="Leer", languages=["de"])
     db.add(project)
     db.flush()

@@ -282,7 +282,7 @@ def collect(
     signals = competitor_signals(session, projects, now)
     errors: list[str] = []
     if not competitors.live(settings):
-        if include_mock:
+        if include_mock and settings.sample_data_enabled:
             signals += mock_signals(projects, now)
         return signals, errors
     regions = [r.strip().upper() for r in settings.trend_alarm_regions.split(",") if r.strip()]
