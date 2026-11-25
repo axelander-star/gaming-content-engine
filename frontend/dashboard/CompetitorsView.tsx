@@ -82,8 +82,8 @@ export function CompetitorsView() {
       />
       {radar && !radar.live && (
         <p className="small">
-          <Badge tone="info">Testbetrieb</Badge> Ohne YouTube-Schlüssel zeigt das Radar
-          Beispielvideos.
+          <Badge tone="info">Testbetrieb</Badge> Ohne YouTube-Schlüssel liest das Radar keine
+          echten Daten. Auf dem Server bleibt es dann leer, in Tests zeigt es Beispielvideos.
         </p>
       )}
       {notice && (

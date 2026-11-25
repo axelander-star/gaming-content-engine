@@ -58,13 +58,15 @@ function AttachmentChips({ files }: { files: ChatAttachment[] }) {
   );
 }
 
-const SUGGESTIONS = [
-  "Status",
-  "Diese Woche GTA 6",
-  "Mittwoch zusätzlich Ernährung",
-  "Freitag kein Gaming",
-  "Zeig mir die Ideen",
-];
+/** Quick prompts built from the operator's own topic areas, never from preset topics. */
+function suggestions(areas: string[]): string[] {
+  const [first, second] = areas;
+  const out = ["Status"];
+  if (first) out.push(`Mittwoch zusätzlich ${first}`);
+  if (second ?? first) out.push(`Freitag kein ${second ?? first}`);
+  out.push("Zeig mir die Ideen");
+  return out;
+}
 
 const ACTION_STATUS: Record<
   ChatAction["status"],
@@ -210,6 +212,7 @@ export function ChatView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<ChatAttachment[]>([]);
+  const [areas, setAreas] = useState<string[]>([]);
   const [uploading, setUploading] = useState(0);
   const [autoRead, setAutoRead] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -218,6 +221,13 @@ export function ChatView() {
   const dictation = useDictation((spoken) =>
     setText((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken)),
   );
+
+  useEffect(() => {
+    api
+      .projects()
+      .then((all) => setAreas(all.filter((p) => p.status === "active").map((p) => p.name)))
+      .catch(() => setAreas([]));
+  }, []);
 
   useEffect(() => {
     try {
@@ -352,8 +362,8 @@ export function ChatView() {
           <div className="chat-log" aria-live="polite">
             {messages.length === 0 && (
               <p className="muted">
-                Noch keine Nachrichten. Schreib zum Beispiel „Diese Woche GTA 6“
-                oder „Mittwoch zusätzlich Ernährung“.
+                Noch keine Nachrichten. Schreib zum Beispiel „Status“ oder „Mittwoch
+                zusätzlich {areas[0] ?? "<Themenbereich>"}“.
               </p>
             )}
             {messages.map((m) => (
@@ -399,7 +409,7 @@ export function ChatView() {
           {canWrite ? (
             <>
               <div className="chip-row" aria-label="Vorschläge">
-                {SUGGESTIONS.map((s) => (
+                {suggestions(areas).map((s) => (
                   <button
                     key={s}
                     type="button"
