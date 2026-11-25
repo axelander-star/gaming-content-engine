@@ -11,7 +11,7 @@ from models.comments import Comment
 from models.competitors import Competitor, CompetitorVideo
 from models.control import AgentDecision, AgentRun, AgentState, Cost
 from models.fixed_costs import FixedCost
-from models.library import LibraryItem, OwnProduction
+from models.library import LibraryItem, OwnProduction, ProductionSeries
 from models.marketing import AffiliateLink, BioPage, NewsletterSubscriber, OutgoingMail
 from models.planning import CalendarEvent, ContentFocus, EditorialDay, PlanRule
 from models.production import (
@@ -85,6 +85,7 @@ __all__ = [
     "PlanRule",
     "Platform",
     "Post",
+    "ProductionSeries",
     "PublisherPolicy",
     "PublishingJob",
     "QualityCheck",
