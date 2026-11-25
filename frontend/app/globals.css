@@ -2670,6 +2670,22 @@ details summary {
   border-radius: 6px;
   margin: 6px 0;
 
+/* --- fixed costs ----------------------------------------------------------------- */
+.fixed-form .check {
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+.fixed-add {
+  margin-top: 12px;
+}
+.fixed-add summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.row-actions {
+  white-space: nowrap;
+
 /* --- video series (own production) --- */
 .prod-tabs {
   margin-bottom: 16px;

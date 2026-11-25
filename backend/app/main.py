@@ -25,6 +25,7 @@ from api.channels import oauth_router
 from api.channels import router as channels_router
 from api.comments import router as comments_router
 from api.competitors import router as competitors_router
+from api.fixed_costs import router as fixed_costs_router
 from api.health import router as health_router
 from api.library import router as library_router
 from api.marketing import router as marketing_router
@@ -98,6 +99,7 @@ def create_app() -> FastAPI:
         marketing_router,
         public_router,
         sponsors_router,
+        fixed_costs_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 

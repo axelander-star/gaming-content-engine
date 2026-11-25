@@ -24,6 +24,13 @@
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
 
+## Kostenseite mit Live-Kosten (22.11.2026)
+
+- Fixkosten sind jetzt eintragbare Posten im Dashboard (Kosten → Fixkosten): Betrag, Währung (€/$), monatlich/jährlich, „zählt zum Engine-Budget“ ja/nein, pausieren, löschen. Neue Tabelle `fixed_costs`, API `GET/POST /api/costs/fixed`, `PATCH/DELETE /api/costs/fixed/{id}` (Änderungen nur Admin, im Audit-Log).
+- Startliste wird einmalig von `python -m app.seed` angelegt: Contabo Cloud VPS 8 (13,33 €/Monat), Domain kanalfabrik.de bei INWX (Betrag fehlt noch), Claude Pro 20 $/Monat (nur Summe, nicht im Engine-Budget, weil das Abo keinen API-Zugang enthält), Cloudflare Free und R2 (0 €). Gelöschte Posten kommen nicht zurück. `SERVER_MONTHLY_EUR`/`OTHER_FIXED_MONTHLY_EUR` gelten nur noch, solange nie Posten angelegt wurden.
+- Kostenseite und Übersicht laden sich selbst neu (Kosten alle 15 s, Übersicht alle 30 s): Monatskosten gesamt, „bisher angefallen“ (Fixkosten sekundengenau anteilig + echter Verbrauch), Verbrauch heute, KI-Tokens heute/Monat (Eingabe, Ausgabe, Cache, $), API-Kontingente heute.
+- Offen: INWX-Jahrespreis der Domain eintragen. Echte KI-Kosten entstehen erst mit eigenem Anthropic-API-Schlüssel in der Server-`.env` und ausdrücklicher Freigabe kostenpflichtiger Aufrufe.
+
 ## Videoserien in der Eigenproduktion (22.–25.11.2026)
 
 - Neuer Reiter **Serien** in der Eigenproduktion: großes Thema → KI-Gliederung in 2–30 Teile (je 1–2 Minuten) → Skripte je Teil → alle Videos vorab erzeugen → „Alle fertigen Teile freigeben“ (Beiträge für alle echten Kanäle in der Sprache der Serie, menschliche Freigabe in einem Klick).

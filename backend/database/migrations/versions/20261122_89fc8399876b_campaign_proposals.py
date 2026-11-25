@@ -1,7 +1,7 @@
 """campaign proposals
 
 Revision ID: 89fc8399876b
-Revises: 213ad41e16e4, 5a8fd8799082
+Revises: a60b2364c66a, 5a8fd8799082
 Create Date: 2026-11-22 10:29:58.498723
 """
 
@@ -12,8 +12,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "89fc8399876b"
-# Also merges the two heads that main had at this point (#48 and #50).
-down_revision: str | tuple[str, ...] | None = ("213ad41e16e4", "5a8fd8799082")
+# Also merges the two heads that main had at this point (#49 and #50).
+down_revision: str | tuple[str, ...] | None = ("a60b2364c66a", "5a8fd8799082")
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
