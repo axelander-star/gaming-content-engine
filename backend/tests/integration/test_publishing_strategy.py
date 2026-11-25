@@ -247,6 +247,10 @@ def test_api_shows_plan_and_admin_can_roll_back(
     ready_variants(db, 4, channel)
     plan(db, channel, MORNING - timedelta(days=4))
     plan(db, channel, MORNING)  # version 2: two per day
+    # the plan page shows jobs from the last day on; keep the test independent of today
+    for job in db.scalars(select(PublishingJob)):
+        assert job.scheduled_for is not None
+        job.scheduled_for += datetime.now(UTC) - MORNING
     db.commit()
 
     make_user("viewer@example.com", UserRole.VIEWER)

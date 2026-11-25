@@ -1231,6 +1231,85 @@ export interface Production {
   error_message: string | null;
   created_at: string;
   rendered_at: string | null;
+  series_id?: number | null;
+  series_part?: number | null;
+}
+
+/** One post of a series part on a channel. */
+export interface SeriesPartPost {
+  channel_id: number;
+  channel: string;
+  variant_id: number;
+  status: VideoStatus;
+}
+
+export interface SeriesPart {
+  part: number;
+  production: Production;
+  posts: SeriesPartPost[];
+}
+
+/** A big topic split into many short parts, produced up front and released over days. */
+export interface Series {
+  id: number;
+  project_id: number;
+  project: string;
+  idea_id: number | null;
+  title: string;
+  topic: string;
+  pitch: string | null;
+  language: Language;
+  part_seconds: number;
+  outline: { title: string; summary: string }[];
+  script_source: string;
+  paused: boolean;
+  created_at: string;
+  counts: {
+    parts: number;
+    scripted: number;
+    rendering: number;
+    done: number;
+    failed: number;
+    prepared: number;
+    approved: number;
+    scheduled: number;
+    published: number;
+  };
+  parts: SeriesPart[];
+}
+
+export interface SeriesInput {
+  project_id: number;
+  topic?: string | null;
+  pitch?: string | null;
+  idea_id?: number | null;
+  language: Language;
+  parts?: number | null;
+  total_minutes?: number | null;
+  part_seconds: number;
+}
+
+export interface SeriesSuggestion {
+  title: string;
+  pitch: string;
+  parts: number;
+  reason: string;
+  source: string | null;
+  idea_id: number | null;
+}
+
+export interface SeriesPlanDay {
+  day: string;
+  parts: number[];
+  reasons: string[];
+  fixed: boolean;
+}
+
+export interface SeriesChannelPlan {
+  channel_id: number;
+  channel: string;
+  platform: string;
+  days: SeriesPlanDay[];
 }
 
 export interface ProductionInput {
