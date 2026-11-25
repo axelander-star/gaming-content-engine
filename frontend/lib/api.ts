@@ -39,6 +39,8 @@ import type {
   AnalyticsOverview,
   ChannelPlan,
   CostSummary,
+  FixedCost,
+  FixedCostInput,
   HookReport,
   LearningVersionOut,
   Clip,
@@ -106,6 +108,10 @@ import type {
   Readiness,
   RenderCapacity,
   Scene,
+  Series,
+  SeriesChannelPlan,
+  SeriesInput,
+  SeriesSuggestion,
   SettingsResponse,
   Source,
   SourceType,
@@ -410,6 +416,34 @@ export const api = {
     request<Production>(`/productions/${id}/render`, { method: "POST" }),
   deleteProduction: (id: number) =>
     request<void>(`/productions/${id}`, { method: "DELETE" }),
+
+  seriesList: (projectId?: number) =>
+    request<Series[]>(`/series${projectId ? `?project_id=${projectId}` : ""}`),
+  series: (id: number) => request<Series>(`/series/${id}`),
+  createSeries: (body: SeriesInput) =>
+    request<Series>("/series", { method: "POST", body: json(body) }),
+  writeSeriesScripts: (id: number) =>
+    request<{ series: Series; remaining: number }>(`/series/${id}/scripts`, { method: "POST" }),
+  renderSeries: (id: number) =>
+    request<{ series: Series; queued: number }>(`/series/${id}/render`, { method: "POST" }),
+  prepareSeries: (id: number, approve: boolean, channelIds: number[] = []) =>
+    request<{ series: Series; prepared: number; approved: number; skipped: string[] }>(
+      `/series/${id}/prepare`,
+      { method: "POST", body: json({ approve, channel_ids: channelIds }) },
+    ),
+  seriesPlan: (id: number) => request<SeriesChannelPlan[]>(`/series/${id}/plan`),
+  updateSeries: (id: number, changes: { title?: string; paused?: boolean }) =>
+    request<Series>(`/series/${id}`, { method: "PATCH", body: json(changes) }),
+  deleteSeries: (id: number) => request<void>(`/series/${id}`, { method: "DELETE" }),
+  seriesSuggestions: (projectId: number, language: Language) =>
+    request<SeriesSuggestion[]>(
+      `/series/suggestions?project_id=${projectId}&language=${language}`,
+    ),
+  seriesAiSuggestions: (projectId: number, language: Language) =>
+    request<SeriesSuggestion[]>(
+      `/series/suggestions?project_id=${projectId}&language=${language}`,
+      { method: "POST" },
+    ),
   productionSubtitlesUrl: (id: number, format: "srt" | "vtt") =>
     `/api/productions/${id}/subtitles?fmt=${format}`,
 
@@ -638,6 +672,11 @@ export const api = {
   rollbackLearning: (version: number) =>
     request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, { method: "POST" }),
   costSummary: () => request<CostSummary>("/costs/summary"),
+  addFixedCost: (data: FixedCostInput) =>
+    request<FixedCost>("/costs/fixed", { method: "POST", body: json(data) }),
+  updateFixedCost: (id: number, data: Partial<FixedCostInput>) =>
+    request<FixedCost>(`/costs/fixed/${id}`, { method: "PATCH", body: json(data) }),
+  deleteFixedCost: (id: number) => request<void>(`/costs/fixed/${id}`, { method: "DELETE" }),
   systemStatus: () => request<SystemStatus>("/system/status"),
 
   // comments: drafts, replies, review
@@ -684,6 +723,8 @@ export const api = {
     request<ChannelSetupTask>(`/channel-setup/channels/${channelId}/prepare`, { method: "POST" }),
   updateChannelSetup: (id: number, changes: ChannelSetupPatch) =>
     request<ChannelSetupTask>(`/channel-setup/tasks/${id}`, { method: "PATCH", body: json(changes) }),
+  researchChannelSetup: (id: number) =>
+    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/research`, { method: "POST" }),
   retryChannelSetupEmail: (id: number) =>
     request<ChannelSetupTask>(`/channel-setup/tasks/${id}/email`, { method: "POST" }),
   completeChannelSetup: (id: number, handle?: string) =>

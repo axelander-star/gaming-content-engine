@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from core.config import Settings
 from models.control import Cost
+from services import fixed_costs
 from services.controls import effective_controls, get_operations
 
 
@@ -61,11 +62,9 @@ def spent_this_month(session: Session, now: datetime | None = None) -> Decimal:
     return Decimal(total or 0)
 
 
-def fixed_monthly(settings: Settings) -> Decimal:
-    """Fixed monthly costs (server, backups, domain); they run even when paused."""
-    return Decimal(str(settings.server_monthly_eur)) + Decimal(
-        str(settings.other_fixed_monthly_eur)
-    )
+def fixed_monthly(session: Session, settings: Settings) -> Decimal:
+    """Fixed monthly costs in the budget (server, domain, …); they run even when paused."""
+    return fixed_costs.totals(session, settings).in_budget_eur
 
 
 def level_for(used_pct: float, settings: Settings) -> BudgetLevel:
@@ -84,7 +83,7 @@ def budget_status(
     session: Session, settings: Settings, now: datetime | None = None
 ) -> BudgetStatus:
     budget = Decimal(str(get_operations(session).monthly_budget_eur))
-    spent = spent_this_month(session, now) + fixed_monthly(settings)
+    spent = spent_this_month(session, now) + fixed_monthly(session, settings)
     if budget <= 0:
         used = 100.0 if spent > 0 else 0.0
         level = BudgetLevel.STOP_PAID  # no budget means no paid calls

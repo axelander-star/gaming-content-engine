@@ -21,6 +21,8 @@ and stays in mock mode until the operator enables live publishing.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
@@ -37,9 +39,10 @@ from core.enums import (
     VideoStatus,
 )
 from models.channels import Channel
+from models.library import ProductionSeries
 from models.production import Variant
 from models.publishing import PublishingJob, StrategyVersion
-from services import gates, learning, planning, strategy, workflow
+from services import gates, learning, planning, series, strategy, workflow
 from services.controls import effective_controls, get_operations
 
 ACTIVE_JOBS = (
@@ -248,8 +251,8 @@ class PublishingStrategyAgent(Agent):
             if reason is None and (variant.quality_score or 0.0) < minimum:
                 reason = f"Qualitätswert {variant.quality_score} unter Minimum {minimum}"
             if reason is None:
-                source = gates.source_file(s, variant)
-                problem = "Quellmaterial fehlt" if source is None else gates.rights_check(s, source)
+                # clip material or library video (a library post has no gameplay file)
+                problem = gates.source_problem(s, variant)
                 reason = f"Rechte: {problem}" if problem else None
             if reason is None and keep >= amount:
                 reason = f"Mehr geplant als die Tagesmenge {amount}"
@@ -321,6 +324,7 @@ class PublishingStrategyAgent(Agent):
                     or ("Trend-Alarm" if (v.concept or {}).get("trend_alarm_id") else None),
                 )
             )
+        candidates = self._series_order(s, settings, channel, today, rows, candidates, held)
         chosen = strategy.choose(candidates, slots, groups)
         preferred = (version.params or {}).get("preferred_hours")
         times = strategy.slot_times(
@@ -374,6 +378,46 @@ class PublishingStrategyAgent(Agent):
         rest = [c for c in candidates if c.variant_id not in chosen_ids]
         held += [{"variant_id": c.variant_id, "reason": "Tagesmenge erreicht"} for c in rest]
         return planned, held
+
+    def _series_order(
+        self,
+        s: Session,
+        settings: Settings,
+        channel: Channel,
+        today: date,
+        rows: Sequence[Variant],
+        candidates: list[strategy.Candidate],
+        held: list[dict[str, Any]],
+    ) -> list[strategy.Candidate]:
+        """Parts of a video series go out in order and at the pace of ``services/series``."""
+        by_item = series.series_of_items(s, [v.library_item_id or 0 for v in rows])
+        if not by_item:
+            return candidates
+        item_of = {v.id: v.library_item_id for v in rows}
+        data = series.channel_data(s, settings, channel)
+        releases: dict[int, series.Release] = {}
+        out: list[strategy.Candidate] = []
+        for cand in candidates:
+            hit = by_item.get(item_of.get(cand.variant_id) or 0)
+            if hit is None:
+                out.append(cand)
+                continue
+            series_id, part = hit
+            if series_id not in releases:
+                row = s.get(ProductionSeries, series_id)
+                assert row is not None
+                releases[series_id] = series.allowed_today(s, row, channel.id, today, data)
+            release = releases[series_id]
+            if cand.variant_id in release.allowed:
+                row = s.get(ProductionSeries, series_id)
+                name = row.title if row is not None else f"#{series_id}"
+                why = release.pace.reasons[-1] if release.pace.reasons else ""
+                label = f"Serie {name}, Teil {part} (heute {release.pace.per_day}: {why})"
+                out.append(replace(cand, series=label))
+            else:
+                reason = release.held.get(cand.variant_id) or "Serie: nicht an der Reihe"
+                held.append({"variant_id": cand.variant_id, "reason": reason})
+        return out
 
 
 def _focus_match(topics: list[str], *texts: str | None) -> str | None:

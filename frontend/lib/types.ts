@@ -737,6 +737,38 @@ export interface LearningVersionOut {
   baseline: number | null;
 }
 
+export type FixedCostCategory = "server" | "domain" | "subscription" | "storage" | "backup" | "other";
+
+export interface FixedCostInput {
+  name: string;
+  provider: string | null;
+  category: FixedCostCategory;
+  amount: string;
+  currency: "EUR" | "USD";
+  interval: "month" | "year";
+  in_budget: boolean;
+  is_active: boolean;
+  note: string | null;
+}
+
+export interface FixedCost extends Omit<FixedCostInput, "amount"> {
+  id: number;
+  amount: number;
+  monthly_eur: number;
+  missing_price: boolean;
+  updated_at: string | null;
+}
+
+export interface AIUsageWindow {
+  calls: number;
+  live_calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_tokens: number;
+  cost_usd: number;
+  last_call_at: string | null;
+}
+
 export interface CostSummary {
   month: string;
   budget: {
@@ -746,10 +778,22 @@ export interface CostSummary {
     level: string;
     thresholds: Record<string, number>;
   };
+  as_of: string;
   costs: Record<
-    "server" | "other_fixed" | "storage" | "ai" | "tts" | "api" | "other" | "total",
+    | "fixed"
+    | "fixed_in_budget"
+    | "storage"
+    | "ai"
+    | "tts"
+    | "api"
+    | "other"
+    | "total"
+    | "accrued"
+    | "today",
     number
   >;
+  fixed: { items: FixedCost[]; from_env: boolean };
+  ai: { today: AIUsageWindow; month: AIUsageWindow; eur_per_usd: number };
   storage: { bytes: number; price_per_gb: number };
   videos: {
     produced: number;
@@ -1241,6 +1285,85 @@ export interface Production {
   error_message: string | null;
   created_at: string;
   rendered_at: string | null;
+  series_id?: number | null;
+  series_part?: number | null;
+}
+
+/** One post of a series part on a channel. */
+export interface SeriesPartPost {
+  channel_id: number;
+  channel: string;
+  variant_id: number;
+  status: VideoStatus;
+}
+
+export interface SeriesPart {
+  part: number;
+  production: Production;
+  posts: SeriesPartPost[];
+}
+
+/** A big topic split into many short parts, produced up front and released over days. */
+export interface Series {
+  id: number;
+  project_id: number;
+  project: string;
+  idea_id: number | null;
+  title: string;
+  topic: string;
+  pitch: string | null;
+  language: Language;
+  part_seconds: number;
+  outline: { title: string; summary: string }[];
+  script_source: string;
+  paused: boolean;
+  created_at: string;
+  counts: {
+    parts: number;
+    scripted: number;
+    rendering: number;
+    done: number;
+    failed: number;
+    prepared: number;
+    approved: number;
+    scheduled: number;
+    published: number;
+  };
+  parts: SeriesPart[];
+}
+
+export interface SeriesInput {
+  project_id: number;
+  topic?: string | null;
+  pitch?: string | null;
+  idea_id?: number | null;
+  language: Language;
+  parts?: number | null;
+  total_minutes?: number | null;
+  part_seconds: number;
+}
+
+export interface SeriesSuggestion {
+  title: string;
+  pitch: string;
+  parts: number;
+  reason: string;
+  source: string | null;
+  idea_id: number | null;
+}
+
+export interface SeriesPlanDay {
+  day: string;
+  parts: number[];
+  reasons: string[];
+  fixed: boolean;
+}
+
+export interface SeriesChannelPlan {
+  channel_id: number;
+  channel: string;
+  platform: string;
+  days: SeriesPlanDay[];
 }
 
 export interface ProductionInput {
@@ -1480,6 +1603,10 @@ export interface ChannelSetupTask {
   signup_url: string;
   steps: string[];
   text_source: string;
+  name_options: { name: string; reason: string }[];
+  research_facts: string[];
+  research_live: boolean;
+  researched_at: string | null;
   channel_id: number | null;
   created_at: string;
   completed_at: string | null;

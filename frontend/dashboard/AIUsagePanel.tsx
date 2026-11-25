@@ -36,7 +36,7 @@ const PURPOSES: Record<string, string> = {
 };
 
 /** Claude usage against the hard monthly cap (extension E3). */
-export function AIUsagePanel() {
+export function AIUsagePanel({ tick = 0 }: { tick?: number } = {}) {
   const { user } = useAuth();
   const [status, setStatus] = useState<AIStatus | null>(null);
   const [usage, setUsage] = useState<AIUsage | null>(null);
@@ -50,7 +50,7 @@ export function AIUsagePanel() {
     api.aiStatus().then(setStatus).catch((e: Error) => setError(e.message));
     api.aiUsage().then(setUsage).catch((e: Error) => setError(e.message));
   }, []);
-  useEffect(load, [load]);
+  useEffect(load, [load, tick]);
 
   async function onTest(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -82,7 +82,7 @@ export function AIUsagePanel() {
             <div className="ai-cap-row">
               <span>
                 <strong>{usd(Number(status.spent_usd) + Number(status.reserved_usd))}</strong>{" "}
-                <span className="muted">von {usd(status.cap_usd)} Monatsgrenze</span>
+                <span className="muted">von {usd(status.cap_usd)} API-Monatsgrenze der Engine</span>
               </span>
               <span className="muted small">noch {usd(status.remaining_usd)}</span>
             </div>

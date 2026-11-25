@@ -1,7 +1,7 @@
 """trend alarms
 
 Revision ID: 7433e2700ebb
-Revises: 3c9e1f2a7b44
+Revises: 5a8fd8799082, a60b2364c66a
 Create Date: 2026-11-22 10:32:47.983618
 """
 
@@ -12,7 +12,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = '7433e2700ebb'
-down_revision: str | None = '3c9e1f2a7b44'
+# also joins the two heads on main (name research, fixed costs)
+down_revision: str | tuple[str, ...] | None = ('5a8fd8799082', 'a60b2364c66a')
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

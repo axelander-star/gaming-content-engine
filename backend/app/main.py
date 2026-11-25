@@ -25,6 +25,7 @@ from api.channels import oauth_router
 from api.channels import router as channels_router
 from api.comments import router as comments_router
 from api.competitors import router as competitors_router
+from api.fixed_costs import router as fixed_costs_router
 from api.health import router as health_router
 from api.library import router as library_router
 from api.marketing import router as marketing_router
@@ -36,6 +37,7 @@ from api.public import router as public_router
 from api.publishing import router as publishing_router
 from api.research import router as research_router
 from api.rights import router as rights_router
+from api.series import router as series_router
 from api.settings import router as settings_router
 from api.sponsors import router as sponsors_router
 from api.system import router as system_router
@@ -87,6 +89,7 @@ def create_app() -> FastAPI:
         research_router,
         calendar_router,
         library_router,
+        series_router,
         approval_router,
         campaigns_router,
         channel_setup_router,
@@ -98,6 +101,7 @@ def create_app() -> FastAPI:
         public_router,
         sponsors_router,
         trend_alarms_router,
+        fixed_costs_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
 

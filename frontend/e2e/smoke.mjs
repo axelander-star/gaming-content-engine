@@ -466,16 +466,30 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/analytics.png`, fullPage: true });
     await page.getByRole("link", { name: "Kosten", exact: true }).click();
     await page.getByRole("heading", { name: "Kosten", level: 1 }).waitFor();
-    await page.getByText("Monatliche Gesamtkosten").waitFor();
+    await page.getByText("Monatskosten gesamt", { exact: true }).waitFor();
+    await page.getByText(/^Stand \d/).waitFor();
     await page.getByText("Budgetstufe:").waitFor();
     await page.getByRole("figure", { name: "Kosten im Monat" }).waitFor();
+    const fixed = page.getByRole("table", { name: "Fixkosten" });
+    await fixed.waitFor();
+    await page.getByText("Posten hinzufügen").click();
+    const form = page.getByRole("form", { name: "Neuen Fixkosten-Posten anlegen" });
+    await form.getByRole("textbox", { name: "Name" }).fill("E2E Testposten");
+    await form.getByRole("textbox", { name: "Betrag" }).fill("12,00");
+    await form.getByRole("combobox", { name: "Zahlweise" }).selectOption("year");
+    await form.getByRole("button", { name: "Speichern" }).click();
+    const row = fixed.getByRole("row").filter({ hasText: "E2E Testposten" });
+    await row.getByText("1,00 €").waitFor();
+    await row.getByRole("button", { name: "Löschen" }).click();
+    await row.waitFor({ state: "detached" });
+    await page.getByRole("table", { name: "Token-Verbrauch" }).waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kosten.png`, fullPage: true });
   });
 
   await step("KI-Schicht: Monatsgrenze sichtbar, Testaufruf im Mock-Modus kostenlos", async () => {
     const panel = page.locator("section").filter({ hasText: "KI-Nutzung (Claude)" });
     await panel.getByText("Test (Mock): keine Kosten").waitFor();
-    await panel.getByText(/von 20,00\s\$ Monatsgrenze/).waitFor();
+    await panel.getByText(/von 20,00\s\$ API-Monatsgrenze der Engine/).waitFor();
     await panel.getByText("claude-haiku-5-5").first().waitFor();
     await panel.getByText("claude-sonnet-5-5").first().waitFor();
     await panel.getByRole("button", { name: "KI testen" }).click();
@@ -748,6 +762,7 @@ try {
 
     await page.getByRole("link", { name: "Eigenproduktion", exact: true }).click();
     await page.getByRole("heading", { name: "Eigenproduktion", level: 1 }).waitFor();
+    await page.getByRole("tab", { name: "Einzelvideos" }).click();
     const create = page.getByRole("form", { name: "Neue Produktion" });
     await create.getByLabel("Themenbereich").selectOption({ label: "Ernährung E2E" });
     await create.getByRole("textbox", { name: "Thema" }).fill("Haferflocken richtig lagern");
@@ -847,6 +862,12 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kanal-assistent.png`, fullPage: true });
     const insta = page.getByRole("article", { name: "Aufgabe Instagram DE: Ernährung E2E" });
     await insta.getByText(/professionelles Konto/).waitFor({ state: "attached" });
+    // names are based on market data; the basis is shown and can be refreshed
+    await insta.getByText("Datengrundlage").waitFor();
+    await Promise.all([
+      page.waitForResponse((r) => r.url().endsWith("/research") && r.status() === 200),
+      insta.getByRole("button", { name: "Neu recherchieren" }).click(),
+    ]);
     await insta.getByRole("button", { name: "Nicht gebraucht" }).click();
     await insta.waitFor({ state: "detached" });
     await tiktok.getByRole("button", { name: "Kanal ist angelegt" }).click();
@@ -1011,6 +1032,7 @@ try {
 
     await page.getByRole("link", { name: "Eigenproduktion", exact: true }).click();
     await page.getByRole("heading", { name: "Eigenproduktion", level: 1 }).waitFor();
+    await page.getByRole("tab", { name: "Einzelvideos" }).click();
     await page.getByRole("button", { name: "Englische Fassung erstellen" }).click();
     await page.getByText(/übersetzt/).first().waitFor();
     await page.getByRole("button", { name: "Deutsche Fassung erstellen" }).waitFor();
@@ -1093,6 +1115,27 @@ try {
     await page.getByRole("button", { name: "Jetzt senden" }).click();
     await page.getByText("Liegt im Postausgang").waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/wochenbericht.png`, fullPage: true });
+  });
+
+  await step("Eigenproduktion: Serie planen, alle Teile erzeugen und freigeben", async () => {
+    await page.getByRole("link", { name: "Eigenproduktion", exact: true }).click();
+    await page.getByRole("heading", { name: "Eigenproduktion", level: 1 }).waitFor();
+    await page.getByRole("tab", { name: "Serien" }).click();
+    const form = page.getByRole("form", { name: "Neue Serie" });
+    await form.getByLabel("Themenbereich").selectOption({ label: "Ernährung E2E" });
+    await page.getByRole("list", { name: "Serienvorschläge" }).getByRole("listitem").first().waitFor();
+    await form.getByLabel("Thema der Serie").fill("Wie entsteht Brot");
+    await form.getByLabel("Umfang").selectOption("parts");
+    await form.getByLabel(/Teile \(2 bis 30\)/).fill("2");
+    await form.getByLabel("Länge je Teil").selectOption("60");
+    await form.getByRole("button", { name: "Serie planen" }).click();
+    const steps = page.getByRole("list", { name: "Schritte der Serie" });
+    await steps.getByText("2 von 2 geschrieben").waitFor({ timeout: 60000 });
+    await steps.getByText(/2 von 2 fertig/).waitFor({ timeout: 180000 });
+    await page.getByRole("button", { name: "Alle fertigen Teile freigeben" }).click();
+    await page.getByText(/Beiträge vorbereitet, \d+ freigegeben/).waitFor({ timeout: 30000 });
+    await page.getByLabel(/^Plan /).first().getByText(/Teil 1/).waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/eigenproduktion-serie.png`, fullPage: true });
   });
 
   await step("Abmelden", async () => {

@@ -24,6 +24,21 @@
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
 
+## Kostenseite mit Live-Kosten (22.11.2026)
+
+- Fixkosten sind jetzt eintragbare Posten im Dashboard (Kosten → Fixkosten): Betrag, Währung (€/$), monatlich/jährlich, „zählt zum Engine-Budget“ ja/nein, pausieren, löschen. Neue Tabelle `fixed_costs`, API `GET/POST /api/costs/fixed`, `PATCH/DELETE /api/costs/fixed/{id}` (Änderungen nur Admin, im Audit-Log).
+- Startliste wird einmalig von `python -m app.seed` angelegt: Contabo Cloud VPS 8 (13,33 €/Monat), Domain kanalfabrik.de bei INWX (Betrag fehlt noch), Claude Pro 20 $/Monat (nur Summe, nicht im Engine-Budget, weil das Abo keinen API-Zugang enthält), Cloudflare Free und R2 (0 €). Gelöschte Posten kommen nicht zurück. `SERVER_MONTHLY_EUR`/`OTHER_FIXED_MONTHLY_EUR` gelten nur noch, solange nie Posten angelegt wurden.
+- Kostenseite und Übersicht laden sich selbst neu (Kosten alle 15 s, Übersicht alle 30 s): Monatskosten gesamt, „bisher angefallen“ (Fixkosten sekundengenau anteilig + echter Verbrauch), Verbrauch heute, KI-Tokens heute/Monat (Eingabe, Ausgabe, Cache, $), API-Kontingente heute.
+- Offen: INWX-Jahrespreis der Domain eintragen. Echte KI-Kosten entstehen erst mit eigenem Anthropic-API-Schlüssel in der Server-`.env` und ausdrücklicher Freigabe kostenpflichtiger Aufrufe.
+
+## Videoserien in der Eigenproduktion (22.–25.11.2026)
+
+- Neuer Reiter **Serien** in der Eigenproduktion: großes Thema → KI-Gliederung in 2–30 Teile (je 1–2 Minuten) → Skripte je Teil → alle Videos vorab erzeugen → „Alle fertigen Teile freigeben“ (Beiträge für alle echten Kanäle in der Sprache der Serie, menschliche Freigabe in einem Klick).
+- Veröffentlichungsplan je Kanal als Vorschau; der Publishing Strategy Agent hält die Reihenfolge ein und verteilt die Teile über die Tage (Regeln in docs/AGENTS.md). Serie pausierbar.
+- Ideen für Serien aus Ideenlabor, Redaktionsplan-Schwerpunkten und Serienformaten (ohne KI-Kosten); „Neue Ideen von der KI“ optional (Mock, solange Claude nicht freigegeben).
+- Behoben: Bei jedem erneuten Planungslauf wurden schon geplante Mediathek-Beiträge mit „Quellmaterial fehlt“ zurückgenommen und neu geplant. Ein Test hing vom heutigen Datum ab.
+- Offen: Gliederung und Skripte sind im Testmodus Platzhaltertexte; echte Texte brauchen die Claude-Freigabe. Englische Fassung gibt es je Teil (Einzelvideos), noch nicht für die ganze Serie.
+
 ## Ausbau ab 16.11.2026 abends (Kanal-Assistent und mehr)
 
 Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolge: [AUSBAU_PLAN.md](AUSBAU_PLAN.md). Testmodus bleibt, es wird nichts echt gepostet.
@@ -40,8 +55,17 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A8 | Kampagnen je Themenbereich vorschlagen, Affiliate-Links mit „Anzeige“, Linkseite je Kanal mit Newsletter (Double-Opt-in) | ✅ abgeschlossen (PR #42) |
 | A9 | Sponsoren-Postfach: Anfragen einordnen, Warnungen, Preisvorschlag, Antwortentwurf (nichts wird gesendet) | ✅ abgeschlossen (PR #43) |
 | A10 | Wochenbericht per E-Mail (montags 8 Uhr, Vorschau und „Jetzt senden“ in Analytics) | ✅ abgeschlossen (PR #44) |
-| N1 | Platzhalter-Kanäle aus dem Seed: im Kanal-Assistenten vorbereiten und zum echten Kanal machen, in der Übersicht nicht mitzählen | ✅ abgeschlossen |
+| N1 | Platzhalter-Kanäle aus dem Seed: im Kanal-Assistenten vorbereiten und zum echten Kanal machen, in der Übersicht nicht mitzählen | ✅ abgeschlossen (PR #46) |
+| N2 | Kanalnamen aus Marktdaten: häufige Begriffe, Konkurrenz, bestehende YouTube-Kanäle; weitere Namensideen mit Begründung, „Neu recherchieren“ | ✅ abgeschlossen |
 | A11 | Ideenlabor: 12 Ideen je Lauf, 5 je Seite mit Weiter/Zurück, Sortierung; Trend-Alarm-Agent mit Entwürfen, Push und Ein-Tipp-Freigabe, Automatik je Kanal (Standard aus) | ✅ abgeschlossen |
+
+**N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
+- Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.
+- Vor jedem Vorschlag sammelt die Engine je Themenbereich und Sprache: häufige Begriffe der letzten 30 Tage (Recherche-Meldungen, Ideen, Videotitel aus dem Konkurrenz-Radar), die stärksten Konkurrenten mit Median-Aufrufen und, mit Live-Zugang, bestehende YouTube-Kanäle zum Thema mit Abonnentenzahlen (offizielle API, eigenes Tageskontingent).
+- Die Daten gehen in den KI-Auftrag (Begriffe nutzen, sich von bestehenden Kanälen abheben, nichts kopieren). Ohne KI entstehen Namensideen aus den häufigsten Begriffen. Namen, die es als Kanal schon gibt, werden aussortiert.
+- Im Kanal-Assistenten stehen bis zu 5 weitere Namensideen mit Begründung (Knopf „Übernehmen“) und die „Datengrundlage“. „Neu recherchieren“ wertet die aktuellen Daten neu aus.
+- Die laufende Trendbeobachtung (Agent, der Themen und Kanäle vorschlägt) liegt im Thread „Ideenlabor und Trend-Alarm ausbauen“. Die Namensvorschläge nutzen dessen Daten automatisch mit.
+- Für Live-Daten auf dem Server: `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` in `.env`.
 
 **N1 Platzhalter-Kanäle (22.11.2026)** (`services/channel_setup.py`, `services/seed.py`, `api/channel_setup.py`, `api/overview.py`, Datenmigration `3c9e1f2a7b44`):
 - Befund im Betrieb: Die 8 Seed-Kanäle („YouTube Shorts DE“ …) im Standardbereich Gaming galten als „angelegt“. Der Kanal-Assistent bot deshalb nichts zum Vorbereiten an, und die Übersicht zählte sie als Kanäle („0 / 8“), obwohl Alexander noch kein Konto hat.
