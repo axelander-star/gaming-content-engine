@@ -622,13 +622,8 @@ try {
     await page.getByText(/Recherche und Ideenlabor laufen/).waitFor();
     const cards = page.getByRole("article", { name: /^Idee / });
     await cards.first().waitFor({ timeout: 30000 });
-    const card = cards.first();
-    const title = (await card.getByRole("heading").textContent()).trim();
-    await card.getByText("Rechte-Risiko", { exact: true }).waitFor();
-    await card.getByText("Quellen (1)").click();
-    await card.getByRole("link").first().waitFor();
-    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
     // five per page, best ranking first, with pages and a sort choice
+    await cards.nth(4).waitFor();
     assert.equal(await cards.count(), 5);
     await page.getByText(/Seite 1 von \d+/).waitFor();
     assert.equal(await page.getByText("#1", { exact: true }).count(), 1);
@@ -640,6 +635,14 @@ try {
     await page.getByLabel("Sortieren nach").selectOption("title");
     await page.getByLabel("Sortieren nach").selectOption("score");
     await page.getByText("#1", { exact: true }).waitFor();
+    // the heading also shows the rank (#1), the card's label is the plain title; ideas of
+    // other areas may still arrive and reorder the list, so keep to this card by name
+    const title = (await cards.first().getAttribute("aria-label")).replace(/^Idee /, "");
+    const card = page.getByRole("article", { name: `Idee ${title}` });
+    await card.getByText("Rechte-Risiko", { exact: true }).waitFor();
+    await card.getByText("Quellen (1)").click();
+    await card.getByRole("link").first().waitFor();
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
     await card.getByLabel("Tag im Plan (optional)").fill(today);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/ideenlabor.png`, fullPage: true });
     await card.getByRole("button", { name: "Übernehmen" }).click();
@@ -664,6 +667,12 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/trend-alarm.png`, fullPage: true });
     await alarm.getByRole("button", { name: "Alarm verwerfen" }).click();
     await alarm.getByText("Verworfen", { exact: true }).waitFor();
+    // one test alarm per topic area: dismiss the rest so their drafts are not rendered
+    const more = page.getByRole("button", { name: "Alarm verwerfen" });
+    for (let n = await more.count(); n > 0; n = await more.count()) {
+      await more.first().click();
+      for (let i = 0; i < 50 && (await more.count()) >= n; i++) await page.waitForTimeout(200);
+    }
   });
 
   await step("Redaktionsplan: Bereich einplanen, verschieben, entfernen", async () => {

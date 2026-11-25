@@ -385,6 +385,10 @@ def test_api_info_dismiss_and_autopilot_switch(
 
     out = api.post(f"/api/trend-alarms/{res.alarms[0]}/dismiss", headers=op)
     assert out.status_code == 200 and out.json()["status"] == "dismissed"
+    queued = db.scalars(
+        select(OwnProduction).where(OwnProduction.status == ProductionStatus.QUEUED)
+    )
+    assert list(queued) == []  # dismissed drafts are not rendered any more
     assert api.get("/api/trend-alarms").json() == []
     assert len(api.get("/api/trend-alarms", params={"view": "all"}).json()) == 1
 

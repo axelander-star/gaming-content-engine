@@ -845,6 +845,9 @@ def dismiss(session: Session, alarm: TrendAlarm, user_id: int | None) -> None:
     for v in alarm_variants(session, alarm.id):
         if v.status == VideoStatus.QUALITY_APPROVED:
             approval.discard(session, v, user_id)
+    for prod in _productions(session, alarm):
+        if prod.status == ProductionStatus.QUEUED:  # not started yet: skip the render
+            prod.status = ProductionStatus.DRAFT
     alarm.status = "dismissed"
     alarm.decided_at = datetime.now(UTC)
     alarm.decided_by_user_id = user_id
