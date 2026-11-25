@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { formatDateTime, formatEur } from "@/lib/labels";
 import type {
   Budget,
+  CostSummary,
   Dashboard,
   DashboardActivity,
   DashboardStateKey,
@@ -236,18 +237,21 @@ export function OverviewView() {
   const [data, setData] = useState<Overview | null>(null);
   const [ready, setReady] = useState<Readiness | null>(null);
   const [budget, setBudget] = useState<Budget | null>(null);
+  const [costs, setCosts] = useState<CostSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setBusy(true);
-    const [d, o, r, b] = await Promise.allSettled([
+    const [d, o, r, b, k] = await Promise.allSettled([
       api.dashboard(),
       api.overview(),
       api.readiness(),
       api.budget(),
+      api.costSummary(),
     ]);
+    setCosts(k.status === "fulfilled" ? k.value : null);
     if (d.status === "fulfilled") setDash(d.value);
     if (o.status === "fulfilled") setData(o.value);
     setReady(
@@ -324,8 +328,12 @@ export function OverviewView() {
         <KpiCard
           icon="coins"
           label="Kosten diesen Monat"
-          value={budget ? formatEur(budget.spent_eur) : "–"}
-          hint={budget ? `von ${formatEur(budget.budget_eur)} (${budget.used_pct} %)` : undefined}
+          value={costs ? formatEur(costs.costs.total) : budget ? formatEur(budget.spent_eur) : "–"}
+          hint={
+            budget
+              ? `Engine-Budget ${formatEur(budget.spent_eur)} von ${formatEur(budget.budget_eur)} (${budget.used_pct} %)`
+              : undefined
+          }
         />
       </div>
 

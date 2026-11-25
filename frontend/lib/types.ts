@@ -737,6 +737,38 @@ export interface LearningVersionOut {
   baseline: number | null;
 }
 
+export type FixedCostCategory = "server" | "domain" | "subscription" | "storage" | "backup" | "other";
+
+export interface FixedCostInput {
+  name: string;
+  provider: string | null;
+  category: FixedCostCategory;
+  amount: string;
+  currency: "EUR" | "USD";
+  interval: "month" | "year";
+  in_budget: boolean;
+  is_active: boolean;
+  note: string | null;
+}
+
+export interface FixedCost extends Omit<FixedCostInput, "amount"> {
+  id: number;
+  amount: number;
+  monthly_eur: number;
+  missing_price: boolean;
+  updated_at: string | null;
+}
+
+export interface AIUsageWindow {
+  calls: number;
+  live_calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_tokens: number;
+  cost_usd: number;
+  last_call_at: string | null;
+}
+
 export interface CostSummary {
   month: string;
   budget: {
@@ -746,10 +778,22 @@ export interface CostSummary {
     level: string;
     thresholds: Record<string, number>;
   };
+  as_of: string;
   costs: Record<
-    "server" | "other_fixed" | "storage" | "ai" | "tts" | "api" | "other" | "total",
+    | "fixed"
+    | "fixed_in_budget"
+    | "storage"
+    | "ai"
+    | "tts"
+    | "api"
+    | "other"
+    | "total"
+    | "accrued"
+    | "today",
     number
   >;
+  fixed: { items: FixedCost[]; from_env: boolean };
+  ai: { today: AIUsageWindow; month: AIUsageWindow; eur_per_usd: number };
   storage: { bytes: number; price_per_gb: number };
   videos: {
     produced: number;

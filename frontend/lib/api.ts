@@ -39,6 +39,8 @@ import type {
   AnalyticsOverview,
   ChannelPlan,
   CostSummary,
+  FixedCost,
+  FixedCostInput,
   HookReport,
   LearningVersionOut,
   Clip,
@@ -626,6 +628,11 @@ export const api = {
   rollbackLearning: (version: number) =>
     request<LearningVersionOut>(`/analytics/learning/${version}/rollback`, { method: "POST" }),
   costSummary: () => request<CostSummary>("/costs/summary"),
+  addFixedCost: (data: FixedCostInput) =>
+    request<FixedCost>("/costs/fixed", { method: "POST", body: json(data) }),
+  updateFixedCost: (id: number, data: Partial<FixedCostInput>) =>
+    request<FixedCost>(`/costs/fixed/${id}`, { method: "PATCH", body: json(data) }),
+  deleteFixedCost: (id: number) => request<void>(`/costs/fixed/${id}`, { method: "DELETE" }),
   systemStatus: () => request<SystemStatus>("/system/status"),
 
   // comments: drafts, replies, review

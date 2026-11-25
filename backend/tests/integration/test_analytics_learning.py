@@ -366,7 +366,7 @@ def test_cost_summary_per_video_and_views(db: Session, settings: Settings) -> No
     media.mkdir(parents=True, exist_ok=True)
     (media / "x.bin").write_bytes(b"0" * 2048)
     data = costs.summary(db, s, None)
-    assert data["costs"]["ai"] >= 2.5 and data["costs"]["server"] == 7.5
+    assert data["costs"]["ai"] >= 2.5 and data["costs"]["fixed"] == 7.5
     assert data["storage"]["bytes"] == 2048
     assert data["videos"]["published"] >= 1 and data["videos"]["views"] >= 5000
     assert data["unit_costs"]["per_1000_views"] is not None
