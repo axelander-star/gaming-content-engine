@@ -638,10 +638,15 @@ try {
     await page.getByText("#1", { exact: true }).waitFor();
     // the heading also shows the rank (#1), the card's label is the plain title; ideas of
     // other areas may still arrive and reorder the list, so keep to this card by name
+    // research for other areas may still be running: keep to one area, its ideas are
+    // stored together, so this list no longer changes
+    const area = (await cards.first().locator(".chip").first().textContent()).trim();
+    await page.locator(".toolbar").getByLabel("Themenbereich").selectOption({ label: area });
+    await page.getByText(/Seite 1 von \d+/).waitFor();
     const title = (await cards.first().getAttribute("aria-label")).replace(/^Idee /, "");
     const card = page.getByRole("article", { name: `Idee ${title}` });
     await card.getByText("Rechte-Risiko", { exact: true }).waitFor();
-    await card.getByText("Quellen (1)").click();
+    await card.getByText(/^Quellen \(\d+\)$/).click();
     await card.getByRole("link").first().waitFor();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
     await card.getByLabel("Tag im Plan (optional)").fill(today);
