@@ -629,11 +629,14 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/assistent.png`, fullPage: true });
   });
 
+  // area of the idea taken over today; the plan step below finds it in today's cell
+  let ideaArea = "Ernährung E2E";
   await step("Ideenlabor: Recherche starten, Idee übernehmen", async () => {
     await page.getByRole("link", { name: "Ideenlabor", exact: true }).click();
     await page.getByRole("heading", { name: "Ideenlabor", level: 1 }).waitFor();
     await page.getByText("Test: Beispiel-Feeds, kein Abruf").waitFor();
     await page.getByRole("button", { name: "Recherche starten" }).click();
+    const researchStarted = Date.now();
     await page.getByText(/Recherche und Ideenlabor laufen/).waitFor();
     const cards = page.getByRole("article", { name: /^Idee / });
     await cards.first().waitFor({ timeout: 30000 });
@@ -654,7 +657,11 @@ try {
     // other areas may still arrive and reorder the list, so keep to this card by name
     // research for other areas may still be running: keep to one area, its ideas are
     // stored together, so this list no longer changes
+    // the page reloads the list 3, 8 and 15 s after the start; ideas that arrive in
+    // between can push a card to page 2. Pick the card only after the last reload.
+    await page.waitForTimeout(Math.max(0, researchStarted + 16000 - Date.now()));
     const area = (await cards.first().locator(".chip").first().textContent()).trim();
+    ideaArea = area;
     await page.locator(".toolbar").getByLabel("Themenbereich").selectOption({ label: area });
     await page.getByText(/Seite 1 von \d+/).waitFor();
     const title = (await cards.first().getAttribute("aria-label")).replace(/^Idee /, "");
@@ -710,22 +717,23 @@ try {
     t.setUTCDate(t.getUTCDate() + (t.getUTCDay() === 1 ? 1 : -1)); // stay in this week
     const target = t.toISOString().slice(0, 10);
     const todayCell = page.getByRole("group", { name: label(today) });
-    await todayCell.getByRole("button", { name: "Eintrag Ernährung E2E" }).waitFor();
+    const other = ideaArea === "Gaming" ? "Ernährung E2E" : "Gaming";
+    await todayCell.getByRole("button", { name: `Eintrag ${ideaArea}` }).waitFor();
     await todayCell.getByRole("button", { name: /einplanen$/ }).click();
-    await todayCell.getByRole("combobox").selectOption({ label: "Gaming" });
+    await todayCell.getByRole("combobox").selectOption({ label: other });
     await todayCell.getByRole("button", { name: "Einplanen", exact: true }).click();
-    await todayCell.getByRole("button", { name: "Eintrag Gaming" }).click();
-    const editor = page.getByRole("form", { name: "Gaming bearbeiten" });
+    await todayCell.getByRole("button", { name: `Eintrag ${other}` }).click();
+    const editor = page.getByRole("form", { name: `${other} bearbeiten` });
     await editor.getByLabel("Verschieben auf").fill(target);
     await editor.getByRole("button", { name: "Speichern" }).click();
     const targetCell = page.getByRole("group", { name: label(target) });
-    await targetCell.getByRole("button", { name: "Eintrag Gaming" }).waitFor();
-    await todayCell.getByRole("button", { name: "Eintrag Gaming" }).waitFor({ state: "detached" });
+    await targetCell.getByRole("button", { name: `Eintrag ${other}` }).waitFor();
+    await todayCell.getByRole("button", { name: `Eintrag ${other}` }).waitFor({ state: "detached" });
     await page.locator("section").filter({ hasText: "Schwerpunkte" }).getByText("GTA 6").waitFor();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/redaktionsplan.png`, fullPage: true });
-    await targetCell.getByRole("button", { name: "Eintrag Gaming" }).click();
+    await targetCell.getByRole("button", { name: `Eintrag ${other}` }).click();
     await page.getByRole("button", { name: "Aus dem Plan nehmen" }).click();
-    await targetCell.getByRole("button", { name: "Eintrag Gaming" }).waitFor({ state: "detached" });
+    await targetCell.getByRole("button", { name: `Eintrag ${other}` }).waitFor({ state: "detached" });
     await page.getByRole("tab", { name: "Monat" }).click();
     await page.locator(".cal-month").waitFor();
   });

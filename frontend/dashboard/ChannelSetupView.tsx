@@ -16,6 +16,7 @@ import { hasRole } from "@/lib/roles";
 import type {
   ChannelSetupTask,
   CoverageSlot,
+  MailRoutingCheck,
   MailRoutingStatus,
   ProjectCoverage,
   SlotState,
@@ -113,12 +114,15 @@ function handleHint(task: ChannelSetupTask, handle: string): string {
 function TaskCard({
   task,
   canEdit,
+  mailLive,
   onChanged,
 }: {
   task: ChannelSetupTask;
   canEdit: boolean;
+  mailLive: boolean;
   onChanged: (connectChannel?: number) => Promise<void>;
 }) {
+  const [testMail, setTestMail] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(task.display_name);
   const [handle, setHandle] = useState(task.handle);
@@ -263,9 +267,46 @@ function TaskCard({
             )}
             {task.email_status === "mock" && (
               <p className="small">
-                <Badge tone="info">Testmodus</Badge> Die Weiterleitung wird erst angelegt, wenn der
-                Cloudflare-Zugang eingerichtet ist.
-                {task.email_error ? ` ${task.email_error}` : ""}
+                <Badge tone="warn">Noch nicht angelegt</Badge> Diese Adresse empfängt noch keine
+                Mails. Nicht für die Anmeldung verwenden, solange die Weiterleitung fehlt.
+                {task.email_error ? ` ${task.email_error}` : ""}{" "}
+                {canEdit && mailLive && (
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    disabled={busy}
+                    onClick={() => void run(() => api.retryChannelSetupEmail(task.id))}
+                  >
+                    Weiterleitung jetzt anlegen
+                  </button>
+                )}
+              </p>
+            )}
+            {task.email_status === "created" && canEdit && (
+              <p className="small">
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  disabled={busy}
+                  onClick={() => {
+                    setTestMail(null);
+                    api
+                      .sendAliasTestMail(task.id)
+                      .then((r) => setTestMail(r.message))
+                      .catch((e: Error) => setTestMail(e.message));
+                  }}
+                >
+                  Testmail senden
+                </button>{" "}
+                <span className="muted">
+                  Kommt sie in deinem Postfach an, funktioniert die Adresse.
+                </span>
+                {testMail && (
+                  <span role="status" className="cs-testmail">
+                    {" "}
+                    {testMail}
+                  </span>
+                )}
               </p>
             )}
             {task.email_status === "failed" && (
@@ -385,6 +426,20 @@ export function ChannelSetupView() {
   const [coverage, setCoverage] = useState<ProjectCoverage[] | null>(null);
   const [tasks, setTasks] = useState<ChannelSetupTask[]>([]);
   const [mail, setMail] = useState<MailRoutingStatus | null>(null);
+  const [mailCheck, setMailCheck] = useState<MailRoutingCheck | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function checkMail() {
+    setChecking(true);
+    setError(null);
+    try {
+      setMailCheck(await api.checkMailRouting());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setChecking(false);
+    }
+  }
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -475,6 +530,34 @@ export function ChannelSetupView() {
           <Badge tone="danger">E-Mail</Badge> {mail.problem}
         </p>
       )}
+      {mail && canEdit && (
+        <div className="small cs-mailcheck">
+          <button
+            type="button"
+            className="btn btn-small"
+            disabled={checking}
+            onClick={() => void checkMail()}
+          >
+            {checking ? "Prüft …" : "E-Mail-Weiterleitung prüfen"}
+          </button>
+          {mailCheck && (
+            <div role="status">
+              <Badge tone={mailCheck.ok ? "ok" : "danger"}>
+                {mailCheck.ok ? "Weiterleitung bereit" : "Weiterleitung nicht bereit"}
+              </Badge>
+              {mailCheck.rules_used !== null &&
+                ` ${mailCheck.rules_used} von ${mailCheck.rule_limit} Regeln belegt.`}
+              {mailCheck.findings.length > 0 && (
+                <ul>
+                  {mailCheck.findings.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <Section title={`Offene Aufgaben „Kanal erstellen“ (${tasks.length})`}>
         {tasks.length === 0 ? (
@@ -482,7 +565,13 @@ export function ChannelSetupView() {
         ) : (
           <div className="cs-tasks">
             {tasks.map((t) => (
-              <TaskCard key={t.id} task={t} canEdit={canEdit} onChanged={changed} />
+              <TaskCard
+                key={t.id}
+                task={t}
+                canEdit={canEdit}
+                mailLive={mail?.mode === "live"}
+                onChanged={changed}
+              />
             ))}
           </div>
         )}
