@@ -79,7 +79,7 @@ def op(client: TestClient, make_user: MakeUser) -> dict[str, str]:
 def science(db: Session) -> ContentProject:
     from services.seed import seed_base_data
 
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     project = ContentProject(slug="wissen", name="Wissen", languages=["de"], priority=200)
     db.add(project)
     db.flush()

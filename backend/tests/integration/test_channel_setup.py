@@ -49,7 +49,7 @@ def client(api: TestClient, settings: Settings) -> Iterator[TestClient]:
 
 
 def watches(db: Session, languages: tuple[str, ...] = ("de", "en")) -> ContentProject:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     project = ContentProject(slug="uhren", name="Uhren", languages=list(languages))
     db.add(project)
     db.flush()
@@ -197,7 +197,7 @@ def test_placeholder_channel_is_prepared_and_becomes_the_real_one(
 def test_seed_placeholders_count_as_missing_and_are_reused(
     db: Session, settings: Settings, make_user: MakeUser
 ) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     admin = make_user()
     gaming = db.scalar(select(ContentProject).where(ContentProject.slug == "gaming"))
     assert gaming is not None
@@ -216,7 +216,7 @@ def test_seed_placeholders_count_as_missing_and_are_reused(
     assert states[(PlatformCode.YOUTUBE, tasks[0].language)] == "added"
     assert states[(PlatformCode.YOUTUBE, tasks[1].language)] == "prepared"
     # the seed does not bring the placeholder back
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     yt = db.scalar(select(Platform.id).where(Platform.code == PlatformCode.YOUTUBE))
     assert db.scalar(select(func.count(Channel.id)).where(Channel.platform_id == yt)) == 2
 

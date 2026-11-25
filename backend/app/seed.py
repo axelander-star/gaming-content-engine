@@ -1,4 +1,8 @@
-"""CLI: create base data. Run with ``python -m app.seed`` (idempotent)."""
+"""CLI: create base data. Run with ``python -m app.seed`` (idempotent).
+
+``--demo-channels`` additionally creates the eight paused placeholder channels;
+only the dashboard smoke test uses it, production never does.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +19,7 @@ from services.seed import seed_base_data
 def main() -> int:
     configure_logging(get_settings().log_level)
     with get_sessionmaker()() as session, session.begin():
-        created = seed_base_data(session)
+        created = seed_base_data(session, demo_channels="--demo-channels" in sys.argv[1:])
         created["fixed_costs"] = seed_defaults(session, get_settings())
     print(json.dumps({"created": created}))
     return 0

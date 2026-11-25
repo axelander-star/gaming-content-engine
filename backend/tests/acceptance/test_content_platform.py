@@ -141,7 +141,7 @@ def test_two_areas_two_channels_each_from_idea_to_mock_post(
     client: TestClient, db: Session, settings: Settings, make_user: Callable[..., User]
 ) -> None:
     # --- setup: two topic areas with their own channels ---------------------------------
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     make_user("op@example.com", UserRole.OPERATOR)
     op = login(client, "op@example.com")
     food = ContentProject(slug="ernaehrung", name="Ernährung", languages=["de"], priority=200)

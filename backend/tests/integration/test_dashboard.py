@@ -32,7 +32,7 @@ def test_dashboard_requires_login(api: TestClient) -> None:
 
 
 def test_empty_dashboard(api: TestClient, make_user: MakeUser, db: Session) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     _viewer(api, make_user)
     r = api.get("/api/overview/dashboard")
     assert r.status_code == 200, r.text
@@ -131,7 +131,7 @@ def test_dashboard_counts_states_posts_and_failures(
 def test_failed_logins_are_not_shown_as_activity(
     api: TestClient, make_user: MakeUser, db: Session
 ) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     make_user(role=UserRole.VIEWER, email="viewer@example.com")
     api.post("/api/auth/login", json={"email": "viewer@example.com", "password": "wrong"})
     login(api, "viewer@example.com")

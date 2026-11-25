@@ -59,7 +59,7 @@ BOMB = b"""<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol">
 
 @pytest.fixture
 def projects(db: Session) -> dict[str, ContentProject]:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     gaming = db.scalar(select(ContentProject).where(ContentProject.slug == "gaming"))
     assert gaming is not None
     gaming.subtopics = ["GTA", "Gaming-News"]

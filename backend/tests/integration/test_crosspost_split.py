@@ -155,7 +155,7 @@ def test_fit_texts_cuts_at_words() -> None:
 def food(db: Session) -> ContentProject:
     from services.seed import seed_base_data
 
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     p = ContentProject(slug="essen", name="Essen", languages=["de", "en"], priority=210)
     db.add(p)
     db.flush()

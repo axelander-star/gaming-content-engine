@@ -312,6 +312,8 @@ def collect(
     )
     limit = settings.research_items_per_source
     result = ProjectResult(project.name, len(sources), 0, [])
+    if mock and not settings.sample_data_enabled:
+        return result  # production without live feeds: no invented articles
     if mock and not sources:
         entries = parse_feed(mock_feed(project, "Beispiel-Feed", now))
         added = store_entries(session, project, None, entries, is_mock=True, limit=limit)

@@ -643,6 +643,17 @@ def _project_for_topic(session: Session, topic: str) -> ContentProject | None:
     return session.scalar(select(ContentProject).where(ContentProject.slug == DEFAULT_PROJECT_SLUG))
 
 
+def _first_active_name(session: Session) -> str:
+    """Name of the most important active topic area ("" if there is none)."""
+    name = session.scalar(
+        select(ContentProject.name)
+        .where(ContentProject.status == ContentProjectStatus.ACTIVE)
+        .order_by(ContentProject.priority, ContentProject.id)
+        .limit(1)
+    )
+    return name or ""
+
+
 def _days_in(sentence: str, today: date) -> list[date]:
     folded = _fold(sentence)
     days: list[date] = []
@@ -698,7 +709,7 @@ def parse(session: Session, settings: Settings, text: str) -> _Parsed:
             calls.append(("list_ideas", {"project": target}))
             continue
         if re.search(r"recherch|trends? (such|find)", folded):
-            target = projects[0].name if projects else "Gaming"
+            target = projects[0].name if projects else _first_active_name(session)
             calls.append(("start_research", {"project": target}))
             continue
         if re.search(r"pausier|anhalten", folded):

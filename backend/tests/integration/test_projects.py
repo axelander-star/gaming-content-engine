@@ -61,7 +61,7 @@ def channel_for(db: Session, project: ContentProject, language: Language = Langu
 
 
 def test_seed_puts_existing_channels_into_gaming(db: Session) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     gaming = db.get(ContentProject, default_project_id(db))
     assert gaming is not None
     assert (gaming.slug, gaming.name, gaming.status) == (
@@ -170,7 +170,7 @@ def test_publishing_job_on_other_projects_channel_is_refused(db: Session) -> Non
 
 
 def test_new_variants_start_only_on_channels_of_the_material_project(db: Session) -> None:
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     food = nutrition(db)
     assert primary_channel(db, Language.DE, food.id) is None  # no nutrition channel yet
     food_channel = channel_for(db, food)
@@ -212,7 +212,7 @@ def test_admin_creates_project_and_channel(
 ) -> None:
     make_user()
     headers = login(api, "admin@example.com")
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     r = api.post(
         "/api/projects",
         headers=headers,
@@ -279,11 +279,13 @@ def test_channel_moves_only_while_empty(api: TestClient, make_user: MakeUser, db
     assert moved.json()["content_project_id"] == food.id
 
 
-def test_default_project_cannot_be_archived_but_paused(
+def test_default_project_with_channels_cannot_be_archived_but_paused(
     api: TestClient, make_user: MakeUser, db: Session
 ) -> None:
     make_user()
     headers = login(api, "admin@example.com")
+    seed_base_data(db, demo_channels=True)
+    db.commit()
     gaming = default_project_id(db)
     r = api.patch(f"/api/projects/{gaming}", headers=headers, json={"status": "archived"})
     assert r.status_code == 422
@@ -303,7 +305,7 @@ def test_archived_project_takes_no_new_channels(
 ) -> None:
     make_user()
     headers = login(api, "admin@example.com")
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     food = nutrition(db)
     food.status = ContentProjectStatus.ARCHIVED
     db.flush()
@@ -367,7 +369,7 @@ def test_material_is_registered_for_a_project(
 def test_paused_project_stops_publishing_planning(db: Session) -> None:
     from agents.publishing_strategy import bounds_for, publish_block
 
-    seed_base_data(db)
+    seed_base_data(db, demo_channels=True)
     food = nutrition(db)
     channel = channel_for(db, food)
     channel.is_paused = False
@@ -379,3 +381,19 @@ def test_paused_project_stops_publishing_planning(db: Session) -> None:
     block = publish_block(db, get_settings(), channel)
     assert block is not None and "Ernährung" in block
     assert bounds_for(db, channel).paused is True
+
+
+def test_empty_default_project_can_be_archived_and_reactivated(
+    api: TestClient, make_user: MakeUser, db: Session
+) -> None:
+    """The operator picks his own topics; an unused Gaming area may go away."""
+    make_user()
+    headers = login(api, "admin@example.com")
+    seed_base_data(db)  # production seed: no channels
+    db.commit()
+    gaming = default_project_id(db)
+    r = api.patch(f"/api/projects/{gaming}", headers=headers, json={"status": "archived"})
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "archived"
+    r = api.patch(f"/api/projects/{gaming}", headers=headers, json={"status": "active"})
+    assert r.json()["status"] == "active"
