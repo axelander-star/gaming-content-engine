@@ -44,6 +44,11 @@ class CoverageOut(BaseModel):
     missing: int
 
 
+class NameOption(BaseModel):
+    name: str
+    reason: str
+
+
 class TaskOut(BaseModel):
     id: int
     content_project_id: int
@@ -66,6 +71,10 @@ class TaskOut(BaseModel):
     signup_url: str
     steps: list[str]
     text_source: str
+    name_options: list[NameOption]
+    research_facts: list[str]
+    research_live: bool
+    researched_at: str | None
     channel_id: int | None
     created_at: datetime
     completed_at: datetime | None
@@ -123,6 +132,14 @@ def _out(task: ChannelSetupTask) -> TaskOut:
         signup_url=rules.signup_url,
         steps=list(rules.steps),
         text_source=task.text_source,
+        name_options=[
+            NameOption(name=str(o.get("name", "")), reason=str(o.get("reason", "")))
+            for o in task.name_options or []
+            if isinstance(o, dict) and o.get("name")
+        ],
+        research_facts=[str(f) for f in (task.research or {}).get("facts", [])],
+        research_live=bool((task.research or {}).get("live")),
+        researched_at=(task.research or {}).get("collected_at"),
         channel_id=task.channel_id,
         created_at=task.created_at,
         completed_at=task.completed_at,
@@ -236,6 +253,17 @@ def edit_task(
         channel_setup.update(
             db, settings, task, display_name=body.display_name, handle=body.handle, bio=body.bio
         )
+    except channel_setup.SetupError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    return _out(task)
+
+
+@router.post("/tasks/{task_id}/research", response_model=TaskOut)
+def research_again(task_id: int, admin: Admin, db: DbSession, settings: AppSettings) -> TaskOut:
+    """Fresh market data and new name ideas for an open task."""
+    task = _task(db, task_id)
+    try:
+        channel_setup.research_again(db, settings, task, user_id=admin.id)
     except channel_setup.SetupError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     return _out(task)

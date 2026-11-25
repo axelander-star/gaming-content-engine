@@ -1470,6 +1470,10 @@ export interface ChannelSetupTask {
   signup_url: string;
   steps: string[];
   text_source: string;
+  name_options: { name: string; reason: string }[];
+  research_facts: string[];
+  research_live: boolean;
+  researched_at: string | null;
   channel_id: number | null;
   created_at: string;
   completed_at: string | null;
