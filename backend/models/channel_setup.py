@@ -63,6 +63,11 @@ class ChannelSetupTask(IdMixin, TimestampMixin, Base):
     #: ``local://`` URIs of the generated images.
     avatar_uri: Mapped[str | None] = mapped_column(String(500))
     banner_uri: Mapped[str | None] = mapped_column(String(500))
+    #: Further name ideas with a short reason: ``[{"name": ..., "reason": ...}]``.
+    name_options: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    #: Data the names are based on (``services/name_research.py``): facts for the
+    #: dashboard, whether live YouTube data was used, when it was collected.
+    research: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
     #: Who wrote name and bio: "mock", "claude" or "template" (fallback without AI).
     text_source: Mapped[str] = mapped_column(String(32), default="template")
     #: Channel added to the engine once the operator created the account.

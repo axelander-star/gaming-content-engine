@@ -806,6 +806,12 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kanal-assistent.png`, fullPage: true });
     const insta = page.getByRole("article", { name: "Aufgabe Instagram DE: Ernährung E2E" });
     await insta.getByText(/professionelles Konto/).waitFor({ state: "attached" });
+    // names are based on market data; the basis is shown and can be refreshed
+    await insta.getByText("Datengrundlage").waitFor();
+    await Promise.all([
+      page.waitForResponse((r) => r.url().endsWith("/research") && r.status() === 200),
+      insta.getByRole("button", { name: "Neu recherchieren" }).click(),
+    ]);
     await insta.getByRole("button", { name: "Nicht gebraucht" }).click();
     await insta.waitFor({ state: "detached" });
     await tiktok.getByRole("button", { name: "Kanal ist angelegt" }).click();
