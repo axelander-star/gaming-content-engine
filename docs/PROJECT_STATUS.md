@@ -29,7 +29,7 @@
 - Fixkosten sind jetzt eintragbare Posten im Dashboard (Kosten → Fixkosten): Betrag, Währung (€/$), monatlich/jährlich, „zählt zum Engine-Budget“ ja/nein, pausieren, löschen. Neue Tabelle `fixed_costs`, API `GET/POST /api/costs/fixed`, `PATCH/DELETE /api/costs/fixed/{id}` (Änderungen nur Admin, im Audit-Log).
 - Startliste wird einmalig von `python -m app.seed` angelegt: Contabo Cloud VPS 8 (13,33 €/Monat), Domain kanalfabrik.de bei INWX (Betrag fehlt noch), Claude Pro 20 $/Monat (nur Summe, nicht im Engine-Budget, weil das Abo keinen API-Zugang enthält), Cloudflare Free und R2 (0 €). Gelöschte Posten kommen nicht zurück. `SERVER_MONTHLY_EUR`/`OTHER_FIXED_MONTHLY_EUR` gelten nur noch, solange nie Posten angelegt wurden.
 - Kostenseite und Übersicht laden sich selbst neu (Kosten alle 15 s, Übersicht alle 30 s): Monatskosten gesamt, „bisher angefallen“ (Fixkosten sekundengenau anteilig + echter Verbrauch), Verbrauch heute, KI-Tokens heute/Monat (Eingabe, Ausgabe, Cache, $), API-Kontingente heute.
-- Offen: INWX-Jahrespreis der Domain eintragen. Echte KI-Kosten entstehen erst mit eigenem Anthropic-API-Schlüssel in der Server-`.env` und ausdrücklicher Freigabe kostenpflichtiger Aufrufe.
+- 25.11.: Echte Beträge eingetragen (Domain 5,97 €/Jahr, Claude Pro 21,42 €/Monat inkl. MwSt.; Migration `b7f2c4d91e30` ändert nur noch unveränderte Startwerte). Contabo bleibt bei 13,33 €, bis der Bruttobetrag bestätigt ist. Echte KI-Kosten entstehen erst mit eigenem Anthropic-API-Schlüssel in der Server-`.env` und ausdrücklicher Freigabe kostenpflichtiger Aufrufe.
 
 ## Videoserien in der Eigenproduktion (22.–25.11.2026)
 

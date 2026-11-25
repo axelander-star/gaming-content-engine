@@ -42,21 +42,23 @@ DEFAULTS: tuple[dict[str, Any], ...] = (
         "name": "Domain kanalfabrik.de",
         "provider": "INWX",
         "category": "domain",
-        "amount": Decimal("0"),
+        "amount": Decimal("5.97"),
         "currency": "EUR",
         "interval": "year",
         "in_budget": True,
-        "note": "Jahrespreis laut INWX-Rechnung eintragen",
+        "note": "Jahrespreis laut INWX",
     },
     {
         "name": "Claude Pro (Chat-Abo)",
         "provider": "Anthropic",
         "category": "subscription",
-        "amount": Decimal("20.00"),
-        "currency": "USD",
+        "amount": Decimal("21.42"),
+        "currency": "EUR",
         "interval": "month",
         "in_budget": False,
-        "note": "Persönliches Abo; enthält keinen API-Zugang für die Engine",
+        "note": (
+            "Persönliches Abo, Betrag laut Abbuchung inkl. MwSt.; kein API-Zugang für die Engine"
+        ),
     },
     {
         "name": "Cloudflare (DNS, Tunnel, Access)",
