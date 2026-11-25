@@ -351,6 +351,8 @@ def decide_amount(
 
 #: Priority bonus for videos matching a focus topic of the editorial plan (E6).
 FOCUS_BONUS = 0.1
+#: Priority bonus for the next due part of a video series, so a series keeps its rhythm.
+SERIES_BONUS = 0.15
 
 
 # --- selection and timing ---------------------------------------------------------
@@ -369,6 +371,8 @@ class Candidate:
     experiment: bool = False
     #: Focus topic of the editorial plan this video matches (extension E6).
     focus: str | None = None
+    #: "Serie X, Teil n" when this is the next due part of a video series.
+    series: str | None = None
 
 
 def group_scores(posts: Sequence[PostPerf], assessment: Assessment) -> dict[str, dict[str, float]]:
@@ -404,6 +408,9 @@ def priority(c: Candidate, groups: dict[str, dict[str, float]]) -> tuple[float, 
     if c.focus:
         value += FOCUS_BONUS
         notes.append(f"Schwerpunkt {c.focus}")
+    if c.series:
+        value += SERIES_BONUS
+        notes.append(c.series)
     return round(value, 3), notes
 
 

@@ -516,6 +516,8 @@ class ProductionOut(BaseModel):
     error_message: str | None
     created_at: datetime
     rendered_at: datetime | None
+    series_id: int | None = None
+    series_part: int | None = None
 
 
 def _prod_out(db: Session, prod: OwnProduction) -> ProductionOut:
@@ -538,6 +540,8 @@ def _prod_out(db: Session, prod: OwnProduction) -> ProductionOut:
         error_message=prod.error_message,
         created_at=prod.created_at,
         rendered_at=prod.rendered_at,
+        series_id=prod.series_id,
+        series_part=prod.series_part,
     )
 
 
@@ -547,9 +551,15 @@ def _production_error(exc: own_production.ProductionError) -> HTTPException:
 
 @router.get("/productions", response_model=list[ProductionOut])
 def list_productions(
-    _: Viewer, db: DbSession, project_id: int | None = Query(default=None)
+    _: Viewer,
+    db: DbSession,
+    project_id: int | None = Query(default=None),
+    include_series: bool = Query(default=False),
 ) -> list[ProductionOut]:
+    """Single productions; parts of a series are listed with their series."""
     query = select(OwnProduction).order_by(OwnProduction.id.desc()).limit(100)
+    if not include_series:
+        query = query.where(OwnProduction.series_id.is_(None))
     if project_id is not None:
         query = query.where(OwnProduction.content_project_id == project_id)
     return [_prod_out(db, p) for p in db.scalars(query)]

@@ -287,6 +287,55 @@ function TaskCard({
         )}
       </div>
 
+      {(task.name_options.length > 0 || task.research_facts.length > 0) && (
+        <section className="cs-research" aria-label={`Namensideen ${title}`}>
+          {task.name_options.length > 0 && (
+            <>
+              <h4>Weitere Namensideen</h4>
+              <ul className="cs-options">
+                {task.name_options.map((o) => (
+                  <li key={o.name}>
+                    <span>
+                      <strong>{o.name}</strong>
+                      {o.reason && <span className="muted small"> – {o.reason}</span>}
+                    </span>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn btn-small"
+                        disabled={busy}
+                        aria-label={`${o.name} übernehmen`}
+                        onClick={() => {
+                          setName(o.name);
+                          void run(() => api.updateChannelSetup(task.id, { display_name: o.name }));
+                        }}
+                      >
+                        Übernehmen
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {task.research_facts.length > 0 && (
+            <details>
+              <summary>
+                Datengrundlage{" "}
+                <Badge tone={task.research_live ? "ok" : "info"}>
+                  {task.research_live ? "mit YouTube-Live-Daten" : "ohne YouTube-Live-Daten"}
+                </Badge>
+              </summary>
+              <ul className="small">
+                {task.research_facts.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
+
       <details className="cs-steps">
         <summary>So geht es ({task.steps.length} Schritte)</summary>
         <ol>
@@ -305,6 +354,16 @@ function TaskCard({
           {!editing && (
             <button className="btn" disabled={busy} onClick={() => setEditing(true)}>
               Werte ändern
+            </button>
+          )}
+          {!editing && (
+            <button
+              className="btn"
+              disabled={busy}
+              title="Trends und Konkurrenz neu auswerten und neue Namen vorschlagen"
+              onClick={() => void run(() => api.researchChannelSetup(task.id))}
+            >
+              Neu recherchieren
             </button>
           )}
           <button

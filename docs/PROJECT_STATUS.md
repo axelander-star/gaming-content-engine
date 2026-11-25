@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 22.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander (Server, Impressum, Linkseiten, Push, Mail, Google-OAuth erledigt) · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; danach KI-Namensvorschläge mit Trenddaten
+**Stand:** 25.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander (Server, Impressum, Linkseiten, Push, Mail, Google-OAuth erledigt) · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; danach KI-Namensvorschläge mit Trenddaten
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -24,6 +24,14 @@
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
 
+## Videoserien in der Eigenproduktion (22.–25.11.2026)
+
+- Neuer Reiter **Serien** in der Eigenproduktion: großes Thema → KI-Gliederung in 2–30 Teile (je 1–2 Minuten) → Skripte je Teil → alle Videos vorab erzeugen → „Alle fertigen Teile freigeben“ (Beiträge für alle echten Kanäle in der Sprache der Serie, menschliche Freigabe in einem Klick).
+- Veröffentlichungsplan je Kanal als Vorschau; der Publishing Strategy Agent hält die Reihenfolge ein und verteilt die Teile über die Tage (Regeln in docs/AGENTS.md). Serie pausierbar.
+- Ideen für Serien aus Ideenlabor, Redaktionsplan-Schwerpunkten und Serienformaten (ohne KI-Kosten); „Neue Ideen von der KI“ optional (Mock, solange Claude nicht freigegeben).
+- Behoben: Bei jedem erneuten Planungslauf wurden schon geplante Mediathek-Beiträge mit „Quellmaterial fehlt“ zurückgenommen und neu geplant. Ein Test hing vom heutigen Datum ab.
+- Offen: Gliederung und Skripte sind im Testmodus Platzhaltertexte; echte Texte brauchen die Claude-Freigabe. Englische Fassung gibt es je Teil (Einzelvideos), noch nicht für die ganze Serie.
+
 ## Ausbau ab 16.11.2026 abends (Kanal-Assistent und mehr)
 
 Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolge: [AUSBAU_PLAN.md](AUSBAU_PLAN.md). Testmodus bleibt, es wird nichts echt gepostet.
@@ -40,8 +48,17 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A8 | Kampagnen je Themenbereich vorschlagen, Affiliate-Links mit „Anzeige“, Linkseite je Kanal mit Newsletter (Double-Opt-in) | ✅ abgeschlossen (PR #42) |
 | A9 | Sponsoren-Postfach: Anfragen einordnen, Warnungen, Preisvorschlag, Antwortentwurf (nichts wird gesendet) | ✅ abgeschlossen (PR #43) |
 | A10 | Wochenbericht per E-Mail (montags 8 Uhr, Vorschau und „Jetzt senden“ in Analytics) | ✅ abgeschlossen (PR #44) |
-| N1 | Platzhalter-Kanäle aus dem Seed: im Kanal-Assistenten vorbereiten und zum echten Kanal machen, in der Übersicht nicht mitzählen | ✅ abgeschlossen |
+| N1 | Platzhalter-Kanäle aus dem Seed: im Kanal-Assistenten vorbereiten und zum echten Kanal machen, in der Übersicht nicht mitzählen | ✅ abgeschlossen (PR #46) |
+| N2 | Kanalnamen aus Marktdaten: häufige Begriffe, Konkurrenz, bestehende YouTube-Kanäle; weitere Namensideen mit Begründung, „Neu recherchieren“ | ✅ abgeschlossen |
 | K1 | Kampagnen-Hilfe (22.11.): Kampagnenseite als Text einfügen und Formular füllen lassen, fertige Videovorschläge aus Brief, Trends und Fakten, Überwachung von Fristen, Enddatum und Material | ✅ abgeschlossen |
+
+**N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
+- Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.
+- Vor jedem Vorschlag sammelt die Engine je Themenbereich und Sprache: häufige Begriffe der letzten 30 Tage (Recherche-Meldungen, Ideen, Videotitel aus dem Konkurrenz-Radar), die stärksten Konkurrenten mit Median-Aufrufen und, mit Live-Zugang, bestehende YouTube-Kanäle zum Thema mit Abonnentenzahlen (offizielle API, eigenes Tageskontingent).
+- Die Daten gehen in den KI-Auftrag (Begriffe nutzen, sich von bestehenden Kanälen abheben, nichts kopieren). Ohne KI entstehen Namensideen aus den häufigsten Begriffen. Namen, die es als Kanal schon gibt, werden aussortiert.
+- Im Kanal-Assistenten stehen bis zu 5 weitere Namensideen mit Begründung (Knopf „Übernehmen“) und die „Datengrundlage“. „Neu recherchieren“ wertet die aktuellen Daten neu aus.
+- Die laufende Trendbeobachtung (Agent, der Themen und Kanäle vorschlägt) liegt im Thread „Ideenlabor und Trend-Alarm ausbauen“. Die Namensvorschläge nutzen dessen Daten automatisch mit.
+- Für Live-Daten auf dem Server: `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` in `.env`.
 
 **K1 Kampagnen-Hilfe** (`services/campaign_assist.py`, Endpunkte `POST /campaigns/parse` und `POST /campaigns/{id}/proposals`, Spalten `campaigns.proposals*`, Migration `89fc8399876b`):
 - Anlass: Alexander wollte Kampagnen auf Content Rewards „automatisch laufen lassen“. Klargestellt: Kampagnen legen Marken an, Alexander tritt bei. Beitreten, Konten verbinden und den Link einreichen bleiben Handarbeit (keine Clipper-Schnittstelle).

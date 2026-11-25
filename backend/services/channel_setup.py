@@ -46,7 +46,9 @@ from core.enums import (
 from models.channel_setup import ChannelSetupTask
 from models.channels import Channel, Platform
 from models.projects import ContentProject
-from services import ai, audit, branding, mail_alias
+from services import ai, audit, branding, mail_alias, name_research
+from services.name_research import MarketContext, norm_name
+from services.queue import get_redis
 
 log = logging.getLogger(__name__)
 
@@ -255,9 +257,31 @@ class Texts:
     bio: str
     tagline: str
     source: str
+    #: further name ideas: ``[{"name": ..., "reason": ...}]``
+    options: list[dict[str, str]] = field(default_factory=list)
 
 
-def template_texts(project: ContentProject, platform: PlatformCode, language: Language) -> Texts:
+def _template_options(
+    project: ContentProject, language: Language, ctx: MarketContext | None
+) -> list[dict[str, str]]:
+    """Name ideas from the most frequent topic words (no AI)."""
+    if ctx is None:
+        return []
+    topic = project.name.strip()
+    suffix = "Kompakt" if language == Language.DE else "Daily"
+    out: list[dict[str, str]] = []
+    for word, n in ctx.keywords[:3]:
+        for name in (f"{word} {suffix}", f"{topic} & {word}"):
+            out.append({"name": name, "reason": f"„{word}“ kam zuletzt {n}× in Meldungen vor"})
+    return out
+
+
+def template_texts(
+    project: ContentProject,
+    platform: PlatformCode,
+    language: Language,
+    ctx: MarketContext | None = None,
+) -> Texts:
     """Texts without AI: simple, honest and editable in the dashboard."""
     topic = project.name.strip()
     base = _ascii(topic).lower().replace(" ", "")
@@ -274,18 +298,24 @@ def template_texts(project: ContentProject, platform: PlatformCode, language: La
         tagline = f"{topic} in under 60 seconds"
         bio = f"{topic}, short and honest. New shorts every week with tips, trends and quick facts."
         handles = [f"{base}daily", f"{base}.shorts", f"{base}_en"]
-    return Texts(name, handles, bio, tagline, "template")
+    return Texts(name, handles, bio, tagline, "template", _template_options(project, language, ctx))
 
 
 SYSTEM = (
     "You name new short-video channels. Names must be short, memorable and natural, "
-    "no buzzwords, no emojis, no hashtags. Bios sound like a real person wrote them: "
-    "concrete, friendly, no marketing phrases such as 'ultimate' or 'unlock'. "
-    "Answer with JSON only."
+    "no buzzwords, no emojis, no hashtags. Use the market data: pick words people "
+    "actually search for, stand apart from the existing channels and never copy or "
+    "imitate their names. Bios sound like a real person wrote them: concrete, friendly, "
+    "no marketing phrases such as 'ultimate' or 'unlock'. Answer with JSON only."
 )
 
 
-def _prompt(project: ContentProject, platform: PlatformCode, language: Language) -> str:
+def _prompt(
+    project: ContentProject,
+    platform: PlatformCode,
+    language: Language,
+    ctx: MarketContext | None = None,
+) -> str:
     rules = RULES[platform]
     lang = "German" if language == Language.DE else "English"
     subtopics = ", ".join(str(s) for s in project.subtopics or []) or "-"
@@ -295,7 +325,10 @@ def _prompt(project: ContentProject, platform: PlatformCode, language: Language)
         f"Sub-topics: {subtopics}\n"
         f"Audience: {project.audience or '-'}\nTone: {project.tone or '-'}\n"
         f"Platform: {rules.label}. Channel language: {lang} (translate the topic if needed).\n"
-        f"Return JSON with keys: display_name (max {rules.name_max} chars), handles "
+        f"Market data:\n{ctx.prompt_block() if ctx else 'No market data yet.'}\n"
+        f"Return JSON with keys: display_name (max {rules.name_max} chars), alternatives "
+        f"(list of 4 objects with name and reason; reason in German, max 90 chars, naming "
+        f"the data it is based on), handles "
         f"(list of 3 handles, {rules.handle_min}-{rules.handle_max} chars, only a-z 0-9 and "
         f"'{rules.handle_chars}'), bio (max {rules.bio_max} chars, max 2 sentences), "
         f"tagline (max 45 chars, for the banner)."
@@ -320,12 +353,14 @@ def write_texts(
     platform: PlatformCode,
     language: Language,
     user_id: int | None = None,
+    ctx: MarketContext | None = None,
 ) -> Texts:
     """Name, handles and bio from the AI (mock in test mode); template if that fails."""
-    fallback = template_texts(project, platform, language)
+    fallback = _drop_taken(template_texts(project, platform, language, ctx), ctx)
     mock = json.dumps(
         {
             "display_name": fallback.display_name,
+            "alternatives": fallback.options,
             "handles": fallback.handles,
             "bio": fallback.bio,
             "tagline": fallback.tagline,
@@ -339,9 +374,9 @@ def write_texts(
             ai.AIRequest(
                 purpose="channel_setup",
                 tier="text",
-                messages=[ai.AIMessage("user", _prompt(project, platform, language))],
+                messages=[ai.AIMessage("user", _prompt(project, platform, language, ctx))],
                 system=SYSTEM,
-                max_tokens=600,
+                max_tokens=900,
                 mock=lambda _req: mock,
                 content_project_id=project.id,
                 user_id=user_id,
@@ -360,8 +395,34 @@ def write_texts(
     tagline = " ".join(str(data.get("tagline") or "").split())
     if not name or not handles or not bio:
         return fallback
+    options: list[dict[str, str]] = []
+    raw_options = data.get("alternatives")
+    for item in raw_options if isinstance(raw_options, list) else []:
+        if isinstance(item, dict) and str(item.get("name") or "").strip():
+            options.append(
+                {
+                    "name": " ".join(str(item["name"]).split()),
+                    "reason": _clip(str(item.get("reason") or ""), 120),
+                }
+            )
     source = "mock" if result.provider == ai.MOCK else result.provider
-    return Texts(name, handles, bio, tagline or fallback.tagline, source)
+    texts = Texts(name, handles, bio, tagline or fallback.tagline, source, options)
+    return _drop_taken(texts, ctx)
+
+
+def _drop_taken(texts: Texts, ctx: MarketContext | None) -> Texts:
+    """Leave out ideas that copy an existing channel; keep at most 5, no duplicates."""
+    taken = ctx.taken_names() if ctx else set()
+    options: list[dict[str, str]] = []
+    for opt in texts.options:
+        key = norm_name(opt["name"])
+        if key and key not in taken and all(norm_name(o["name"]) != key for o in options):
+            options.append(opt)
+    if norm_name(texts.display_name) in taken and options:
+        texts.display_name = options.pop(0)["name"]  # never copy an existing channel
+    own = norm_name(texts.display_name)
+    texts.options = [o for o in options if norm_name(o["name"]) != own][:5]
+    return texts
 
 
 # --- handle availability (YouTube only, official API) -------------------------------------
@@ -447,8 +508,11 @@ def prepare_one(
     language: Language,
     user_id: int | None = None,
     channel_id: int | None = None,
+    ctx: MarketContext | None = None,
 ) -> ChannelSetupTask:
-    texts = write_texts(session, settings, project, platform, language, user_id)
+    if ctx is None:
+        ctx = market_context(session, settings, project, language)
+    texts = write_texts(session, settings, project, platform, language, user_id, ctx)
     rules = RULES[platform]
     handles = _unique_handles(texts, platform)
     task = ChannelSetupTask(
@@ -462,6 +526,10 @@ def prepare_one(
         handle_check=check_handles(settings, platform, handles),
         bio=_clip(texts.bio, rules.bio_max),
         text_source=texts.source,
+        name_options=[
+            {"name": _clip(o["name"], rules.name_max), "reason": o["reason"]} for o in texts.options
+        ],
+        research=ctx.to_json(),
         # set for an existing, not connected channel (e.g. a seed placeholder): finishing
         # the task turns that channel into the real one instead of adding a second one
         channel_id=channel_id,
@@ -487,6 +555,13 @@ def prepare_one(
     return task
 
 
+def market_context(
+    session: Session, settings: Settings, project: ContentProject, language: Language
+) -> MarketContext:
+    """Topic words, competitors and existing YouTube channels for the names."""
+    return name_research.collect(session, settings, project, language, redis=get_redis())
+
+
 def prepare(
     session: Session,
     settings: Settings,
@@ -501,12 +576,15 @@ def prepare(
         raise SetupError("Der Themenbereich ist archiviert.")
     project_id = project.id
     created: list[ChannelSetupTask] = []
+    contexts: dict[Language, MarketContext] = {}  # one market search per language
     for slot in coverage(session, project).missing:
         if platforms and slot.platform not in platforms:
             continue
         if languages and slot.language not in languages:
             continue
         project = session.get(ContentProject, project_id) or project
+        if slot.language not in contexts:
+            contexts[slot.language] = market_context(session, settings, project, slot.language)
         created.append(
             prepare_one(
                 session,
@@ -517,6 +595,7 @@ def prepare(
                 user_id,
                 # a placeholder becomes the real channel when the task is finished
                 channel_id=slot.channel_id if slot.state == "placeholder" else None,
+                ctx=contexts[slot.language],
             )
         )
     session.commit()
@@ -554,6 +633,46 @@ def prepare_for_channel(
     channel_id = channel.id
     task = prepare_one(
         session, settings, project, plat.code, channel.language, user_id, channel_id=channel_id
+    )
+    session.commit()
+    return task
+
+
+def research_again(
+    session: Session, settings: Settings, task: ChannelSetupTask, user_id: int | None = None
+) -> ChannelSetupTask:
+    """Collect fresh market data and write new name ideas for an open task.
+
+    Name, handles, bio and pictures are replaced; the e-mail address stays."""
+    if task.status != ChannelSetupStatus.OPEN:
+        raise SetupError("Die Aufgabe ist schon abgeschlossen.")
+    project = task.content_project
+    ctx = market_context(session, settings, project, task.language)
+    texts = write_texts(session, settings, project, task.platform, task.language, user_id, ctx)
+    rules = RULES[task.platform]
+    handles = _unique_handles(texts, task.platform)
+    task.display_name = _clip(texts.display_name, rules.name_max)
+    task.handle, task.alt_handles = handles[0], handles[1:]
+    task.handle_check = check_handles(settings, task.platform, handles)
+    free = [h for h in handles if task.handle_check.get(h) == "free"]
+    if task.handle_check.get(task.handle) == "taken" and free:
+        task.handle = free[0]
+        task.alt_handles = [h for h in handles if h != free[0]]
+    task.bio = _clip(texts.bio, rules.bio_max)
+    task.text_source = texts.source
+    task.name_options = [
+        {"name": _clip(o["name"], rules.name_max), "reason": o["reason"]} for o in texts.options
+    ]
+    task.research = ctx.to_json()
+    _images(settings, task, project, texts.tagline)
+    audit.record(
+        session,
+        "channel_setup.research",
+        user_id=user_id,
+        agent=None if user_id else "channel_assistant",
+        entity_type="channel_setup_tasks",
+        entity_id=task.id,
+        after={"display_name": task.display_name, "live": ctx.live},
     )
     session.commit()
     return task

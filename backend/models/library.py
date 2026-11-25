@@ -13,6 +13,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -89,6 +90,43 @@ class LibraryItem(IdMixin, TimestampMixin, Base):
     split_info: Mapped[dict[str, Any]] = mapped_column(default=dict, server_default="{}")
 
 
+class ProductionSeries(IdMixin, TimestampMixin, Base):
+    """A big topic split into many short parts (1–2 minutes each), produced up front.
+
+    Every part is an :class:`OwnProduction`. The parts are published in order; how
+    many per day the series gets is decided by ``services/series.py`` from the data
+    (series performance, strong weekdays, trend) inside the daily amount the
+    Publishing Strategy Agent sets per channel.
+    """
+
+    __tablename__ = "production_series"
+
+    content_project_id: Mapped[int] = mapped_column(
+        ForeignKey("content_projects.id", ondelete="RESTRICT"), index=True
+    )
+    idea_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("ideas.id", ondelete="SET NULL"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(200))
+    topic: Mapped[str] = mapped_column(String(300))
+    pitch: Mapped[str | None] = mapped_column(Text)
+    language: Mapped[Language] = mapped_column(str_enum(Language, "language"))
+    #: Target length of one part in seconds (60–120).
+    part_seconds: Mapped[int] = mapped_column(Integer, default=90, server_default="90")
+    #: [{"title", "summary"}] – one entry per part, in order.
+    outline: Mapped[list[Any]] = mapped_column(default=list, server_default="[]")
+    #: ``mock``, ``claude`` …
+    script_source: Mapped[str] = mapped_column(String(32))
+    ai_call_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("ai_calls.id", ondelete="SET NULL")
+    )
+    #: Operator stop: no further parts are scheduled while paused.
+    paused: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+
 class OwnProduction(IdMixin, TimestampMixin, Base):
     """A video made without third-party footage: script, voice, picture/text, subtitles."""
 
@@ -128,3 +166,8 @@ class OwnProduction(IdMixin, TimestampMixin, Base):
         BigInteger, ForeignKey("users.id", ondelete="SET NULL")
     )
     rendered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    #: Part of a series (1-based ``series_part``); ``None`` for a single video.
+    series_id: Mapped[int | None] = mapped_column(
+        ForeignKey("production_series.id", ondelete="CASCADE"), index=True
+    )
+    series_part: Mapped[int | None] = mapped_column(Integer)

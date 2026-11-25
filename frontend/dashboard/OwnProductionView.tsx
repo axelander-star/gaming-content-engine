@@ -6,6 +6,7 @@ import type { FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Badge, ErrorText, PageHeader, Section } from "@/components/ui";
 import { formatSeconds } from "@/dashboard/LibraryView";
+import { SeriesView } from "@/dashboard/SeriesView";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/labels";
 import { hasRole } from "@/lib/roles";
@@ -19,7 +20,7 @@ import type {
   ProductionStatus,
 } from "@/lib/types";
 
-const STATUS: Record<ProductionStatus, [string, "neutral" | "ok" | "warn" | "danger" | "info"]> =
+export const STATUS: Record<ProductionStatus, [string, "neutral" | "ok" | "warn" | "danger" | "info"]> =
   {
     draft: ["Entwurf", "neutral"],
     queued: ["Wartet", "info"],
@@ -161,7 +162,7 @@ function NewProduction({
   );
 }
 
-function Editor({
+export function Editor({
   production,
   images,
   canEdit,
@@ -410,8 +411,42 @@ function Editor({
   );
 }
 
-/** Own production: script, voice, own pictures and subtitles into a 9:16 video (extension E7). */
+/** Own production: series of many short parts, or single videos (extension E7). */
 export function OwnProductionView() {
+  const [tab, setTab] = useState<"series" | "single">("series");
+  return (
+    <>
+      <PageHeader
+        title="Eigenproduktion"
+        description="Videos ohne fremdes Material: Skript, Stimme, eigene Bilder oder Farbflächen, Untertitel. Fertige Videos landen in der Mediathek; veröffentlicht wird nur, was du freigibst."
+      />
+      <div className="tabs prod-tabs" role="tablist" aria-label="Art der Produktion">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "series"}
+          className={`tab${tab === "series" ? " is-active" : ""}`}
+          onClick={() => setTab("series")}
+        >
+          Serien
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "single"}
+          className={`tab${tab === "single" ? " is-active" : ""}`}
+          onClick={() => setTab("single")}
+        >
+          Einzelvideos
+        </button>
+      </div>
+      {tab === "series" ? <SeriesView /> : <SingleProductions />}
+    </>
+  );
+}
+
+/** Single videos: script, voice, own pictures and subtitles into a 9:16 video. */
+function SingleProductions() {
   const { user } = useAuth();
   const canEdit = hasRole(user?.role, "operator");
   const [projects, setProjects] = useState<ContentProject[]>([]);
@@ -463,10 +498,6 @@ export function OwnProductionView() {
 
   return (
     <>
-      <PageHeader
-        title="Eigenproduktion"
-        description="Videos ohne fremdes Material: Skript, Stimme, eigene Bilder oder Farbflächen, Untertitel. Fertige Videos landen in der Mediathek; veröffentlicht wird nichts."
-      />
       <ErrorText error={error} />
       <div className="chat-layout">
         <div className="side-stack">
