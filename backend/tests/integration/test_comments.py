@@ -135,6 +135,15 @@ def test_run_channel_with_test_comments(db: Session) -> None:
     assert comments.run_channel(db, settings, ch, NOW).fetched == 0
 
 
+def test_no_invented_comments_without_sample_data(db: Session) -> None:
+    """On the server (sample data off) mock posts get no made-up comments."""
+    settings = get_settings().model_copy(update={"sample_data": False})
+    ch = channel(db, PlatformCode.YOUTUBE)
+    post(db, ch)
+    assert comments.run_channel(db, settings, ch, NOW).fetched == 0
+    assert db.scalar(select(Comment).where(Comment.channel_id == ch.id)) is None
+
+
 def test_tiktok_and_auto_off_go_to_review(db: Session, make_user: MakeUser) -> None:
     settings = get_settings()
     user = make_user()

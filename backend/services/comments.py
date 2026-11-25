@@ -463,7 +463,7 @@ def fetch(
     posts = recent_posts(session, channel, settings, now)
     mock_posts = [p for p in posts if p.is_mock]
     live_posts = [p for p in posts if not p.is_mock]
-    found = _mock_fetch(session, channel, mock_posts) if settings.comment_mock_samples else []
+    found = _mock_fetch(session, channel, mock_posts) if _samples(settings) else []
     code = PlatformCode(channel.platform.code)
     if live_posts and code in (PlatformCode.YOUTUBE, PlatformCode.INSTAGRAM):
         cred = session.scalar(
@@ -709,10 +709,15 @@ def run_channel(
     return result
 
 
+def _samples(settings: Settings) -> bool:
+    """Invented test comments only where sample data is allowed (never in production)."""
+    return settings.comment_mock_samples and settings.sample_data_enabled
+
+
 def channels_to_watch(session: Session, settings: Settings) -> list[Channel]:
     """Connected channels, plus every channel while test comments are on."""
     q = select(Channel).where(Channel.is_paused.is_(False))
-    if not settings.comment_mock_samples:
+    if not _samples(settings):
         q = q.where(
             Channel.auth_status.in_(
                 [ChannelAuthStatus.AUTHORIZED, ChannelAuthStatus.CONNECTED_RESTRICTED]
