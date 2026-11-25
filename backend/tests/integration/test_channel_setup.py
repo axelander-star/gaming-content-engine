@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from pydantic import SecretStr
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
@@ -155,6 +155,91 @@ def test_prepare_creates_one_task_per_missing_channel(db: Session, settings: Set
     assert channel_setup.prepare(db, settings, project) == []
     states = {s.state for s in channel_setup.coverage(db, project).slots}
     assert states == {"connected", "prepared"}
+
+
+def test_placeholder_channel_is_prepared_and_becomes_the_real_one(
+    db: Session, settings: Settings, make_user: MakeUser
+) -> None:
+    project = watches(db, ("de",))
+    admin = make_user()
+    placeholder = add_channel(
+        db, project, PlatformCode.YOUTUBE, Language.DE, ChannelAuthStatus.NOT_CONNECTED
+    )
+    placeholder.is_paused, placeholder.max_posts_per_day = True, 0
+    # an "added" slot is not missing, so "prepare all" leaves it alone ...
+    assert all(
+        t.platform != PlatformCode.YOUTUBE for t in channel_setup.prepare(db, settings, project)
+    )
+    # ... but it can be prepared on its own
+    task = channel_setup.prepare_for_channel(db, settings, placeholder)
+    assert task.channel_id == placeholder.id and task.avatar_uri and task.banner_uri
+    assert channel_setup.prepare_for_channel(db, settings, placeholder).id == task.id  # idempotent
+    slot = next(
+        s for s in channel_setup.coverage(db, project).slots if s.platform == PlatformCode.YOUTUBE
+    )
+    assert (slot.state, slot.task_id, slot.channel_id) == ("prepared", task.id, placeholder.id)
+
+    channel = channel_setup.complete(db, task, user_id=admin.id)
+    assert channel.id == placeholder.id  # no second channel
+    assert channel.name == task.display_name and channel.description == task.bio
+    assert channel.strategy["setup_task_id"] == task.id
+    assert channel.is_paused and channel.max_posts_per_day == 0
+    assert channel.auth_status == ChannelAuthStatus.NOT_CONNECTED
+    yt = db.scalar(select(Platform.id).where(Platform.code == PlatformCode.YOUTUBE))
+    count = db.scalar(
+        select(func.count(Channel.id)).where(
+            Channel.content_project_id == project.id, Channel.platform_id == yt
+        )
+    )
+    assert count == 1
+
+
+def test_seed_placeholders_count_as_missing_and_are_reused(
+    db: Session, settings: Settings, make_user: MakeUser
+) -> None:
+    seed_base_data(db)
+    admin = make_user()
+    gaming = db.scalar(select(ContentProject).where(ContentProject.slug == "gaming"))
+    assert gaming is not None
+    cov = channel_setup.coverage(db, gaming)
+    assert {s.state for s in cov.slots} == {"placeholder"}
+    assert len(cov.missing) == 6  # YouTube, TikTok, Instagram in DE and EN
+
+    tasks = channel_setup.prepare(db, settings, gaming, platforms=[PlatformCode.YOUTUBE])
+    assert len(tasks) == 2 and all(t.channel_id for t in tasks)
+    seed_ids = {t.channel_id for t in tasks}
+    channel = channel_setup.complete(db, tasks[0], user_id=admin.id)
+    assert channel.id in seed_ids
+    assert "placeholder" not in channel.strategy
+    assert not channel_setup.is_placeholder(channel)
+    states = {(s.platform, s.language): s.state for s in channel_setup.coverage(db, gaming).slots}
+    assert states[(PlatformCode.YOUTUBE, tasks[0].language)] == "added"
+    assert states[(PlatformCode.YOUTUBE, tasks[1].language)] == "prepared"
+    # the seed does not bring the placeholder back
+    seed_base_data(db)
+    yt = db.scalar(select(Platform.id).where(Platform.code == PlatformCode.YOUTUBE))
+    assert db.scalar(select(func.count(Channel.id)).where(Channel.platform_id == yt)) == 2
+
+
+def test_connected_channel_cannot_be_prepared_or_renamed(
+    db: Session, settings: Settings, make_user: MakeUser
+) -> None:
+    project = watches(db, ("de",))
+    admin = make_user()
+    live = add_channel(db, project, PlatformCode.TIKTOK, Language.DE)
+    with pytest.raises(channel_setup.SetupError):
+        channel_setup.prepare_for_channel(db, settings, live)
+
+    placeholder = add_channel(
+        db, project, PlatformCode.INSTAGRAM, Language.DE, ChannelAuthStatus.NOT_CONNECTED
+    )
+    task = channel_setup.prepare_for_channel(db, settings, placeholder)
+    old_name = placeholder.name
+    placeholder.auth_status = ChannelAuthStatus.AUTHORIZED  # connected in the meantime
+    db.flush()
+    channel = channel_setup.complete(db, task, user_id=admin.id)
+    assert channel.id != placeholder.id
+    assert placeholder.name == old_name
 
 
 def test_prepare_without_mail_domain_still_works(db: Session, settings: Settings) -> None:
@@ -352,11 +437,35 @@ def test_api_flow_prepare_edit_complete(
     )
 
 
+def test_api_prepare_for_placeholder_channel(
+    client: TestClient, db: Session, make_user: MakeUser
+) -> None:
+    project = watches(db, ("de",))
+    placeholder = add_channel(
+        db, project, PlatformCode.YOUTUBE, Language.DE, ChannelAuthStatus.NOT_CONNECTED
+    )
+    make_user()
+    headers = login(client, "admin@example.com")
+    r = client.post(f"/api/channel-setup/channels/{placeholder.id}/prepare", headers=headers)
+    assert r.status_code == 201, r.text
+    assert r.json()["channel_id"] == placeholder.id and r.json()["platform"] == "youtube"
+    r = client.post(f"/api/channel-setup/tasks/{r.json()['id']}/complete", json={}, headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["channel_id"] == placeholder.id
+    missing = client.post("/api/channel-setup/channels/999999/prepare", headers=headers)
+    assert missing.status_code == 404
+
+
 def test_api_needs_admin_for_changes(client: TestClient, db: Session, make_user: MakeUser) -> None:
     project = watches(db, ("de",))
     make_user(email="viewer@example.com", role=UserRole.VIEWER)
     headers = login(client, "viewer@example.com")
     assert client.get("/api/channel-setup/coverage").status_code == 200
     r = client.post("/api/channel-setup/prepare", json={"project_id": project.id}, headers=headers)
+    assert r.status_code == 403
+    placeholder = add_channel(
+        db, project, PlatformCode.YOUTUBE, Language.DE, ChannelAuthStatus.NOT_CONNECTED
+    )
+    r = client.post(f"/api/channel-setup/channels/{placeholder.id}/prepare", headers=headers)
     assert r.status_code == 403
     assert client.get("/api/channel-setup/mail").json()["mode"] == "mock"

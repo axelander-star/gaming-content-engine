@@ -53,7 +53,7 @@ def test_empty_dashboard(api: TestClient, make_user: MakeUser, db: Session) -> N
     assert "keine Upload" in tiles["twitch"]["note"]
     assert all(t["can_publish"] for c, t in tiles.items() if c != "twitch")
     assert tiles["youtube"]["connection"] == "not_connected"
-    assert tiles["youtube"]["channels"] == 2
+    assert tiles["youtube"]["channels"] == 0  # the seed channels are only placeholders
     assert data["recent_posts"] == []
     assert data["failures"] == []
     assert data["controls"]["publishing_allowed"] is False

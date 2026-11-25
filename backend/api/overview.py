@@ -31,6 +31,7 @@ from models.production import Variant
 from models.projects import ContentProject
 from models.publishing import Post, PublishingJob
 from services import source_status
+from services.channel_setup import is_placeholder
 from services.controls import EffectiveControls, effective_controls
 from services.queue import get_redis
 
@@ -66,11 +67,10 @@ def overview(_: Viewer, db: DbSession, settings: AppSettings) -> OverviewOut:
     def count(*statuses: VideoStatus) -> int:
         return sum(by_status.get(s, 0) for s in statuses)
 
-    channels_total = db.scalar(select(func.count()).select_from(Channel)) or 0
-    channels_active = (
-        db.scalar(select(func.count()).select_from(Channel).where(Channel.is_paused.is_(False)))
-        or 0
-    )
+    # placeholders (seed channels without a real account) are not counted
+    real_channels = [c for c in db.scalars(select(Channel)) if not is_placeholder(c)]
+    channels_total = len(real_channels)
+    channels_active = sum(1 for c in real_channels if not c.is_paused)
     published = (
         db.scalar(select(func.count()).select_from(Post).where(Post.is_mock.is_(False))) or 0
     )
@@ -207,12 +207,12 @@ def _twitch_connection(settings: Settings, redis: Redis) -> str:
 
 
 def _tiles(db: DbSession, settings: Settings, redis: Redis) -> list[PlatformTile]:
-    channels = db.execute(
-        select(Channel.id, Platform.code, Channel.auth_status).join(Platform)
-    ).all()
+    channels = db.execute(select(Channel, Platform.code).join(Platform)).all()
     by_platform: dict[str, list[ChannelAuthStatus]] = {}
-    for _, plat, auth in channels:
-        by_platform.setdefault(PlatformCode(plat).value, []).append(auth)
+    for channel, plat in channels:
+        if is_placeholder(channel):
+            continue  # no real account behind it yet
+        by_platform.setdefault(PlatformCode(plat).value, []).append(channel.auth_status)
     posts = db.execute(
         select(
             Platform.code,

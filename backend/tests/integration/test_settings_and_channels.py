@@ -6,10 +6,12 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core.config import get_settings
-from core.enums import UserRole
+from core.enums import ChannelAuthStatus, UserRole
+from models import Channel
 from models.access import User
 from services.controls import effective_controls
 from services.seed import seed_base_data
@@ -153,8 +155,14 @@ def test_overview_counts(api: TestClient, make_user: MakeUser, db: Session) -> N
     make_user(role=UserRole.VIEWER, email="v@example.com")
     login(api, "v@example.com")
     data = api.get("/api/overview").json()
-    assert data["channels_total"] == 8
+    # the 8 seed channels are placeholders without a real account: not counted
+    assert data["channels_total"] == 0
     assert data["channels_active"] == 0
+    seed = db.scalars(select(Channel)).first()
+    assert seed is not None and seed.strategy.get("placeholder") is True
+    seed.auth_status = ChannelAuthStatus.AUTHORIZED  # connected: a real channel now
+    db.flush()
+    assert api.get("/api/overview").json()["channels_total"] == 1
     assert data["published_videos"] == 0
     assert data["controls"]["publishing_allowed"] is False
 

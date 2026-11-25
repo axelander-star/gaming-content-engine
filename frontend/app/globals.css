@@ -2186,6 +2186,9 @@ details summary {
   gap: 8px;
   align-items: center;
 }
+.cs-slot-name {
+  flex: 1;
+}
 .cs-notice {
   margin-bottom: 12px;
 }
