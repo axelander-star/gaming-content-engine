@@ -636,6 +636,7 @@ try {
     await page.getByRole("heading", { name: "Ideenlabor", level: 1 }).waitFor();
     await page.getByText("Test: Beispiel-Feeds, kein Abruf").waitFor();
     await page.getByRole("button", { name: "Recherche starten" }).click();
+    const researchStarted = Date.now();
     await page.getByText(/Recherche und Ideenlabor laufen/).waitFor();
     const cards = page.getByRole("article", { name: /^Idee / });
     await cards.first().waitFor({ timeout: 30000 });
@@ -656,6 +657,9 @@ try {
     // other areas may still arrive and reorder the list, so keep to this card by name
     // research for other areas may still be running: keep to one area, its ideas are
     // stored together, so this list no longer changes
+    // the page reloads the list 3, 8 and 15 s after the start; ideas that arrive in
+    // between can push a card to page 2. Pick the card only after the last reload.
+    await page.waitForTimeout(Math.max(0, researchStarted + 16000 - Date.now()));
     const area = (await cards.first().locator(".chip").first().textContent()).trim();
     ideaArea = area;
     await page.locator(".toolbar").getByLabel("Themenbereich").selectOption({ label: area });
