@@ -52,6 +52,7 @@ from models.production import Variant
 from models.projects import ContentProject
 from models.trend_alarms import TrendAlarm
 from services import ai, approval, competitors, notify, own_production, planning
+from services.channel_setup import is_placeholder
 
 log = logging.getLogger(__name__)
 
@@ -685,7 +686,7 @@ def target_channels(session: Session, project_id: int, language: Language) -> li
             )
             .order_by(Channel.id)
         )
-        if c.platform.code in approval.RULES
+        if c.platform.code in approval.RULES and not is_placeholder(c)
     ]
 
 

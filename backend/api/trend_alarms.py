@@ -17,6 +17,7 @@ from models.library import OwnProduction
 from models.projects import ContentProject
 from models.trend_alarms import TrendAlarm
 from services import agent_control, approval, audit, competitors, trend_alarm
+from services.channel_setup import is_placeholder
 from services.controls import effective_controls
 from services.orchestrator import submit
 from services.queue import get_redis
@@ -116,7 +117,11 @@ def info(_: Viewer, db: DbSession, settings: AppSettings) -> InfoOut:
         autopilot_min_score=settings.trend_autopilot_min_score,
         publishing_mode=settings.publishing_mode,
         push_mode=settings.push_mode,
-        channels=[_channel(c) for c in channels if c.platform.code in approval.RULES],
+        channels=[
+            _channel(c)
+            for c in channels
+            if c.platform.code in approval.RULES and not is_placeholder(c)
+        ],
     )
 
 

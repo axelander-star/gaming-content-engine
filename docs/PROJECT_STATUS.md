@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 22.11.2026 · **Aktuelle Phase:** Ausbau A1–A11 abgeschlossen (zuletzt A11 Trend-Alarm und Ideenlabor mit Seiten) laut [AUSBAU_PLAN.md](AUSBAU_PLAN.md) · **Nächster Schritt:** Update auf dem Server einspielen und die offenen Einrichtungen aus [AUSBAU_PLAN.md](AUSBAU_PLAN.md) erledigen (Cloudflare-Token, ntfy, Linkseiten-Host, Impressum, SMTP, `REPORT_EMAIL`)
+**Stand:** 25.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander; A11 Trend-Alarm und Ideenlabor mit Seiten fertig · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; für echte Trend-Alarme `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` setzen
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -39,8 +39,16 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A7 | Natürlichere Hooks ohne Floskeln, Hook-A/B-Tests auswerten, Gewinner mit neuem Hook erneut einplanen, Idee „Teil 2“ | ✅ abgeschlossen (PR #41) |
 | A8 | Kampagnen je Themenbereich vorschlagen, Affiliate-Links mit „Anzeige“, Linkseite je Kanal mit Newsletter (Double-Opt-in) | ✅ abgeschlossen (PR #42) |
 | A9 | Sponsoren-Postfach: Anfragen einordnen, Warnungen, Preisvorschlag, Antwortentwurf (nichts wird gesendet) | ✅ abgeschlossen (PR #43) |
-| A10 | Wochenbericht per E-Mail (montags 8 Uhr, Vorschau und „Jetzt senden“ in Analytics) | ✅ abgeschlossen |
+| A10 | Wochenbericht per E-Mail (montags 8 Uhr, Vorschau und „Jetzt senden“ in Analytics) | ✅ abgeschlossen (PR #44) |
+| N1 | Platzhalter-Kanäle aus dem Seed: im Kanal-Assistenten vorbereiten und zum echten Kanal machen, in der Übersicht nicht mitzählen | ✅ abgeschlossen |
 | A11 | Ideenlabor: 12 Ideen je Lauf, 5 je Seite mit Weiter/Zurück, Sortierung; Trend-Alarm-Agent mit Entwürfen, Push und Ein-Tipp-Freigabe, Automatik je Kanal (Standard aus) | ✅ abgeschlossen |
+
+**N1 Platzhalter-Kanäle (22.11.2026)** (`services/channel_setup.py`, `services/seed.py`, `api/channel_setup.py`, `api/overview.py`, Datenmigration `3c9e1f2a7b44`):
+- Befund im Betrieb: Die 8 Seed-Kanäle („YouTube Shorts DE“ …) im Standardbereich Gaming galten als „angelegt“. Der Kanal-Assistent bot deshalb nichts zum Vorbereiten an, und die Übersicht zählte sie als Kanäle („0 / 8“), obwohl Alexander noch kein Konto hat.
+- Seed-Kanäle tragen jetzt `strategy.placeholder = true` (Migration markiert bestehende, solange sie nicht verbunden sind, keine Plattform-ID haben und nicht vom Assistenten stammen). Im Kanal-Assistenten heißen sie „Platzhalter, noch kein Konto“ und zählen als fehlend; „… fehlende vorbereiten“ und der Knopf „Vorbereiten“ je Kanal erzeugen die Aufgabe. „Kanal ist angelegt“ macht aus dem Platzhalter den echten Kanal (Name, Beschreibung, Handle; kein zweiter Kanal). Ein inzwischen verbundener Kanal wird nie umbenannt.
+- Auch von Hand angelegte, nicht verbundene Kanäle lassen sich einzeln vorbereiten (`POST /api/channel-setup/channels/{id}/prepare`).
+- Übersicht und Plattformkacheln zählen Platzhalter nicht mit.
+- Nebenbei: `test_api_shows_plan_and_admin_can_roll_back` hing vom echten Datum ab (Jobs ab „jetzt − 1 Tag“) und schlug seit 18.11. fehl; die Uhr der API ist im Test jetzt auf den Testzeitpunkt gesetzt.
 
 **A11 Ideenlabor und Trend-Alarm** (22.11.2026, Wunsch Alexander):
 - Ideenlabor: `IDEAS_PER_RUN` von 5 auf 12, mehr Beispiel-Schlagzeilen im Testmodus. Neuer Endpunkt `GET /api/ideas/page` (Sortierung `score`, `trend`, `fit`, `title`, `newest`, `oldest`; Standard Ranking). Dashboard zeigt 5 Ideen je Seite mit „← Zurück“/„Weiter →“, Platz (#1, #2 …) und Auswahl „Sortieren nach“.

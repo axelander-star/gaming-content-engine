@@ -71,7 +71,8 @@ try {
     await page.getByLabel("Passwort").fill(PASSWORD);
     await page.getByRole("button", { name: "Anmelden" }).click();
     await page.getByRole("heading", { name: "Übersicht" }).waitFor();
-    await page.getByText("0 / 8").waitFor();
+    // seed channels are placeholders, not counted (stat card and platform tiles)
+    await page.locator(".stat-value", { hasText: /^0 \/ 0$/ }).waitFor();
     await page.getByText("Bereit", { exact: true }).waitFor();
     for (const name of ["YouTube", "Twitch", "Instagram", "TikTok"]) {
       await page.getByRole("article", { name }).waitFor();
@@ -847,6 +848,18 @@ try {
     await page.getByText(/^Kanal angelegt\./).waitFor();
     await tiktok.waitFor({ state: "detached" });
     assert.equal(await area.getByText("Angelegt, nicht verbunden").count(), 2);
+
+    // a placeholder channel (seed) can be prepared on its own and becomes the real one later
+    const gaming = page.getByRole("article", { name: "Themenbereich Gaming" });
+    await gaming.getByText("Platzhalter, noch kein Konto").first().waitFor();
+    await gaming.getByRole("button", { name: "6 fehlende vorbereiten" }).waitFor();
+    await gaming.getByRole("button", { name: "YouTube Shorts DE vorbereiten" }).click();
+    await page.getByText("Kanal vorbereitet. Die Aufgabe steht oben.").waitFor();
+    const yt = page.getByRole("article", { name: "Aufgabe YouTube DE: Gaming" });
+    await yt.getByRole("img", { name: /^Profilbild / }).waitFor();
+    await gaming.getByText("Vorbereitet").waitFor();
+    await yt.getByRole("button", { name: "Nicht gebraucht" }).click();
+    await yt.waitFor({ state: "detached" });
   });
 
   await step("Konten: filtern, suchen, Einnahme eintragen", async () => {

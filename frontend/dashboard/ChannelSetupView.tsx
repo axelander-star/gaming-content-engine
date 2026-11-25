@@ -25,6 +25,7 @@ const LANG: Record<string, string> = { de: "DE", en: "EN" };
 const SLOT: Record<SlotState, [string, "ok" | "warn" | "info" | "danger"]> = {
   connected: ["Verbunden", "ok"],
   added: ["Angelegt, nicht verbunden", "warn"],
+  placeholder: ["Platzhalter, noch kein Konto", "danger"],
   prepared: ["Vorbereitet", "info"],
   missing: ["Fehlt", "danger"],
 };
@@ -69,14 +70,35 @@ function CopyField({
   );
 }
 
-function SlotChip({ slot }: { slot: CoverageSlot }) {
+function SlotChip({
+  slot,
+  onPrepare,
+  busy,
+}: {
+  slot: CoverageSlot;
+  onPrepare?: (channelId: number) => void;
+  busy?: boolean;
+}) {
   const [text, tone] = SLOT[slot.state];
+  const label = `${PLATFORM_LABELS[slot.platform]} ${LANG[slot.language]}`;
   return (
     <li className="cs-slot">
-      <span className="cs-slot-name">
-        {PLATFORM_LABELS[slot.platform]} {LANG[slot.language]}
-      </span>
+      <span className="cs-slot-name">{label}</span>
       <Badge tone={tone}>{text}</Badge>
+      {onPrepare &&
+        (slot.state === "added" || slot.state === "placeholder") &&
+        slot.channel_id !== null && (
+        <button
+          type="button"
+          className="btn btn-small"
+          disabled={busy}
+          aria-label={`${label} vorbereiten`}
+          title="Name, Beschreibung und Bilder für das echte Konto vorbereiten"
+          onClick={() => onPrepare(slot.channel_id as number)}
+        >
+          Vorbereiten
+        </button>
+      )}
     </li>
   );
 }
@@ -355,6 +377,20 @@ export function ChannelSetupView() {
     }
   }
 
+  async function prepareFor(channelId: number) {
+    setBusy(-channelId);
+    setError(null);
+    try {
+      await api.prepareChannelSetupFor(channelId);
+      setNotice("Kanal vorbereitet. Die Aufgabe steht oben.");
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const missingTotal = coverage?.reduce((n, c) => n + c.missing, 0) ?? 0;
 
   return (
@@ -414,7 +450,12 @@ export function ChannelSetupView() {
                 </div>
                 <ul className="cs-slots">
                   {c.slots.map((s) => (
-                    <SlotChip key={`${s.platform}-${s.language}`} slot={s} />
+                    <SlotChip
+                      key={`${s.platform}-${s.language}`}
+                      slot={s}
+                      busy={busy !== null}
+                      onPrepare={canEdit ? (id) => void prepareFor(id) : undefined}
+                    />
                   ))}
                 </ul>
               </article>

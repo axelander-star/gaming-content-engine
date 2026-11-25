@@ -1,7 +1,7 @@
 """trend alarms
 
 Revision ID: 7433e2700ebb
-Revises: 6f1f7f4b3930
+Revises: 3c9e1f2a7b44
 Create Date: 2026-11-22 10:32:47.983618
 """
 
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = '7433e2700ebb'
-down_revision: str | None = '6f1f7f4b3930'
+down_revision: str | None = '3c9e1f2a7b44'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -1437,7 +1437,7 @@ export interface CampaignSubmission {
 
 // --- channel assistant ---------------------------------------------------------------
 
-export type SlotState = "connected" | "added" | "prepared" | "missing";
+export type SlotState = "connected" | "added" | "placeholder" | "prepared" | "missing";
 export type ChannelSetupStatus = "open" | "done" | "dismissed";
 export type MailAliasStatus = "not_needed" | "mock" | "created" | "failed";
 
