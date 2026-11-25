@@ -5,13 +5,7 @@ import type { FormEvent } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { Icon } from "@/components/icons";
-import {
-  Badge,
-  ErrorText,
-  PageHeader,
-  Section,
-  StatCard,
-} from "@/components/ui";
+import { Badge, ErrorText, PageHeader, Section, StatCard } from "@/components/ui";
 import { api } from "@/lib/api";
 import { hasRole } from "@/lib/roles";
 import type {
@@ -146,11 +140,7 @@ function FixedCostForm({
   }
 
   return (
-    <form
-      className="acc-rev-form fixed-form"
-      onSubmit={submit}
-      aria-label={label}
-    >
+    <form className="acc-rev-form fixed-form" onSubmit={submit} aria-label={label}>
       <label>
         Name
         <input
@@ -269,17 +259,16 @@ function FixedCostsSection({
   return (
     <Section title="Fixkosten">
       <p className="muted small">
-        Laufende Posten wie Server, Domain und Abos. Jahresbeträge werden auf
-        den Monat umgerechnet, Dollar mit{" "}
-        {data.ai.eur_per_usd.toLocaleString("de-DE")} € je $. Posten mit „zählt
-        zum Engine-Budget“ bremsen bei Bedarf kostenpflichtige Aufrufe; die
-        anderen (z. B. dein Claude Pro-Abo) erscheinen nur in der Summe.
+        Laufende Posten wie Server, Domain und Abos. Jahresbeträge werden auf den Monat umgerechnet,
+        Dollar mit {data.ai.eur_per_usd.toLocaleString("de-DE")} € je $. Posten mit „zählt zum
+        Engine-Budget“ bremsen bei Bedarf kostenpflichtige Aufrufe; die anderen (z. B. dein Claude
+        Pro-Abo) erscheinen nur in der Summe.
       </p>
       {data.fixed.from_env && (
         <p className="notice">
-          Noch keine Posten gespeichert. Bis dahin gelten die Werte aus der
-          Server-Konfiguration ({eur(data.costs.fixed)} im Monat). Die
-          Startliste wird beim nächsten Update automatisch angelegt.
+          Noch keine Posten gespeichert. Bis dahin gelten die Werte aus der Server-Konfiguration (
+          {eur(data.costs.fixed)} im Monat). Die Startliste wird beim nächsten Update automatisch
+          angelegt.
         </p>
       )}
       <div className="table-wrap">
@@ -311,18 +300,11 @@ function FixedCostsSection({
                   </td>
                 </tr>
               ) : (
-                <tr
-                  key={item.id}
-                  className={item.is_active ? undefined : "muted"}
-                >
+                <tr key={item.id} className={item.is_active ? undefined : "muted"}>
                   <td>
                     <strong>{item.name}</strong>
-                    {item.provider && (
-                      <span className="muted small"> · {item.provider}</span>
-                    )}
-                    {item.note && (
-                      <div className="muted small">{item.note}</div>
-                    )}
+                    {item.provider && <span className="muted small"> · {item.provider}</span>}
+                    {item.note && <div className="muted small">{item.note}</div>}
                   </td>
                   <td>{CATEGORIES[item.category] ?? item.category}</td>
                   <td>
@@ -372,9 +354,7 @@ function FixedCostsSection({
                         type="button"
                         className="btn btn-ghost btn-small"
                         onClick={() =>
-                          void run(() => api.deleteFixedCost(item.id)).catch(
-                            () => undefined,
-                          )
+                          void run(() => api.deleteFixedCost(item.id)).catch(() => undefined)
                         }
                       >
                         Löschen
@@ -391,9 +371,7 @@ function FixedCostsSection({
               <td>
                 <strong>{eur(data.costs.fixed)}</strong>
               </td>
-              <td className="muted small">
-                davon Budget {eur(data.costs.fixed_in_budget)}
-              </td>
+              <td className="muted small">davon Budget {eur(data.costs.fixed_in_budget)}</td>
               {canEdit && <td />}
             </tr>
           </tbody>
@@ -414,13 +392,7 @@ function FixedCostsSection({
   );
 }
 
-function TokenTable({
-  today,
-  month,
-}: {
-  today: AIUsageWindow;
-  month: AIUsageWindow;
-}) {
+function TokenTable({ today, month }: { today: AIUsageWindow; month: AIUsageWindow }) {
   const rows: [string, (w: AIUsageWindow) => string][] = [
     ["Aufrufe (davon echt)", (w) => `${num(w.calls)} (${num(w.live_calls)})`],
     ["Tokens Eingabe", (w) => num(w.input_tokens)],
@@ -512,18 +484,11 @@ export function CostsView() {
       <ErrorText error={error} />
       <div className="grid stats">
         <StatCard label="Monatskosten gesamt" value={eur(data?.costs.total)} />
-        <StatCard
-          label="Bisher angefallen"
-          value={eur(data?.costs.accrued, 4)}
-        />
+        <StatCard label="Bisher angefallen" value={eur(data?.costs.accrued, 4)} />
         <StatCard label="Verbrauch heute" value={eur(data?.costs.today, 4)} />
         <StatCard
           label="Engine-Budget"
-          value={
-            b
-              ? `${b.used_pct.toLocaleString("de-DE")} % von ${eur(b.budget_eur, 0)}`
-              : "–"
-          }
+          value={b ? `${b.used_pct.toLocaleString("de-DE")} % von ${eur(b.budget_eur, 0)}` : "–"}
         />
         <StatCard
           label="Pro veröffentlichtem Video"
@@ -531,37 +496,31 @@ export function CostsView() {
         />
       </div>
       <p className="muted small">
-        „Monatskosten gesamt“ ist der volle Monat inklusive aller Fixkosten.
-        „Bisher angefallen“ verteilt die Fixkosten sekundengenau über den Monat
-        und rechnet den echten Verbrauch (KI, APIs) dazu. Die Seite aktualisiert
-        sich alle {REFRESH_MS / 1000} Sekunden.
+        „Monatskosten gesamt“ ist der volle Monat inklusive aller Fixkosten. „Bisher angefallen“
+        verteilt die Fixkosten sekundengenau über den Monat und rechnet den echten Verbrauch (KI,
+        APIs) dazu. Die Seite aktualisiert sich alle {REFRESH_MS / 1000} Sekunden.
       </p>
       {level && b && (
         <p role="status">
           Budgetstufe: <Badge tone={level[1]}>{level[0]}</Badge>{" "}
           <span className="muted">
-            {eur(b.spent_eur)} zählen zum Budget. Warnung ab {b.thresholds.warn}{" "}
-            %, kostenreduziert ab {b.thresholds.reduced} %, nur priorisierte
-            Aufgaben ab {b.thresholds.priority_only} %, kostenpflichtige
-            Aufgaben gestoppt ab {b.thresholds.stop_paid} %.
+            {eur(b.spent_eur)} zählen zum Budget. Warnung ab {b.thresholds.warn} %, kostenreduziert
+            ab {b.thresholds.reduced} %, nur priorisierte Aufgaben ab {b.thresholds.priority_only}{" "}
+            %, kostenpflichtige Aufgaben gestoppt ab {b.thresholds.stop_paid} %.
           </span>
         </p>
       )}
-      {data && (
-        <FixedCostsSection data={data} canEdit={canEdit} reload={load} />
-      )}
+      {data && <FixedCostsSection data={data} canEdit={canEdit} reload={load} />}
       <Section title="KI-Tokens in Echtzeit">
         <p className="notice">
-          Wichtig: Dein Claude-Pro-Abo gilt nur für den Chat auf claude.ai. Die
-          Engine braucht für echte KI-Aufrufe einen eigenen
-          Anthropic-API-Schlüssel mit getrennter Abrechnung nach Tokens. Ohne
-          Schlüssel laufen alle Aufrufe im Test-Modus und kosten 0 $.
+          Wichtig: Dein Claude-Pro-Abo gilt nur für den Chat auf claude.ai. Die Engine braucht für
+          echte KI-Aufrufe einen eigenen Anthropic-API-Schlüssel mit getrennter Abrechnung nach
+          Tokens. Ohne Schlüssel laufen alle Aufrufe im Test-Modus und kosten 0 $.
         </p>
         {data && <TokenTable today={data.ai.today} month={data.ai.month} />}
         {data?.ai.today.last_call_at && (
           <p className="muted small">
-            Letzter Aufruf:{" "}
-            {new Date(data.ai.today.last_call_at).toLocaleString("de-DE")}
+            Letzter Aufruf: {new Date(data.ai.today.last_call_at).toLocaleString("de-DE")}
           </p>
         )}
       </Section>

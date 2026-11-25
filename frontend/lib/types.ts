@@ -3,11 +3,7 @@
 export type UserRole = "admin" | "operator" | "viewer";
 export type Language = "de" | "en";
 export type PlatformCode = "youtube" | "tiktok" | "instagram" | "facebook";
-export type ChannelAuthStatus =
-  | "not_connected"
-  | "connected_restricted"
-  | "authorized"
-  | "expired";
+export type ChannelAuthStatus = "not_connected" | "connected_restricted" | "authorized" | "expired";
 
 export interface User {
   id: number;
@@ -163,20 +159,9 @@ export interface Readiness {
 
 // --- Agents (Phase 4) ---------------------------------------------------------
 
-export type AgentStatus =
-  | "not_available"
-  | "stopped"
-  | "paused"
-  | "running"
-  | "error"
-  | "ready";
+export type AgentStatus = "not_available" | "stopped" | "paused" | "running" | "error" | "ready";
 export type AgentRunStatus = "running" | "succeeded" | "failed" | "skipped";
-export type BudgetLevel =
-  | "normal"
-  | "warn"
-  | "reduced"
-  | "priority_only"
-  | "stop_paid";
+export type BudgetLevel = "normal" | "warn" | "reduced" | "priority_only" | "stop_paid";
 
 export interface Agent {
   name: string;
@@ -257,10 +242,7 @@ export interface TrendReport {
   is_mock: boolean;
   summary: string;
   items: Record<string, unknown>[];
-  by_audience: Record<
-    string,
-    { label: string; games: { game: string; score: number }[] }
-  >;
+  by_audience: Record<string, { label: string; games: { game: string; score: number }[] }>;
 }
 
 export interface VideoIdea {
@@ -301,12 +283,7 @@ export type SourceType =
   | "contract"
   | "other_licensed"
   | "campaign";
-export type LicenseStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "expired"
-  | "revoked";
+export type LicenseStatus = "pending" | "approved" | "rejected" | "expired" | "revoked";
 export type PolicyStatus = "permitted" | "license_required" | "forbidden";
 export type MaterialStatus =
   | "DISCOVERED"
@@ -545,12 +522,7 @@ export interface QualityResult {
   min_score: number | null;
   reasons: string[];
   checks: QualityCheckItem[];
-  measured: {
-    lufs?: number;
-    true_peak?: number;
-    black_s?: number;
-    frozen_s?: number;
-  };
+  measured: { lufs?: number; true_peak?: number; black_s?: number; frozen_s?: number };
   checked_at: string;
 }
 
@@ -603,19 +575,11 @@ export interface StrategyVersion {
       recent_median: number | null;
       above_share: number | null;
     };
-    supply?: {
-      ready: number;
-      approved_per_day: number;
-      quality_recent: number | null;
-    };
+    supply?: { ready: number; approved_per_day: number; quality_recent: number | null };
     days_since_change?: number | null;
     rolled_back_from?: number;
   };
-  params: {
-    preferred_hours?: number[] | null;
-    window?: number[];
-    interval_minutes?: number;
-  };
+  params: { preferred_hours?: number[] | null; window?: number[]; interval_minutes?: number };
   created_by: string;
   rolled_back_to: number | null;
 }
@@ -773,13 +737,7 @@ export interface LearningVersionOut {
   baseline: number | null;
 }
 
-export type FixedCostCategory =
-  | "server"
-  | "domain"
-  | "subscription"
-  | "storage"
-  | "backup"
-  | "other";
+export type FixedCostCategory = "server" | "domain" | "subscription" | "storage" | "backup" | "other";
 
 export interface FixedCostInput {
   name: string;
@@ -960,12 +918,7 @@ export interface ChannelInput {
 
 // --- AI layer (extension E3) -------------------------------------------------
 
-export type AICallStatus =
-  | "reserved"
-  | "succeeded"
-  | "refused"
-  | "failed"
-  | "blocked";
+export type AICallStatus = "reserved" | "succeeded" | "refused" | "failed" | "blocked";
 
 export interface AIStatus {
   provider: string;
@@ -1288,12 +1241,7 @@ export interface LibraryInfo {
   original_retention_days: number;
 }
 
-export type ProductionStatus =
-  | "draft"
-  | "queued"
-  | "rendering"
-  | "done"
-  | "failed";
+export type ProductionStatus = "draft" | "queued" | "rendering" | "done" | "failed";
 
 export interface ProductionSegment {
   headline: string;
@@ -1499,12 +1447,7 @@ export interface CampaignClip {
   scheduled_for: string | null;
 }
 
-export type SubmissionState =
-  | "open"
-  | "overdue"
-  | "needs_link"
-  | "submitted"
-  | "skipped";
+export type SubmissionState = "open" | "overdue" | "needs_link" | "submitted" | "skipped";
 
 export interface CampaignSubmission {
   id: number;
@@ -1600,12 +1543,7 @@ export type AccountStatus =
   | "declining"
   | "idle"
   | "pause_suggested";
-export type RevenueSource =
-  | "youtube"
-  | "content_rewards"
-  | "affiliate"
-  | "sponsor"
-  | "other";
+export type RevenueSource = "youtube" | "content_rewards" | "affiliate" | "sponsor" | "other";
 
 export interface AccountRow {
   channel_id: number;
@@ -1684,20 +1622,8 @@ export interface RevenueInput {
 
 // --- comments (A3) ---------------------------------------------------------------------
 
-export type CommentStatus =
-  | "new"
-  | "review"
-  | "ready"
-  | "sent"
-  | "ignored"
-  | "failed";
-export type CommentKind =
-  | "question"
-  | "praise"
-  | "criticism"
-  | "sensitive"
-  | "spam"
-  | "other";
+export type CommentStatus = "new" | "review" | "ready" | "sent" | "ignored" | "failed";
+export type CommentKind = "question" | "praise" | "criticism" | "sensitive" | "spam" | "other";
 
 export interface ViewerComment {
   id: number;
@@ -1824,16 +1750,7 @@ export interface BioPage {
 }
 
 export type BioPagePatch = Partial<
-  Pick<
-    BioPage,
-    | "slug"
-    | "enabled"
-    | "headline"
-    | "intro"
-    | "links"
-    | "show_videos"
-    | "newsletter_enabled"
-  >
+  Pick<BioPage, "slug" | "enabled" | "headline" | "intro" | "links" | "show_videos" | "newsletter_enabled">
 >;
 
 export interface AffiliateLink {
