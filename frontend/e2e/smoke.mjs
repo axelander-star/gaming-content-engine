@@ -854,6 +854,22 @@ try {
     await card.getByText("1,5 $ / 1.000 Aufrufe").waitFor();
     await card.getByText("#ad #StreamerE2E", { exact: true }).waitFor();
     await card.getByText(/Nächster Schritt:/).waitFor();
+    // Bookmark "Ins Studio": the campaign page text arrives in the URL and fills the form.
+    await page.getByText("Noch schneller: Lesezeichen „Ins Studio“").click();
+    const href = await page.getByRole("link", { name: "Ins Studio" }).getAttribute("href");
+    assert.ok(href?.startsWith("javascript:") && href.includes("/kampagnen#import="));
+    const handed =
+      "https://contentrewards.com/c/bookmark-e2e\nBookmark E2E Clips\n" +
+      "Earn $2 per 1,000 views on TikTok. English. Max 30 seconds. #ad #BookmarkE2E";
+    await page.goto(`${BASE}/kampagnen#import=${encodeURIComponent(handed)}`);
+    const form2 = page.getByRole("form", { name: "Neue Kampagne" });
+    await form2.getByText(/Angaben übernommen/).waitFor();
+    assert.equal(await form2.getByLabel("Höchstlänge (s)").inputValue(), "30");
+    assert.equal(
+      await form2.getByLabel("Kampagnenseite (Content Rewards)").inputValue(),
+      "https://contentrewards.com/c/bookmark-e2e",
+    );
+    assert.equal(new URL(page.url()).hash, "");
     await card.getByText("Videovorschläge (3)").click();
     await card.getByRole("button", { name: "Neue Vorschläge schreiben" }).waitFor();
     await card.getByRole("form", { name: "Material für Streamer E2E Highlights" }).waitFor();
