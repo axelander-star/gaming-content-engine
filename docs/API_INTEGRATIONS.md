@@ -291,10 +291,11 @@ Offizieller Aufruf der YouTube Data API v3, nur mit API-Schlüssel (kein OAuth):
 
 „Themen vorschlagen“ unter Themenbereiche (`services/topic_suggest.py`, `POST /projects/suggestions`, nur Admin):
 
-- **YouTube** `videos.list` mit `chart=mostPopular`, `regionCode` aus `TREND_ALARM_REGIONS` (höchstens 3) und je einer `videoCategoryId` der Standardkategorien außer Musik. Kostet 1 Einheit pro Aufruf, bei DE und US etwa 26 Einheiten pro Klick, und läuft über das eigene Tageslimit `youtube`. Kategorien ohne Chart in einer Region (404) werden übersprungen.
+- **YouTube** `videos.list` mit `chart=mostPopular`, `regionCode` aus `TREND_ALARM_REGIONS` (höchstens 3, die erste zählt als Heimatmarkt, Standard DE): je Region zuerst der Gesamt-Chart ohne Kategorie, dann je eine `videoCategoryId` der Standardkategorien außer Musik. Kostet 1 Einheit pro Aufruf, bei DE und US etwa 28 Einheiten pro Klick, und läuft über das eigene Tageslimit `youtube`. Hat eine Kategorie in einer Region keinen eigenen Chart (404, oft bei Gaming und Unterhaltung) oder ist er leer, zählen die Videos dieser Kategorie aus dem Gesamt-Chart (`snippet.categoryId`).
+- **Bewertung (seit 26.11.2026):** Wachstum wird innerhalb der eigenen Region verglichen, dazu Chartplätze, Anzahl verschiedener Kanäle und Plätze im Gesamt-Chart. Die Heimatregion zählt voll, andere Regionen mit 0,6, damit US-Zahlen Deutschland nicht überdecken. Gaming und Unterhaltung bekommen immer einen Platz, wenn sie in den Trends vorkommen und noch kein gleichnamiger Themenbereich existiert. Es gibt 8 Vorschläge.
 - **Wikipedia** über die Wikimedia Analytics API `GET https://wikimedia.org/api/rest_v1/metrics/pageviews/top/{de|en}.wikipedia/all-access/{JJJJ/MM/TT}`. Sie ist kostenlos und braucht keinen Schlüssel. Abgefragt werden die meistgelesenen Artikel des Vortags. Wikimedia verlangt einen eigenen User-Agent; gesendet wird ein allgemeiner Name ohne persönliche Daten.
 - Live nur mit `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live`. Im Betrieb ohne Schlüssel erscheint ein Hinweis statt erfundener Zahlen, in der Entwicklung erscheinen gekennzeichnete Beispieldaten.
-- Die KI formuliert aus den Zahlen 5 Themenbereiche und darf dabei nur die gelieferten Zahlen nennen. Ohne KI werden die stärksten Kategorien mit Vorlagentext vorgeschlagen.
+- Die KI formuliert aus den Zahlen 8 Themenbereiche und darf dabei nur die gelieferten Zahlen nennen. Ohne KI werden die stärksten Kategorien mit Vorlagentext vorgeschlagen.
 
 ## Push aufs Handy: ntfy (Ausbau A4)
 
