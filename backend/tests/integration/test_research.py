@@ -413,6 +413,49 @@ def test_run_endpoint_queues_research_and_ideas(
     assert submitted[0] == ("research", {"project_id": projects["food"].id})
 
 
+def test_run_status_survives_leaving_the_page(
+    api: TestClient,
+    db: Session,
+    make_user: MakeUser,
+    projects: dict[str, ContentProject],
+    redis_client: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+
+    from api.research import MANUAL_RUN_KEY
+
+    monkeypatch.setattr(
+        "api.research.submit", lambda name, *_a, **_k: SimpleNamespace(id=f"job-{name}")
+    )
+    make_user()
+    admin = login(api, "admin@example.com")
+    assert api.get("/api/research/status", headers=admin).json()["state"] == "idle"
+    food = projects["food"].id
+    r = api.post("/api/research/run", json={"project_id": food}, headers=admin)
+    assert r.status_code == 200
+    # the test transaction started earlier than the button press: move the start back
+    data = json.loads(redis_client.get(MANUAL_RUN_KEY))
+    data["started_at"] = (datetime.now(UTC) - timedelta(minutes=10)).isoformat()
+    redis_client.set(MANUAL_RUN_KEY, json.dumps(data))
+
+    status = api.get("/api/research/status", headers=admin).json()
+    assert status["state"] == "running" and status["project_id"] == food
+    assert [(s["agent"], s["state"]) for s in status["steps"]] == [
+        ("research", "queued"),
+        ("idea_lab", "queued"),
+    ]
+    settings = get_settings()
+    orchestrator.run_agent(db, settings, "research", {"project_id": food})
+    status = api.get("/api/research/status", headers=admin).json()
+    assert status["state"] == "running" and status["steps"][0]["state"] == "done"
+    assert status["new_items"] > 0
+    orchestrator.run_agent(db, settings, "idea_lab", {"project_id": food})
+    status = api.get("/api/research/status", headers=admin).json()
+    assert status["state"] == "done" and status["finished_at"]
+    assert status["new_ideas"] == settings.ideas_per_run
+
+
 def test_ideas_page_sorts_and_pages(
     api: TestClient, make_user: MakeUser, db: Session, projects: dict[str, ContentProject]
 ) -> None:

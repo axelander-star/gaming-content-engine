@@ -1114,6 +1114,18 @@ export interface ResearchSources {
   sources: ResearchSource[];
 }
 
+export type ResearchStepState = "queued" | "running" | "done" | "failed" | "skipped";
+
+export interface ResearchRunStatus {
+  state: "idle" | "running" | "done" | "stuck";
+  started_at: string | null;
+  finished_at: string | null;
+  project_id: number | null;
+  steps: { agent: string; state: ResearchStepState; detail: string | null }[];
+  new_items: number;
+  new_ideas: number;
+}
+
 export interface ResearchItem {
   id: number;
   content_project_id: number;

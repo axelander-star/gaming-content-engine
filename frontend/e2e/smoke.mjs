@@ -647,7 +647,13 @@ try {
     await page.getByText("Test: Beispiel-Feeds, kein Abruf").waitFor();
     await page.getByRole("button", { name: "Recherche starten" }).click();
     const researchStarted = Date.now();
-    await page.getByText(/Recherche und Ideenlabor laufen/).waitFor();
+    // progress lives on the server: visible right away and after leaving the page
+    await page.getByRole("status").getByText(/Recherche läuft im Hintergrund|Fertig: /).waitFor();
+    await page.getByRole("link", { name: "Übersicht" }).click();
+    await page.getByRole("link", { name: "Ideenlabor", exact: true }).click();
+    await page.getByRole("heading", { name: "Ideenlabor", level: 1 }).waitFor();
+    await page.getByRole("status").getByText(/Recherche läuft im Hintergrund|Fertig: /).waitFor();
+    await page.getByText(/Fertig: \d+ neue Idee/).waitFor({ timeout: 30000 });
     const cards = page.getByRole("article", { name: /^Idee / });
     await cards.first().waitFor({ timeout: 30000 });
     // five per page, best ranking first, with pages and a sort choice
@@ -1195,6 +1201,21 @@ try {
     const panel = page.getByRole("dialog", { name: "Kanal-Assistent" });
     await panel.getByRole("heading", { name: "So gehst du vor" }).waitFor();
     await panel.getByRole("heading", { name: "Das machst du selbst" }).waitFor();
+    // a side panel on the right, not part of the top bar (a broken stylesheet did that)
+    await page.waitForTimeout(300); // slide-in animation
+    const box = await panel.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.querySelector(".topbar, header");
+      return {
+        position: getComputedStyle(el).position,
+        left: r.left,
+        width: r.width,
+        page: window.innerWidth,
+        inTopbar: Boolean(top && top.contains(el) && getComputedStyle(el).position !== "fixed"),
+      };
+    });
+    assert.equal(box.position, "fixed", JSON.stringify(box));
+    assert.ok(box.width <= 421 && box.left >= box.page / 2 && !box.inTopbar, JSON.stringify(box));
     await page.keyboard.press("Escape");
     await panel.waitFor({ state: "detached" });
     // every page in the navigation has its own guide

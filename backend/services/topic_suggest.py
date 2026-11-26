@@ -1,8 +1,9 @@
 """Topic suggestions from current trends ("Themen vorschlagen").
 
 The operator often has no idea which topic to start with. One click collects
-what is in demand right now and proposes five topic areas, each with the
-numbers behind it:
+what is in demand right now and proposes eight topic areas, each with the
+numbers behind it. Germany (the first region) counts most; gaming and
+entertainment always get a place when they trend:
 
 * YouTube charts (``videos.list chart=mostPopular``, 1 quota unit per call) per
   region (``TREND_ALARM_REGIONS``, default DE and US), overall and for each
@@ -62,7 +63,19 @@ CATEGORIES: dict[str, str] = {
     "28": "Wissenschaft & Technik",
 }
 CHART_SIZE = 50
-SUGGESTIONS = 5
+SUGGESTIONS = 8
+#: always among the suggestions when they trend (unless the area already exists):
+#: gaming and entertainment are the operator's home ground
+FOCUS = ("20", "24")
+#: the first region (Germany by default) counts fully, the others less
+OTHER_REGION_WEIGHT = 0.6
+REGION_NAMES = {
+    "DE": "Deutschland",
+    "AT": "Österreich",
+    "CH": "Schweiz",
+    "US": "USA",
+    "GB": "Großbritannien",
+}
 WIKI_TOP = 25
 WIKI_URL = "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/{project}/all-access/{day}"
 #: Wikimedia asks every client to identify itself; generic name, no personal data.
@@ -84,13 +97,24 @@ class CategoryStat:
     channels: int
     words: list[str]
     examples: list[str]
+    #: places in the region's overall top 50 (all categories together)
+    overall: int = 0
 
     def fact(self) -> str:
-        return (
-            f"{self.label} ({self.region}): {self.videos} der {CHART_SIZE} meistgesehenen Videos, "
-            f"Median {self.median_views:,} Aufrufe, {self.views_per_hour:,} Aufrufe pro Stunde, "
-            f"{self.channels} verschiedene Kanäle"
-        ).replace(",", ".")
+        where = REGION_NAMES.get(self.region, self.region)
+        text = (
+            f"{self.label} ({where}): {self.videos} der {CHART_SIZE} meistgesehenen Videos, "
+            f"Median {_n(self.median_views)} Aufrufe, {_n(self.views_per_hour)} Aufrufe pro "
+            f"Stunde, {self.channels} verschiedene Kanäle"
+        )
+        if self.overall:
+            text += f", {self.overall} Plätze in den Top {CHART_SIZE} insgesamt"
+        return text
+
+
+def _n(value: int) -> str:
+    """German thousands separator: 100000 -> 100.000."""
+    return f"{value:,}".replace(",", ".")
 
 
 @dataclass
@@ -187,13 +211,34 @@ def _chart(
     return [v for v in data.get("items") or [] if isinstance(v, dict)]
 
 
+def regions_of(settings: Settings) -> list[str]:
+    regions = [r.strip().upper() for r in settings.trend_alarm_regions.split(",") if r.strip()]
+    return regions[:3] or ["DE"]
+
+
 def youtube_stats(
     settings: Settings, redis: Redis, http: httpx.Client, now: datetime, errors: list[str]
 ) -> list[CategoryStat]:
-    regions = [r.strip().upper() for r in settings.trend_alarm_regions.split(",") if r.strip()]
+    """Per region: the overall chart first, then one chart per category.
+
+    Some category charts are missing in some regions (YouTube answers 404, gaming
+    often among them) or come back empty. Then the videos of that category in the
+    overall chart stand in, so gaming and entertainment are still rated."""
     out: list[CategoryStat] = []
-    for region in regions[:3]:
+    for region in regions_of(settings):
+        groups: dict[str, list[dict[str, Any]]] = {}
+        try:
+            quota.consume(redis, "youtube", 1, settings.youtube_daily_quota_units)
+            for video in _chart(http, settings, region, None):
+                category = str((video.get("snippet") or {}).get("categoryId") or "")
+                groups.setdefault(category, []).append(video)
+        except QuotaExceededError:
+            errors.append("YouTube-Tageskontingent erreicht")
+            return out
+        except (competitors.RadarError, httpx.HTTPError, ValueError) as exc:
+            errors.append(f"YouTube {region}/gesamt: {exc}"[:200])
         for category in CATEGORIES:
+            raw: list[dict[str, Any]] = []
             try:
                 quota.consume(redis, "youtube", 1, settings.youtube_daily_quota_units)
                 raw = _chart(http, settings, region, category)
@@ -201,12 +246,15 @@ def youtube_stats(
                 errors.append("YouTube-Tageskontingent erreicht")
                 return out
             except (competitors.RadarError, httpx.HTTPError, ValueError) as exc:
-                # some categories have no chart in some regions (404): skip quietly
+                # some categories have no chart in some regions (404): not an error
                 if "404" not in str(exc):
                     errors.append(f"YouTube {region}/{CATEGORIES[category]}: {exc}"[:200])
-                continue
+            in_overall = groups.get(category) or []
+            if len(raw) < 2:
+                raw = in_overall
             stat = stats_for(raw, category, region, now)
             if stat is not None:
+                stat.overall = len(in_overall)
                 out.append(stat)
     return out
 
@@ -240,26 +288,67 @@ def wikipedia_top(http: httpx.Client, now: datetime, errors: list[str]) -> list[
 # --- scoring and texts ------------------------------------------------------------
 
 
-def rank(stats: list[CategoryStat]) -> list[CategoryStat]:
-    """Best category per label: fast growth, many chart places, not too crowded."""
+def _scores(stats: list[CategoryStat], home: str) -> list[float]:
+    """Score per stat: growth within its own region, chart places, a chart shared
+    by many channels, places in the overall chart. The home region counts fully,
+    other regions less, so US numbers do not drown out Germany."""
+    top_speed: dict[str, int] = {}
+    for s in stats:
+        top_speed[s.region] = max(top_speed.get(s.region, 0), s.views_per_hour)
+    out: list[float] = []
+    for s in stats:
+        speed = s.views_per_hour / (top_speed[s.region] or 1)
+        crowd = s.channels / max(s.videos, 1)  # 1.0 = every video another channel
+        score = (
+            45 * speed
+            + 20 * min(s.videos, CHART_SIZE) / CHART_SIZE
+            + 15 * crowd
+            + 20 * min(s.overall, 10) / 10
+        )
+        out.append(score * (1.0 if s.region == home else OTHER_REGION_WEIGHT))
+    return out
+
+
+def rank(stats: list[CategoryStat], home: str | None = None) -> list[CategoryStat]:
+    """Best stat per category, strongest first (home region preferred)."""
     if not stats:
         return []
-    top_speed = max(s.views_per_hour for s in stats) or 1
+    home = home or stats[0].region
     best: dict[str, tuple[float, CategoryStat]] = {}
-    for s in stats:
-        crowd = s.channels / max(s.videos, 1)  # 1.0 = every video another channel
-        score = 60 * s.views_per_hour / top_speed + 25 * min(s.videos, 50) / 50 + 15 * crowd
+    for score, s in zip(_scores(stats, home), stats, strict=True):
         if s.label not in best or score > best[s.label][0]:
             best[s.label] = (score, s)
     return [s for _, s in sorted(best.values(), key=lambda x: -x[0])]
 
 
-def template(stats: list[CategoryStat], taken: set[str]) -> list[Suggestion]:
-    out: list[Suggestion] = []
-    for i, s in enumerate(rank(stats)):
-        if s.label.lower() in taken:
+def pick(stats: list[CategoryStat], taken: set[str], home: str | None = None) -> list[CategoryStat]:
+    """Top categories; gaming and entertainment always get a place when they trend."""
+    ranked = [s for s in rank(stats, home) if s.label.lower() not in taken]
+    picked = ranked[:SUGGESTIONS]
+    for s in ranked[SUGGESTIONS:]:
+        if s.category_id not in FOCUS:
             continue
+        for j in range(len(picked) - 1, 0, -1):  # the strongest one always stays
+            if picked[j].category_id not in FOCUS:
+                picked[j] = s
+                break
+    return sorted(picked, key=ranked.index)
+
+
+def _facts(stats: list[CategoryStat], label: str, home: str) -> list[str]:
+    """All regions of one category, home region first."""
+    rows = sorted((s for s in stats if s.label == label), key=lambda s: s.region != home)
+    return [s.fact() for s in rows][:3]
+
+
+def template(
+    stats: list[CategoryStat], taken: set[str], home: str | None = None
+) -> list[Suggestion]:
+    home = home or (stats[0].region if stats else "DE")
+    out: list[Suggestion] = []
+    for i, s in enumerate(pick(stats, taken, home)):
         words = [w.capitalize() for w in s.words[:5]]
+        where = REGION_NAMES.get(s.region, s.region)
         out.append(
             Suggestion(
                 name=s.label,
@@ -268,22 +357,24 @@ def template(stats: list[CategoryStat], taken: set[str]) -> list[Suggestion]:
                 audience="",
                 tone="locker",
                 reason=(
-                    f"Wächst gerade schnell: {s.views_per_hour:,} Aufrufe pro Stunde im Median "
-                    f"in den {s.region}-Trends."
-                ).replace(",", "."),
-                facts=[s.fact()],
+                    f"Wächst gerade schnell: {_n(s.views_per_hour)} Aufrufe pro Stunde im Median "
+                    f"in den Trends für {where}."
+                ),
+                facts=_facts(stats, s.label, home),
                 examples=s.examples,
-                score=max(0, 100 - i * 12),
+                score=max(0, 100 - i * 8),
             )
         )
-        if len(out) >= SUGGESTIONS:
-            break
     return out
 
 
 SYSTEM = (
     "You suggest topic areas for new short-video channels (YouTube Shorts, TikTok, "
-    "Instagram Reels) of one operator who produces his own videos. Use only the numbers "
+    "Instagram Reels) of one operator in Germany who produces his own videos. The German "
+    "audience comes first: numbers from Germany (DE) weigh most, other regions only "
+    "show where a topic is heading. Gaming and entertainment are his home ground: when "
+    "they appear in the data, include at least one suggestion for each (a concrete game, "
+    "series or format is better than the bare category). Use only the numbers "
     "given; never invent figures. Prefer topics with lasting demand that are rising now, "
     "that one person can produce without licensed footage, and where the chart is not "
     "owned by a few big channels. No music, no politics or adult topics. Answer in "
@@ -291,10 +382,14 @@ SYSTEM = (
 )
 
 
-def _prompt(stats: list[CategoryStat], wiki: list[tuple[str, int]], taken: set[str]) -> str:
-    lines = [s.fact() + (f"; Begriffe: {', '.join(s.words)}" if s.words else "") for s in stats]
+def _prompt(
+    stats: list[CategoryStat], wiki: list[tuple[str, int]], taken: set[str], home: str
+) -> str:
+    ordered = sorted(stats, key=lambda s: s.region != home)  # home region first
+    lines = [s.fact() + (f"; Begriffe: {', '.join(s.words)}" if s.words else "") for s in ordered]
     hot = ", ".join(f"{t} ({v:,})".replace(",", ".") for t, v in wiki[:30]) or "-"
     return (
+        f"Heimatmarkt: {REGION_NAMES.get(home, home)}. "
         "YouTube-Trends je Kategorie und Region (Stand jetzt):\n- "
         + "\n- ".join(lines)
         + f"\n\nMeistgelesene Wikipedia-Artikel gestern (Aufrufe): {hot}\n"
@@ -333,8 +428,9 @@ def from_ai(
     wiki: list[tuple[str, int]],
     taken: set[str],
     user_id: int | None,
+    home: str = "DE",
 ) -> tuple[list[Suggestion], str]:
-    fallback = template(stats, taken)
+    fallback = template(stats, taken, home)
     mock = json.dumps({"suggestions": [asdict(s) for s in fallback]}, ensure_ascii=False)
     try:
         result = ai.generate(
@@ -343,9 +439,9 @@ def from_ai(
             ai.AIRequest(
                 purpose="topic_suggestions",
                 tier="text",
-                messages=[ai.AIMessage("user", _prompt(stats, wiki, taken))],
+                messages=[ai.AIMessage("user", _prompt(stats, wiki, taken, home))],
                 system=SYSTEM,
-                max_tokens=2000,
+                max_tokens=3000,
                 mock=lambda _req: mock,
                 user_id=user_id,
             ),
@@ -393,6 +489,9 @@ def sample_stats(now: datetime) -> list[CategoryStat]:
         ("27", "DE", 4, 95_000, 2_100, 4, ["geschichte", "fakten", "erklärt"]),
         ("17", "DE", 8, 300_000, 5_000, 6, ["tor", "highlights", "bundesliga"]),
         ("2", "US", 3, 150_000, 1_800, 3, ["tesla", "test", "review"]),
+        ("20", "DE", 9, 220_000, 4_600, 8, ["minecraft", "fortnite", "update"]),
+        ("24", "DE", 6, 350_000, 5_400, 6, ["challenge", "reaction", "show"]),
+        ("23", "DE", 4, 120_000, 2_500, 4, ["sketch", "comedy", "alltag"]),
     ]
     return [
         CategoryStat(c, CATEGORIES[c], r, n, med, vph, ch, words, [f"Beispielvideo {c}-{i}"])
@@ -459,7 +558,8 @@ def suggest(
             errors=errors,
             generated_at=now.isoformat(),
         )
-    suggestions, provider = from_ai(session, settings, stats, wiki, taken, user_id)
+    home = regions_of(settings)[0]
+    suggestions, provider = from_ai(session, settings, stats, wiki, taken, user_id, home)
     return Result(
         live=live,
         sample=sample,

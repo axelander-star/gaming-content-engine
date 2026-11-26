@@ -14,6 +14,7 @@ import type {
   IdeaSort,
   IdeaStatus,
   ResearchItem,
+  ResearchRunStatus,
   ResearchSources,
 } from "@/lib/types";
 
@@ -33,6 +34,63 @@ const SORTS: [IdeaSort, string][] = [
 ];
 
 const PAGE_SIZE = 5;
+const POLL_MS = 3000;
+
+const STEP_LABELS: Record<string, string> = {
+  research: "Quellen durchsuchen",
+  idea_lab: "Ideen schreiben und bewerten",
+};
+
+const STEP_STATES: Record<string, string> = {
+  queued: "wartet",
+  running: "läuft",
+  done: "fertig",
+  failed: "Fehler",
+  skipped: "übersprungen",
+};
+
+/** Progress of the research run; the state lives on the server, so it survives
+ * leaving the page and coming back. */
+function RunProgress({ run }: { run: ResearchRunStatus }) {
+  if (run.state === "idle") return null;
+  const working = run.state === "running";
+  let summary: string;
+  if (working) {
+    summary = "Recherche läuft im Hintergrund. Du kannst die Seite verlassen, sie läuft weiter.";
+  } else if (run.state === "stuck") {
+    summary =
+      "Die Recherche wartet seit über 20 Minuten auf den Hintergrunddienst. Unter Agenten siehst du, ob er läuft.";
+  } else if (run.new_ideas > 0) {
+    summary = `Fertig: ${run.new_ideas} neue ${run.new_ideas === 1 ? "Idee" : "Ideen"} gefunden.`;
+  } else {
+    summary =
+      run.new_items > 0
+        ? `Fertig: ${run.new_items} neue Einträge gelesen, aber keine passende neue Idee. Versuch es später erneut oder ergänze Quellen.`
+        : "Fertig: Die Quellen hatten nichts Neues. Neue Meldungen kommen meist im Lauf des Tages, oder ergänze unten weitere Quellen.";
+  }
+  return (
+    <div className={`run-progress${working ? " is-working" : ""}`} role="status" aria-live="polite">
+      <p className="run-progress-head">
+        {working && <span className="run-spinner" aria-hidden="true" />}
+        <strong>{summary}</strong>
+      </p>
+      <ol className="run-steps">
+        {run.steps.map((s) => (
+          <li key={s.agent} className={`run-step is-${s.state}`}>
+            {STEP_LABELS[s.agent] ?? s.agent}: {STEP_STATES[s.state] ?? s.state}
+            {s.detail && <span className="muted"> ({s.detail})</span>}
+          </li>
+        ))}
+      </ol>
+      {run.started_at && (
+        <p className="muted run-progress-time">
+          Gestartet {formatDateTime(run.started_at)}
+          {run.finished_at && `, fertig ${formatDateTime(run.finished_at)}`}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function Pager({
   page,
@@ -362,8 +420,8 @@ export function IdeasView() {
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
   const [items, setItems] = useState<ResearchItem[]>([]);
   const [sources, setSources] = useState<ResearchSources | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [run, setRun] = useState<ResearchRunStatus | null>(null);
 
   // only the newest request may fill the list: an older answer (e.g. the "Neu" tab
   // reloaded after a decision) must not overwrite the tab the user switched to
@@ -407,12 +465,35 @@ export function IdeasView() {
     latestLoad.current = load;
   }, [load]);
 
+  // ask the server how the last research run is doing; poll while it works and
+  // reload the ideas whenever a step finishes
+  const lastSteps = useRef("");
+  const refreshRun = useCallback(() => {
+    api
+      .researchStatus()
+      .then((status) => {
+        setRun(status);
+        const steps = status.steps.map((s) => s.state).join(",");
+        if (steps !== lastSteps.current) {
+          if (lastSteps.current) latestLoad.current();
+          lastSteps.current = steps;
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+  useEffect(refreshRun, [refreshRun]);
+  const working = run?.state === "running";
+  useEffect(() => {
+    if (!working) return;
+    const timer = window.setInterval(refreshRun, POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [working, refreshRun]);
+
   async function startResearch() {
     setError(null);
     try {
       await api.runResearch(projectId);
-      setNotice("Recherche und Ideenlabor laufen. Neue Ideen erscheinen hier in Kürze.");
-      for (const ms of [3000, 8000, 15000]) setTimeout(() => latestLoad.current(), ms);
+      refreshRun();
     } catch (err) {
       setError((err as Error).message);
     }
@@ -476,12 +557,18 @@ export function IdeasView() {
           </select>
         </label>
         {isAdmin && (
-          <button type="button" className="btn btn-primary" onClick={startResearch}>
-            Recherche starten
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={startResearch}
+            disabled={working}
+            aria-busy={working}
+          >
+            {working ? "Recherche läuft …" : "Recherche starten"}
           </button>
         )}
       </div>
-      {notice && <p className="notice">{notice}</p>}
+      {run && <RunProgress run={run} />}
       <ErrorText error={error} />
       <div className="chat-layout">
         <div className="idea-list">

@@ -10,10 +10,13 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from redis import Redis
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
+from core.enums import ContentProjectStatus
 from models.access import User
+from models.projects import ContentProject
 from services import topic_suggest
 from services.projects import ensure_default_project
 from tests.conftest import login
@@ -23,13 +26,16 @@ pytestmark = pytest.mark.integration
 NOW = datetime(2026, 11, 26, 12, tzinfo=UTC)
 
 
-def video(i: int, views: int, hours: int, channel: str, title: str) -> dict[str, object]:
+def video(
+    i: int, views: int, hours: int, channel: str, title: str, category: str = ""
+) -> dict[str, object]:
     published = datetime(2026, 11, 26, 12 - hours, tzinfo=UTC).isoformat()
     return {
         "id": f"v{i}",
         "snippet": {
             "title": title,
             "channelId": channel,
+            "categoryId": category,
             "publishedAt": published.replace("+00:00", "Z"),
         },
         "statistics": {"viewCount": str(views)},
@@ -48,7 +54,21 @@ def fake_google(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"items": [{"articles": articles}]})
     assert "key=yt-key" in url
     category = request.url.params.get("videoCategoryId")
-    if category == "26":
+    region = request.url.params.get("regionCode")
+    if category is None:  # overall chart: gaming and entertainment only show up here
+        items = [video(i, 40_000, 4, f"g{i}", "Minecraft Update", "20") for i in range(5)]
+        items += [video(10 + i, 30_000, 3, f"e{i}", "Reaction Show", "24") for i in range(3)]
+        if region == "US":
+            items = [video(i, 9_000_000, 1, f"u{i}", "Dog rescue", "15") for i in range(9)]
+    elif region == "US":
+        items = (
+            [video(i, 9_000_000, 1, f"u{i}", "Dog rescue", "15") for i in range(9)]
+            if category == "15"
+            else []
+        )
+    elif category in ("20", "24"):
+        return httpx.Response(404, json={"error": {"errors": [{"reason": "notFound"}]}})
+    elif category == "26":
         items = [video(i, 200_000, 2, f"c{i}", "Airfryer Rezepte schnell") for i in range(6)]
     elif category == "28":
         items = [video(i, 50_000, 10, "big", "Handy Akku Trick") for i in range(4)]
@@ -88,6 +108,31 @@ def test_live_suggestions_have_real_numbers_and_skip_existing_areas(
     assert top.examples == ["Airfryer Rezepte schnell"] * 3
     tech = next(s for s in result.suggestions if s.name == "Wissenschaft & Technik")
     assert "1 verschiedene Kanäle" in tech.facts[0]
+    # no category chart for entertainment in DE (404): the overall chart stands in
+    show = next(s for s in result.suggestions if s.name == "Unterhaltung")
+    assert show.facts[0].startswith("Unterhaltung (Deutschland): 3 der 50")
+    assert "3 Plätze in den Top 50 insgesamt" in show.facts[0]
+
+
+def test_germany_counts_most_and_gaming_is_always_considered(
+    db: Session, live: Settings, redis_client: Redis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for area in db.scalars(select(ContentProject)):
+        area.status = ContentProjectStatus.ARCHIVED  # free all names, Gaming included
+    db.flush()
+    monkeypatch.setattr(topic_suggest, "SUGGESTIONS", 3)
+    settings = live.model_copy(update={"trend_alarm_regions": "DE,US"})
+    with httpx.Client(transport=httpx.MockTransport(fake_google)) as client:
+        result = topic_suggest.suggest(db, settings, redis_client, client=client, now=NOW)
+    names = [s.name for s in result.suggestions]
+    # US dogs grow 90x faster than anything in Germany, yet Germany leads
+    assert names[0] == "Praktische Tipps & Styling"
+    # three places: gaming and entertainment (both only in the overall chart) push
+    # out the faster US topic
+    assert names == ["Praktische Tipps & Styling", "Gaming", "Unterhaltung"]
+    gaming = next(s for s in result.suggestions if s.name == "Gaming")
+    assert gaming.facts[0].startswith("Gaming (Deutschland): 5 der 50")
+    assert gaming.subtopics[:2] == ["Minecraft", "Update"]
 
 
 def test_production_without_key_gives_a_hint_not_invented_numbers(
