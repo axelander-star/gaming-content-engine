@@ -178,11 +178,14 @@ def check(settings: Settings, client: httpx.Client | None = None) -> RoutingChec
         )
         data = res.json() if res.content else {}
         if res.status_code >= 400 or not data.get("success"):
+            # A token with only "Email Routing Rules: Edit" may not read the
+            # settings. That is fine: readable rules plus the test mail prove it.
             findings.append(
-                "Status von Email Routing nicht lesbar ("
+                "Hinweis: Den Schalter von Email Routing darf das Token nicht lesen ("
                 + _errors(data, res.status_code)
-                + "). Bitte im Cloudflare-Dashboard unter E-Mail > E-Mail-Routing prüfen, "
-                "ob es aktiviert ist."
+                + "). Das ist mit dem Recht „Email Routing Rules · Bearbeiten“ normal. "
+                "Ob Mails ankommen, zeigt der Knopf „Testmail senden“; aktiviert wird die "
+                "Weiterleitung im Cloudflare-Dashboard unter E-Mail-Dienst > E-Mail-Weiterleitung."
             )
         else:
             result = data.get("result") or {}
@@ -191,7 +194,8 @@ def check(settings: Settings, client: httpx.Client | None = None) -> RoutingChec
             if not enabled:
                 findings.append(
                     "Email Routing ist für die Domain nicht aktiviert. Im Cloudflare-Dashboard "
-                    "unter E-Mail > E-Mail-Routing einschalten und die MX-Einträge übernehmen."
+                    "unter E-Mail-Dienst > E-Mail-Weiterleitung einschalten und die "
+                    "MX-Einträge übernehmen."
                 )
             elif status and status != "ready":
                 findings.append(
@@ -217,7 +221,13 @@ def check(settings: Settings, client: httpx.Client | None = None) -> RoutingChec
     finally:
         if own:
             http.close()
-    ok = enabled is True and (status in (None, "ready")) and used is not None and used < RULE_LIMIT
+    # unknown state (settings not readable) does not block when the rules are readable
+    ok = (
+        enabled is not False
+        and status in (None, "ready")
+        and used is not None
+        and used < RULE_LIMIT
+    )
     return RoutingCheck(
         ok=ok,
         mode="live",
