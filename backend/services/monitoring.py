@@ -32,6 +32,7 @@ import httpx
 from redis import Redis
 from redis.exceptions import RedisError
 from rq import Worker
+from rq.defaults import DEFAULT_WORKER_TTL
 from rq.job import Job
 from rq.registry import FailedJobRegistry
 from sqlalchemy import func, select
@@ -55,7 +56,9 @@ STATE_KEY = "gce:monitor:state"
 SAMPLES_KEY = "gce:monitor:samples"
 HTTP_ERRORS_KEY = "gce:http5xx:{}"
 HEARTBEAT_STALE_S = 180
-WORKER_STALE_S = 120
+# An idle RQ worker blocks on the queue for worker_ttl - 15 s (405 s by default) and only
+# then renews its heartbeat, so anything shorter reports a healthy idle worker as dead.
+WORKER_STALE_S = DEFAULT_WORKER_TTL + 60
 SAMPLE_KEEP = timedelta(hours=24)
 SCALING_WINDOW = timedelta(hours=6)
 SCALING_MIN_SPAN = timedelta(hours=3)
