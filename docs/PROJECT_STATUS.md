@@ -67,6 +67,7 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | A11 | Ideenlabor: 12 Ideen je Lauf, 5 je Seite mit Weiter/Zurück, Sortierung; Trend-Alarm-Agent mit Entwürfen, Push und Ein-Tipp-Freigabe, Automatik je Kanal (Standard aus) | ✅ abgeschlossen |
 | K1 | Kampagnen-Hilfe (22.11.): Kampagnenseite als Text einfügen und Formular füllen lassen, fertige Videovorschläge aus Brief, Trends und Fakten, Überwachung von Fristen, Enddatum und Material | ✅ abgeschlossen |
 | N3 | Keine vorgefertigten Daten mehr: Seed ohne Kanäle, unbenutzte Platzhalter-Kanäle und erfundene Testdaten werden gelöscht, leerer Gaming-Bereich archiviert, im Betrieb keine erfundenen Testdaten | ✅ abgeschlossen |
+| N4 | „Themen vorschlagen“: 5 Themenbereiche aus YouTube-Trends und Wikipedia mit Zahlen, Übernehmen füllt das Formular; nach dem Verbinden überträgt die Engine Beschreibung, Stichwörter und Banner zu YouTube | ✅ abgeschlossen |
 
 **N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
 - Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.

@@ -907,6 +907,33 @@ export interface ContentProject {
   created_at: string;
 }
 
+export interface TopicSuggestion {
+  name: string;
+  description: string;
+  subtopics: string[];
+  audience: string;
+  tone: string;
+  /** Why now, in plain words. */
+  reason: string;
+  /** The numbers behind it (YouTube charts, Wikipedia). */
+  facts: string[];
+  examples: string[];
+  score: number;
+}
+
+export interface TopicSuggestions {
+  live: boolean;
+  /** Invented example numbers (development without live data). */
+  sample: boolean;
+  suggestions: TopicSuggestion[];
+  sources: string[];
+  /** What is missing for real data, e.g. the YouTube key. */
+  hint: string | null;
+  errors: string[];
+  generated_at: string;
+  provider: string;
+}
+
 export interface ContentProjectInput {
   name: string;
   description?: string | null;

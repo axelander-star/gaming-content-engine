@@ -287,6 +287,15 @@ Alle 12 Stunden je Kanal 2–3 Einheiten, bei 30 Kanälen also unter 200 Einheit
 
 Offizieller Aufruf der YouTube Data API v3, nur mit API-Schlüssel (kein OAuth): `GET /youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=DE&maxResults=50`, für Gaming-Themenbereiche zusätzlich mit `videoCategoryId=20`. Kosten 1 Einheit je Aufruf; bei `TREND_ALARM_REGIONS=DE,US` und einem Gaming-Bereich 4 Einheiten je Prüfung, alle 30 Minuten also rund 190 von 10.000 Einheiten am Tag. Gelesen werden nur Titel, Kanalname, Veröffentlichungszeit, Schlagwörter und Zahlen (Aufrufe, Likes, Kommentare). Fremde Videos werden **nicht** heruntergeladen oder verwendet (Nutzungsbedingungen, Urheberrecht); die Entwürfe sind Eigenproduktionen zum Thema. Fehlermeldungen enthalten nie die URL (Schlüssel). Vor dem ersten Live-Betrieb gegen die aktuelle Doku prüfen (`videos.list`, Parameter `chart`, `regionCode`, `videoCategoryId`). TikTok, Instagram und X haben keine offizielle Schnittstelle für fremde Trends und werden nicht beobachtet; „das ganze Internet“ ist damit bewusst auf freie, offizielle Quellen begrenzt (plus Recherche-Feeds und Konkurrenz-Radar).
 
+## Themenvorschläge: YouTube-Trends und Wikipedia (26.11.2026)
+
+„Themen vorschlagen“ unter Themenbereiche (`services/topic_suggest.py`, `POST /projects/suggestions`, nur Admin):
+
+- **YouTube** `videos.list` mit `chart=mostPopular`, `regionCode` aus `TREND_ALARM_REGIONS` (höchstens 3) und je einer `videoCategoryId` der Standardkategorien außer Musik. Kostet 1 Einheit pro Aufruf, bei DE und US etwa 26 Einheiten pro Klick, und läuft über das eigene Tageslimit `youtube`. Kategorien ohne Chart in einer Region (404) werden übersprungen.
+- **Wikipedia** über die Wikimedia Analytics API `GET https://wikimedia.org/api/rest_v1/metrics/pageviews/top/{de|en}.wikipedia/all-access/{JJJJ/MM/TT}`. Sie ist kostenlos und braucht keinen Schlüssel. Abgefragt werden die meistgelesenen Artikel des Vortags. Wikimedia verlangt einen eigenen User-Agent; gesendet wird ein allgemeiner Name ohne persönliche Daten.
+- Live nur mit `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live`. Im Betrieb ohne Schlüssel erscheint ein Hinweis statt erfundener Zahlen, in der Entwicklung erscheinen gekennzeichnete Beispieldaten.
+- Die KI formuliert aus den Zahlen 5 Themenbereiche und darf dabei nur die gelieferten Zahlen nennen. Ohne KI werden die stärksten Kategorien mit Vorlagentext vorgeschlagen.
+
 ## Push aufs Handy: ntfy (Ausbau A4)
 
 Geprüft gegen https://docs.ntfy.sh/publish/ am 16.11.2026: `POST https://ntfy.sh/<thema>` mit dem Text als Body; Kopfzeilen `Title`, `Priority` (1–5), `Tags` (Emoji-Kurzcodes), `Click` (URL beim Antippen). Nicht-ASCII in Kopfzeilen wird nach RFC 2047 kodiert (`=?UTF-8?B?…?=`), wie die Doku empfiehlt; Nachrichten über 4.096 Byte würden als Anhang verschickt, die Engine kürzt auf 3.500 Zeichen. Optionaler Zugangstoken als `Authorization: Bearer …` (für geschützte Themen; dieser Teil der Doku wurde nicht live geprüft, Standard ist ein geheimer Themenname ohne Token). Kosten: keine. Die Themen-URL ist geheim und wird nie geloggt.

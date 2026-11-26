@@ -129,6 +129,7 @@ import type {
   TrendAlarm,
   TrendAlarmChannel,
   TrendAlarmInfo,
+  TopicSuggestions,
 } from "./types";
 
 export class ApiError extends Error {
@@ -501,6 +502,7 @@ export const api = {
   projects: () => request<ContentProject[]>("/projects"),
   createProject: (body: ContentProjectInput) =>
     request<ContentProject>("/projects", { method: "POST", body: json(body) }),
+  suggestTopics: () => request<TopicSuggestions>("/projects/suggestions", { method: "POST" }),
   updateProject: (id: number, changes: ContentProjectPatch) =>
     request<ContentProject>(`/projects/${id}`, { method: "PATCH", body: json(changes) }),
   pauseChannel: (id: number) => request<Channel>(`/channels/${id}/pause`, { method: "POST" }),

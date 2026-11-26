@@ -14,6 +14,8 @@ import type {
   ContentProjectStatus,
   Language,
   PlatformCode,
+  TopicSuggestion,
+  TopicSuggestions,
 } from "@/lib/types";
 
 const STATUS_LABELS: Record<ContentProjectStatus, string> = {
@@ -27,7 +29,12 @@ const STATUS_TONES: Record<ContentProjectStatus, "ok" | "warn" | "neutral"> = {
   archived: "neutral",
 };
 const LANGUAGES: Language[] = ["de", "en"];
-const PLATFORMS: PlatformCode[] = ["youtube", "instagram", "tiktok", "facebook"];
+const PLATFORMS: PlatformCode[] = [
+  "youtube",
+  "instagram",
+  "tiktok",
+  "facebook",
+];
 
 interface Draft {
   name: string;
@@ -133,7 +140,10 @@ function ProjectForm({
         </label>
         <label>
           Zielgruppe
-          <input value={draft.audience} onChange={(e) => set("audience", e.target.value)} />
+          <input
+            value={draft.audience}
+            onChange={(e) => set("audience", e.target.value)}
+          />
         </label>
         <label>
           Tonalität
@@ -221,10 +231,15 @@ function ProjectCard({
   }
 
   return (
-    <article className="card project-card" aria-label={`Themenbereich ${project.name}`}>
+    <article
+      className="card project-card"
+      aria-label={`Themenbereich ${project.name}`}
+    >
       <header className="project-head">
         <h3>{project.name}</h3>
-        <Badge tone={STATUS_TONES[project.status]}>{STATUS_LABELS[project.status]}</Badge>
+        <Badge tone={STATUS_TONES[project.status]}>
+          {STATUS_LABELS[project.status]}
+        </Badge>
         {project.is_default && <Badge>Standard</Badge>}
       </header>
       {project.description && <p className="muted">{project.description}</p>}
@@ -260,7 +275,11 @@ function ProjectCard({
       </p>
       {isAdmin && !editing && (
         <div className="form-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => setEditing(true)}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setEditing(true)}
+          >
             Bearbeiten
           </button>
           {project.status === "active" ? (
@@ -281,15 +300,16 @@ function ProjectCard({
               Aktivieren
             </button>
           )}
-          {(!project.is_default || project.channels === 0) && project.status !== "archived" && (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => void setStatus("archived")}
-            >
-              Archivieren
-            </button>
-          )}
+          {(!project.is_default || project.channels === 0) &&
+            project.status !== "archived" && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => void setStatus("archived")}
+              >
+                Archivieren
+              </button>
+            )}
         </div>
       )}
       {editing && (
@@ -357,9 +377,10 @@ function ChannelAssignment({
   return (
     <Section title="Kanäle nach Themenbereich">
       <p className="muted small">
-        Jeder Kanal gehört zu genau einem Themenbereich. Inhalte eines Themenbereichs können nur
-        auf dessen Kanälen erscheinen; das prüft das System bei jedem Speichern und vor jeder
-        Veröffentlichung. Ein Kanal mit Videos kann den Themenbereich nicht mehr wechseln.
+        Jeder Kanal gehört zu genau einem Themenbereich. Inhalte eines
+        Themenbereichs können nur auf dessen Kanälen erscheinen; das prüft das
+        System bei jedem Speichern und vor jeder Veröffentlichung. Ein Kanal mit
+        Videos kann den Themenbereich nicht mehr wechseln.
       </p>
       <div className="table-wrap">
         <table>
@@ -385,7 +406,11 @@ function ChannelAssignment({
                       onChange={(e) => void move(c, Number(e.target.value))}
                     >
                       {projects
-                        .filter((p) => p.status !== "archived" || p.id === c.content_project_id)
+                        .filter(
+                          (p) =>
+                            p.status !== "archived" ||
+                            p.id === c.content_project_id,
+                        )
                         .map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name}
@@ -402,11 +427,17 @@ function ChannelAssignment({
         </table>
       </div>
       {isAdmin && usable.length > 0 && (
-        <form className="inline-form" onSubmit={(e) => void create(e)} aria-label="Neuer Kanal">
+        <form
+          className="inline-form"
+          onSubmit={(e) => void create(e)}
+          aria-label="Neuer Kanal"
+        >
           <select
             aria-label="Plattform"
             value={form.platform}
-            onChange={(e) => setForm({ ...form, platform: e.target.value as PlatformCode })}
+            onChange={(e) =>
+              setForm({ ...form, platform: e.target.value as PlatformCode })
+            }
           >
             {PLATFORMS.map((p) => (
               <option key={p} value={p}>
@@ -417,7 +448,9 @@ function ChannelAssignment({
           <select
             aria-label="Sprache"
             value={form.language}
-            onChange={(e) => setForm({ ...form, language: e.target.value as Language })}
+            onChange={(e) =>
+              setForm({ ...form, language: e.target.value as Language })
+            }
           >
             {LANGUAGES.map((l) => (
               <option key={l} value={l}>
@@ -436,7 +469,9 @@ function ChannelAssignment({
           <select
             aria-label="Themenbereich des neuen Kanals"
             value={form.content_project_id || usable[0]?.id}
-            onChange={(e) => setForm({ ...form, content_project_id: Number(e.target.value) })}
+            onChange={(e) =>
+              setForm({ ...form, content_project_id: Number(e.target.value) })
+            }
           >
             {usable.map((p) => (
               <option key={p.id} value={p.id}>
@@ -451,8 +486,8 @@ function ChannelAssignment({
       )}
       {isAdmin && (
         <p className="muted small">
-          Neue Kanäle starten pausiert, nicht verbunden und mit Obergrenze 0. Verbinden und Grenzen
-          setzen unter Einstellungen.
+          Neue Kanäle starten pausiert, nicht verbunden und mit Obergrenze 0.
+          Verbinden und Grenzen setzen unter Einstellungen.
         </p>
       )}
       <ErrorText error={error} />
@@ -465,7 +500,23 @@ export function ProjectsView() {
   const [projects, setProjects] = useState<ContentProject[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<Draft | null>(null);
+  const [suggestions, setSuggestions] = useState<TopicSuggestions | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [created, setCreated] = useState<string | null>(null);
+
+  async function suggest() {
+    setSuggesting(true);
+    setCreated(null);
+    try {
+      setSuggestions(await api.suggestTopics());
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   const load = useCallback(() => {
     Promise.all([api.projects(), api.channels()])
@@ -493,22 +544,54 @@ export function ProjectsView() {
       <ErrorText error={error} />
       {isAdmin && (
         <div className="form-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={suggesting}
+            onClick={() => void suggest()}
+          >
+            {suggesting ? "Trends werden ausgewertet …" : "Themen vorschlagen"}
+          </button>
           {!creating && (
-            <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setCreating(EMPTY_DRAFT)}
+            >
               Neuer Themenbereich
             </button>
           )}
         </div>
       )}
+      {created && (
+        <p role="status" className="muted">
+          „{created}“ ist angelegt. Weiter geht es im{" "}
+          <a href="/kanal-assistent">Kanal-Assistenten</a>: dort bekommst du
+          Name, Beschreibung, Profilbild und Banner für den ersten Kanal.
+        </p>
+      )}
+      {suggestions && !creating && (
+        <SuggestionList
+          result={suggestions}
+          onTake={(s) => {
+            setCreating(suggestionDraft(s));
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          onClose={() => setSuggestions(null)}
+        />
+      )}
       {creating && (
         <Section title="Neuer Themenbereich">
           <ProjectForm
-            initial={EMPTY_DRAFT}
+            key={creating.name}
+            initial={creating}
             submitLabel="Anlegen"
-            onCancel={() => setCreating(false)}
+            onCancel={() => setCreating(null)}
             onSubmit={async (input) => {
               await api.createProject(input);
-              setCreating(false);
+              setCreating(null);
+              setSuggestions(null);
+              setCreated(input.name);
               load();
             }}
           />
@@ -516,20 +599,33 @@ export function ProjectsView() {
       )}
       {active.length === 0 && !creating && (
         <p className="muted">
-          Noch kein Themenbereich angelegt. Mit „Neuer Themenbereich“ legst du deinen ersten an.
+          Noch kein Themenbereich angelegt. Mit „Neuer Themenbereich“ legst du
+          deinen ersten an.
         </p>
       )}
       <div className="grid two">
         {active.map((p) => (
-          <ProjectCard key={p.id} project={p} isAdmin={isAdmin} onChanged={load} />
+          <ProjectCard
+            key={p.id}
+            project={p}
+            isAdmin={isAdmin}
+            onChanged={load}
+          />
         ))}
       </div>
       {archived.length > 0 && (
         <details>
-          <summary className="muted small">Archivierte Themenbereiche ({archived.length})</summary>
+          <summary className="muted small">
+            Archivierte Themenbereiche ({archived.length})
+          </summary>
           <div className="grid two">
             {archived.map((p) => (
-              <ProjectCard key={p.id} project={p} isAdmin={isAdmin} onChanged={load} />
+              <ProjectCard
+                key={p.id}
+                project={p}
+                isAdmin={isAdmin}
+                onChanged={load}
+              />
             ))}
           </div>
         </details>
@@ -541,5 +637,97 @@ export function ProjectsView() {
         onChanged={load}
       />
     </>
+  );
+}
+
+function suggestionDraft(s: TopicSuggestion): Draft {
+  return {
+    ...EMPTY_DRAFT,
+    name: s.name,
+    description: s.description,
+    audience: s.audience,
+    tone: s.tone,
+    subtopics: s.subtopics.join(", "),
+  };
+}
+
+/** Topic ideas from current trends, each with the numbers behind it. */
+function SuggestionList({
+  result,
+  onTake,
+  onClose,
+}: {
+  result: TopicSuggestions;
+  onTake: (s: TopicSuggestion) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Section title="Themenvorschläge aus aktuellen Trends">
+      {result.sample && (
+        <p className="muted small">
+          Beispieldaten: Ohne Live-Zugang sind die Zahlen erfunden und nur zum
+          Ausprobieren.
+        </p>
+      )}
+      {result.hint && <p className="muted">{result.hint}</p>}
+      {result.sources.length > 0 && (
+        <p className="muted small">
+          Quellen: {result.sources.join(", ")} · Stand{" "}
+          {new Date(result.generated_at).toLocaleString("de-DE")}
+        </p>
+      )}
+      <div className="grid two">
+        {result.suggestions.map((s) => (
+          <article
+            key={s.name}
+            className="card"
+            aria-label={`Vorschlag ${s.name}`}
+          >
+            <header className="project-head">
+              <h3>{s.name}</h3>
+              {s.score > 0 && <Badge tone="ok">{s.score} / 100</Badge>}
+            </header>
+            {s.description && <p>{s.description}</p>}
+            {s.reason && <p className="muted">{s.reason}</p>}
+            {s.subtopics.length > 0 && (
+              <ul className="chips" aria-label="Unterthemen">
+                {s.subtopics.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            )}
+            {s.facts.length > 0 && (
+              <details>
+                <summary className="small">Zahlen dahinter</summary>
+                <ul className="small">
+                  {s.facts.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+                {s.examples.length > 0 && (
+                  <p className="small muted">
+                    Beispiele aus den Trends: {s.examples.join(" · ")}
+                  </p>
+                )}
+              </details>
+            )}
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => onTake(s)}
+              >
+                Übernehmen
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="form-actions">
+        <button type="button" className="btn btn-ghost" onClick={onClose}>
+          Schließen
+        </button>
+      </div>
+    </Section>
   );
 }

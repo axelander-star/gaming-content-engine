@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import httpx
 import pytest
@@ -14,21 +15,34 @@ from redis import Redis
 from sqlalchemy.orm import Session
 
 from core import crypto
-from core.config import Settings
+from core.config import Settings, get_settings
 from core.enums import ChannelAuthStatus, ChannelSetupStatus, Language
 from models import Channel, ChannelCredential
 from models.channel_setup import ChannelSetupTask
 from services import branding, profile_sync, youtube
 from services.projects import ensure_default_project
 from services.seed import seed_base_data
-from tests.integration.test_publishing import FakeGoogle, google, settings  # noqa: F401
+from tests.integration.test_publishing import FakeGoogle
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture
+def google(monkeypatch: pytest.MonkeyPatch) -> FakeGoogle:
+    fake = FakeGoogle()
+    monkeypatch.setattr(youtube, "TRANSPORT", httpx.MockTransport(fake))
+    return fake
+
+
+@pytest.fixture
+def settings(tmp_path: Path) -> Settings:
+    return get_settings().model_copy(update={"media_root": str(tmp_path / "media")})
+
 
 CHANNEL_URL = f"{youtube.API}/channels"
 
 
-def connected(db: Session, settings: Settings) -> Channel:  # noqa: F811
+def connected(db: Session, settings: Settings) -> Channel:
     seed_base_data(db, demo_channels=True)
     project = ensure_default_project(db)
     project.subtopics = ["Rezepte", "Meal Prep"]
@@ -70,7 +84,7 @@ def test_profile_is_written_with_banner_and_existing_settings_kept(
     db: Session,
     settings: Settings,
     google: FakeGoogle,
-    redis_client: Redis,  # noqa: F811
+    redis_client: Redis,
 ) -> None:
     channel = connected(db, settings)
     current = {
@@ -111,7 +125,7 @@ def test_failure_is_recorded_and_nothing_counts_as_applied(
     db: Session,
     settings: Settings,
     google: FakeGoogle,
-    redis_client: Redis,  # noqa: F811
+    redis_client: Redis,
 ) -> None:
     channel = connected(db, settings)
     google.on("GET", CHANNEL_URL, httpx.Response(200, json={"items": [{}]}))
@@ -127,7 +141,7 @@ def test_unconnected_channel_is_not_touched(
     db: Session,
     settings: Settings,
     google: FakeGoogle,
-    redis_client: Redis,  # noqa: F811
+    redis_client: Redis,
 ) -> None:
     channel = connected(db, settings)
     channel.auth_status = ChannelAuthStatus.NOT_CONNECTED
