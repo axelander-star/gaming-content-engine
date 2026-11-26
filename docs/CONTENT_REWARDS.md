@@ -37,8 +37,19 @@ Hat ein Beitrag noch keinen öffentlichen Link (TikTok-Entwurf in der App, Testb
 ## Warum die Einreichung von Hand bleibt
 
 - Für Clipper gibt es **keine offizielle Schnittstelle** zu Content-Rewards-Kampagnen. Die Whop-API kennt „Bounties“ (`POST /bounty_submissions` mit Benutzer-Zugang), es ist aber nicht belegt, dass Content-Rewards-Kampagnen darüber laufen.
-- Formulare automatisch ausfüllen oder Seiten auslesen widerspricht den [Whop-API-Bedingungen](https://whop.com/tos-developer-api/) und gefährdet das Konto.
+- Content Rewards sagt selbst: „We do not post on your behalf“ (Creator Terms §14.2). Formulare auf Content Rewards füllt die Engine nicht aus.
 - Es zählen nur Konten, die in Content Rewards verbunden und bestätigt sind; bei Instagram nur Business-Konten.
+
+## Kampagnen automatisch holen? (Prüfung 26.11.2026)
+
+| Weg | Ergebnis |
+|---|---|
+| Whop-API | `GET /bounties` (Beta) listet nur Bounties, die das eigene Token sehen darf, braucht Nutzer-Zustimmung über Whops Zustimmungsseite (Developer-Bedingungen §10) und erwähnt Content Rewards nicht. Ob deine Kampagnen dort auftauchen, ist unbelegt. `GET /ad_campaigns` betrifft bezahlte Werbung, nicht Clipping. |
+| Seite `/c/home` vom Server lesen | Nicht sinnvoll: nur mit deinem Login erreichbar; dafür müsste der Server deine Sitzung speichern. |
+| Öffentliche Seite `/c/discover` vom Server lesen | Laut robots.txt erlaubt (gesperrt sind u. a. `/api/` und `/home`), die Creator Terms (Stand 17.11.2026) verbieten es nicht ausdrücklich. Aber: keine dokumentierte Schnittstelle (Projektregel), Seite wird per JavaScript aufgebaut und kann sich jederzeit ändern. Nicht gebaut. |
+| Lesezeichen „Ins Studio“ | **Gebaut.** Du öffnest die Kampagne selbst, klickst das Lesezeichen, das Studio öffnet sich und füllt das Formular. Kein Zugriff ohne dich, kein Login, nichts geht an Content Rewards. |
+
+**Lesezeichen einrichten:** Seite Kampagnen → „Neue Kampagne“ → „Noch schneller: Lesezeichen ‚Ins Studio‘“ aufklappen → Knopf „Ins Studio“ in die Lesezeichenleiste ziehen (am Handy: „Code kopieren“, neues Lesezeichen anlegen, Code als Adresse einsetzen). Der Seitentext reist im Adressteil nach `#` (wird nicht an den Server geschickt, nur vom Dashboard gelesen) und liegt zusätzlich in der Zwischenablage, falls das Studio erst eine Anmeldung verlangt.
 
 ## Videovorschläge und Überwachung
 

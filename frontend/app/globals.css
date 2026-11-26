@@ -2863,6 +2863,17 @@ td.row-actions {
   align-items: flex-start;
   gap: 4px;
 }
+.camp-bookmarklet summary {
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.camp-bookmarklet ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.camp-bookmarklet a.btn {
+  cursor: grab;
+
 
 /* --- Help: question mark in the top bar, side panel, /hilfe page --- */
 .help-btn {

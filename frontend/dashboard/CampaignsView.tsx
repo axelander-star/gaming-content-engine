@@ -699,6 +699,82 @@ function CampaignCard({
   );
 }
 
+const IMPORT_PREFIX = "#import=";
+const IMPORT_MAX = 19000;
+
+/** Campaign page text from the bookmark, or null when the URL carries none. */
+export function importedText(hash: string): string | null {
+  if (!hash.startsWith(IMPORT_PREFIX)) return null;
+  try {
+    const text = decodeURIComponent(hash.slice(IMPORT_PREFIX.length)).slice(0, IMPORT_MAX);
+    return text.trim().length >= 20 ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Bookmark code: runs only when the operator clicks it on the campaign page they are viewing. */
+function bookmarkletCode(origin: string): string {
+  const body =
+    "(()=>{const t=(location.href+'\\n'+document.title+'\\n'+document.body.innerText)" +
+    `.slice(0,${IMPORT_MAX});` +
+    "try{navigator.clipboard.writeText(t)}catch(e){}" +
+    `window.open(${JSON.stringify(`${origin}/kampagnen${IMPORT_PREFIX}`)}+encodeURIComponent(t),'_blank')})()`;
+  return `javascript:${body}`;
+}
+
+function BookmarkletHelp() {
+  const link = useRef<HTMLAnchorElement>(null);
+  const [code, setCode] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const c = bookmarkletCode(window.location.origin);
+    setCode(c);
+    // React refuses javascript: links in JSX, so the bookmark link gets its target here.
+    link.current?.setAttribute("href", c);
+  }, []);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <details className="camp-bookmarklet">
+      <summary>Noch schneller: Lesezeichen „Ins Studio“</summary>
+      <ol className="small">
+        <li>
+          Den Knopf{" "}
+          <a ref={link} className="btn btn-small" onClick={(e) => e.preventDefault()}>
+            Ins Studio
+          </a>{" "}
+          in die Lesezeichenleiste ziehen (oder „Code kopieren“ und als neues Lesezeichen
+          speichern).
+        </li>
+        <li>Auf Content Rewards die Kampagne öffnen und das Lesezeichen anklicken.</li>
+        <li>
+          Das Studio öffnet sich mit der Kampagne und füllt das Formular aus. Du prüfst nur
+          noch und legst an.
+        </li>
+      </ol>
+      <p className="muted small">
+        Das Lesezeichen liest nur die Seite, die du gerade selbst geöffnet hast, und nur wenn du
+        es anklickst. Es meldet sich nirgends an und schickt nichts an Content Rewards. Der Text
+        liegt zusätzlich in deiner Zwischenablage, falls das Studio erst eine Anmeldung verlangt.
+      </p>
+      <button type="button" className="btn btn-ghost btn-small" onClick={() => void copy()}>
+        {copied ? "Kopiert ✓" : "Code kopieren"}
+      </button>
+    </details>
+  );
+}
+
 function NewCampaignForm({
   projects,
   channels,
@@ -736,12 +812,12 @@ function NewCampaignForm({
   const [reading, setReading] = useState(false);
   const [readNote, setReadNote] = useState<string | null>(null);
 
-  async function readPage() {
+  async function readPage(text: string = pasted) {
     setReading(true);
     setError(null);
     setReadNote(null);
     try {
-      const r = await api.parseCampaignPage(pasted);
+      const r = await api.parseCampaignPage(text);
       const f = r.fields;
       if (f.name) setName(f.name);
       if (f.url) setUrl(f.url);
@@ -797,6 +873,23 @@ function NewCampaignForm({
   useEffect(() => {
     if (projectId === null && projects[0]) setProjectId(projects[0].id);
   }, [projects, projectId]);
+
+  // Text handed over by the bookmark "Ins Studio" (see BookmarkletHelp), on arrival
+  // or when the hash changes on an open page.
+  const takeImport = useRef<() => void>(() => undefined);
+  takeImport.current = () => {
+    const text = importedText(window.location.hash);
+    if (text === null) return;
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    setPasted(text);
+    void readPage(text);
+  };
+  useEffect(() => {
+    const onHash = () => takeImport.current();
+    onHash();
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   const usable = channels.filter(
     (c) =>
@@ -875,6 +968,7 @@ function NewCampaignForm({
           {reading ? "Liest …" : "Formular automatisch ausfüllen"}
         </button>
         {readNote && <p className="small" role="status">{readNote}</p>}
+        <BookmarkletHelp />
       </div>
       <div className="form-grid">
         <label>
