@@ -159,3 +159,14 @@ def test_keywords_are_capped_and_quoted() -> None:
     words = profile_sync.keywords(Channel(strategy={}), project)
     assert words.startswith('Ernährung "a b"')
     assert len(words) <= profile_sync.KEYWORDS_MAX
+
+
+def test_channel_without_assistant_task_is_never_overwritten(
+    db: Session, settings: Settings, google: FakeGoogle, redis_client: Redis
+) -> None:
+    channel = connected(db, settings)
+    channel.strategy = {}
+    db.query(ChannelSetupTask).delete()
+    result = profile_sync.sync_youtube(db, settings, redis_client, channel)
+    assert not result.ok and "Kanal-Assistenten" in (result.error or "")
+    assert google.requests == []

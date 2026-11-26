@@ -171,6 +171,10 @@ def _sync(
     if cred is None:
         raise ProfileSyncError("Keine Zugangsdaten gespeichert")
     task = _task(session, channel)
+    if task is None:
+        # only channels made with the channel assistant: never overwrite the profile
+        # of an existing channel that was connected later
+        raise ProfileSyncError("Kanal stammt nicht aus dem Kanal-Assistenten")
     description = ((task.bio if task else None) or channel.description or "").strip()
     project = session.get(ContentProject, channel.content_project_id)
     words = keywords(channel, project)
