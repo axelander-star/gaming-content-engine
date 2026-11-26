@@ -34,7 +34,9 @@ export type IconName =
   | "mic"
   | "speaker"
   | "bell"
-  | "stop";
+  | "stop"
+  | "help"
+  | "book";
 
 const PATHS: Record<IconName, ReactNode> = {
   paperclip: (
@@ -59,6 +61,13 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.9M12 17h.01" />
+    </>
+  ),
+  book: <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5v-15ZM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3" />,
   userPlus: (
     <>
       <circle cx="9" cy="8" r="4" />

@@ -1178,6 +1178,32 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/eigenproduktion-serie.png`, fullPage: true });
   });
 
+  await step("Hilfe: Fragezeichen zeigt Anleitung der Seite, Hilfe-Seite mit Erste Schritte", async () => {
+    await page.getByRole("link", { name: "Kanal-Assistent", exact: true }).click();
+    await page.getByRole("heading", { name: "Kanal-Assistent", level: 1 }).waitFor();
+    await page.getByRole("button", { name: "Anleitung für diese Seite" }).click();
+    const panel = page.getByRole("dialog", { name: "Kanal-Assistent" });
+    await panel.getByRole("heading", { name: "So gehst du vor" }).waitFor();
+    await panel.getByRole("heading", { name: "Das machst du selbst" }).waitFor();
+    await page.keyboard.press("Escape");
+    await panel.waitFor({ state: "detached" });
+    // every page in the navigation has its own guide
+    const hrefs = await page
+      .locator('nav[aria-label="Hauptnavigation"] a')
+      .evaluateAll((links) => links.map((a) => new URL(a.href).pathname));
+    for (const href of hrefs) {
+      await page.goto(BASE + href);
+      await page.getByRole("button", { name: "Anleitung für diese Seite" }).click();
+      await page.getByRole("dialog").getByRole("heading", { name: "So gehst du vor" }).waitFor();
+    }
+    await page.getByRole("dialog").getByRole("link", { name: /Alle Anleitungen/ }).click();
+    await page.getByRole("heading", { name: "Hilfe", level: 1 }).waitFor();
+    assert.equal(await page.getByRole("list", { name: "Erste Schritte" }).locator("li").count(), 5);
+    await page.getByPlaceholder(/Suchen/).fill("Captcha");
+    await page.getByText("Seite „Kanal-Assistent“ öffnen").waitFor();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/hilfe.png`, fullPage: true });
+  });
+
   await step("Abmelden", async () => {
     await page.getByRole("button", { name: "Abmelden" }).click();
     await page.waitForURL("**/login");
