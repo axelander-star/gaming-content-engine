@@ -481,12 +481,14 @@ export function ProjectsView() {
 
   if (!user) return null;
   const isAdmin = hasRole(user.role, "admin");
+  const active = projects.filter((p) => p.status !== "archived");
+  const archived = projects.filter((p) => p.status === "archived");
 
   return (
     <>
       <PageHeader
         title="Themenbereiche"
-        description="Gaming, Ernährung und weitere Bereiche mit eigenen Kanälen, Themen und Einstellungen."
+        description="Deine Themen mit eigenen Kanälen, Themen und Einstellungen. Es erscheint nur, was du selbst anlegst."
       />
       <ErrorText error={error} />
       {isAdmin && (
@@ -512,11 +514,26 @@ export function ProjectsView() {
           />
         </Section>
       )}
+      {active.length === 0 && !creating && (
+        <p className="muted">
+          Noch kein Themenbereich angelegt. Mit „Neuer Themenbereich“ legst du deinen ersten an.
+        </p>
+      )}
       <div className="grid two">
-        {projects.map((p) => (
+        {active.map((p) => (
           <ProjectCard key={p.id} project={p} isAdmin={isAdmin} onChanged={load} />
         ))}
       </div>
+      {archived.length > 0 && (
+        <details>
+          <summary className="muted small">Archivierte Themenbereiche ({archived.length})</summary>
+          <div className="grid two">
+            {archived.map((p) => (
+              <ProjectCard key={p.id} project={p} isAdmin={isAdmin} onChanged={load} />
+            ))}
+          </div>
+        </details>
+      )}
       <ChannelAssignment
         channels={channels}
         projects={projects}

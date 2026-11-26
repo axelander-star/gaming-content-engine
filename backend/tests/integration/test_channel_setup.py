@@ -454,6 +454,24 @@ def test_mail_check_survives_missing_read_permission(settings: Settings) -> None
     assert any("Authentication error" in f for f in res.findings)
 
 
+def test_mail_check_ok_when_only_the_settings_are_hidden(settings: Settings) -> None:
+    """A rules-only token cannot read the routing switch; that must not raise an alarm."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/email/routing"):
+            return httpx.Response(
+                403, json={"success": False, "errors": [{"message": "Authentication error"}]}
+            )
+        return httpx.Response(
+            200, json={"success": True, "result": [rule("a@kanalfabrik.de", "r1")]}
+        )
+
+    client = httpx.Client(base_url=mail_alias.API, transport=httpx.MockTransport(handler))
+    res = mail_alias.check(live_mail(settings), client)
+    assert res.ok and res.enabled is None and res.rules_used == 1
+    assert "Testmail" in res.findings[0] and "E-Mail-Weiterleitung" in res.findings[0]
+
+
 def test_test_mail_needs_created_alias_and_uses_mailer(
     db: Session, settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
