@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+import json
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
@@ -13,7 +14,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from api.deps import Admin, AppSettings, DbSession, Operator, Viewer, csrf_protect
-from core.enums import ContentProjectStatus, IdeaStatus
+from core.enums import AgentRunStatus, ContentProjectStatus, IdeaStatus
+from models.control import AgentRun
 from models.projects import ContentProject
 from models.research import Idea, ResearchItem, ResearchSource
 from services import agent_control, audit, ideas, planning
@@ -261,10 +263,114 @@ def run_research(
         if project is None or project.status != ContentProjectStatus.ACTIVE:
             raise HTTPException(status.HTTP_409_CONFLICT, detail="Themenbereich ist nicht aktiv")
     jobs = start_research(db, redis, body.project_id, body.ideas, settings)
+    # remembered so the page can show progress after the operator left and came back
+    redis.set(
+        MANUAL_RUN_KEY,
+        json.dumps(
+            {
+                "started_at": datetime.now(UTC).isoformat(),
+                "project_id": body.project_id,
+                "agents": list(jobs),
+            }
+        ),
+        ex=int(MANUAL_RUN_TTL.total_seconds()),
+    )
     audit.record(db, "research.run_manual", user_id=admin.id, entity_type="agents",
                  after={"project_id": body.project_id, "jobs": jobs})  # fmt: skip
     db.commit()
     return RunOut(jobs=jobs)
+
+
+MANUAL_RUN_KEY = "research:manual_run"
+MANUAL_RUN_TTL = timedelta(hours=6)
+#: a queued step that never started within this time is reported as stuck
+STUCK_AFTER = timedelta(minutes=20)
+
+
+class RunStep(BaseModel):
+    agent: str
+    state: Literal["queued", "running", "done", "failed", "skipped"]
+    detail: str | None = None
+
+
+class RunStatusOut(BaseModel):
+    state: Literal["idle", "running", "done", "stuck"]
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    project_id: int | None = None
+    steps: list[RunStep] = []
+    new_items: int = 0
+    new_ideas: int = 0
+
+
+def _step(agent: str, run: AgentRun | None) -> RunStep:
+    if run is None:
+        return RunStep(agent=agent, state="queued")
+    if run.status == AgentRunStatus.RUNNING:
+        return RunStep(agent=agent, state="running")
+    if run.status == AgentRunStatus.SUCCEEDED:
+        return RunStep(agent=agent, state="done")
+    if run.status == AgentRunStatus.SKIPPED:
+        reason = (run.output or {}).get("reason") or run.error
+        return RunStep(agent=agent, state="skipped", detail=str(reason or "")[:300] or None)
+    return RunStep(agent=agent, state="failed", detail=(run.error or "")[:300] or None)
+
+
+@router.get("/research/status", response_model=RunStatusOut)
+def research_status(
+    _: Viewer, db: DbSession, redis: Annotated[Redis, Depends(get_redis)]
+) -> RunStatusOut:
+    """Progress of the last manual research run (survives leaving the page)."""
+    raw = redis.get(MANUAL_RUN_KEY)
+    if not raw:
+        return RunStatusOut(state="idle")
+    try:
+        data = json.loads(raw)
+        started = datetime.fromisoformat(data["started_at"])
+        agents = [str(a) for a in data.get("agents") or []]
+        project_id = data.get("project_id")
+    except (ValueError, KeyError, TypeError):
+        return RunStatusOut(state="idle")
+    # the first run of each agent that started after the button was pressed
+    since = started - timedelta(seconds=5)
+    steps: list[RunStep] = []
+    runs: list[AgentRun] = []
+    for agent in agents:
+        run = db.scalar(
+            select(AgentRun)
+            .where(AgentRun.agent_name == agent, AgentRun.started_at >= since)
+            .order_by(AgentRun.id)
+            .limit(1)
+        )
+        steps.append(_step(agent, run))
+        if run is not None:
+            runs.append(run)
+    open_steps = [s for s in steps if s.state in ("queued", "running")]
+    state: Literal["idle", "running", "done", "stuck"] = "running" if open_steps else "done"
+    waiting = all(s.state == "queued" for s in open_steps)
+    if state == "running" and waiting and datetime.now(UTC) - started > STUCK_AFTER:
+        state = "stuck"
+    new_items = 0
+    for run in runs:
+        if run.agent_name == "research":
+            new_items = sum(
+                int(p.get("new_items") or 0)
+                for p in (run.output or {}).get("projects") or []
+                if isinstance(p, dict)
+            )
+    ideas_query = select(func.count()).select_from(Idea).where(Idea.created_at >= since)
+    if isinstance(project_id, int):
+        ideas_query = ideas_query.where(Idea.content_project_id == project_id)
+    finished = [r.finished_at for r in runs if r.finished_at is not None]
+    return RunStatusOut(
+        state=state,
+        started_at=started,
+        finished_at=max(finished) if state == "done" and finished else None,
+        project_id=project_id if isinstance(project_id, int) else None,
+        steps=steps,
+        new_items=new_items,
+        new_ideas=int(db.scalar(ideas_query) or 0),
+    )
 
 
 # --- ideas ---------------------------------------------------------------------------

@@ -102,6 +102,7 @@ import type {
   ProductionSegment,
   ResearchItem,
   ResearchSource,
+  ResearchRunStatus,
   ResearchSources,
   ChatExchange,
   ChatMessage,
@@ -271,6 +272,7 @@ export const api = {
     request<ResearchItem[]>(
       `/research/items?limit=${limit}${projectId ? `&project_id=${projectId}` : ""}`,
     ),
+  researchStatus: () => request<ResearchRunStatus>("/research/status"),
   runResearch: (projectId?: number) =>
     request<{ jobs: Record<string, string> }>("/research/run", {
       method: "POST",

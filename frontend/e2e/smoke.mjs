@@ -647,7 +647,13 @@ try {
     await page.getByText("Test: Beispiel-Feeds, kein Abruf").waitFor();
     await page.getByRole("button", { name: "Recherche starten" }).click();
     const researchStarted = Date.now();
-    await page.getByText(/Recherche und Ideenlabor laufen/).waitFor();
+    // progress lives on the server: visible right away and after leaving the page
+    await page.getByRole("status").getByText(/Recherche läuft im Hintergrund|Fertig: /).waitFor();
+    await page.getByRole("link", { name: "Übersicht" }).click();
+    await page.getByRole("link", { name: "Ideenlabor", exact: true }).click();
+    await page.getByRole("heading", { name: "Ideenlabor", level: 1 }).waitFor();
+    await page.getByRole("status").getByText(/Recherche läuft im Hintergrund|Fertig: /).waitFor();
+    await page.getByText(/Fertig: \d+ neue Idee/).waitFor({ timeout: 30000 });
     const cards = page.getByRole("article", { name: /^Idee / });
     await cards.first().waitFor({ timeout: 30000 });
     // five per page, best ranking first, with pages and a sort choice

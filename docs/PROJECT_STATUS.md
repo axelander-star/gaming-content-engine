@@ -69,6 +69,7 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | K2 | Lesezeichen „Ins Studio“ (26.11.): Kampagne auf Content Rewards öffnen, Lesezeichen klicken, Studio füllt das Formular. Prüfung automatischer Wege in CONTENT_REWARDS.md | ✅ abgeschlossen |
 | N3 | Keine vorgefertigten Daten mehr: Seed ohne Kanäle, unbenutzte Platzhalter-Kanäle und erfundene Testdaten werden gelöscht, leerer Gaming-Bereich archiviert, im Betrieb keine erfundenen Testdaten | ✅ abgeschlossen |
 | N4 | „Themen vorschlagen“: 5 Themenbereiche aus YouTube-Trends und Wikipedia mit Zahlen, Übernehmen füllt das Formular; nach dem Verbinden überträgt die Engine Beschreibung, Stichwörter und Banner zu YouTube | ✅ abgeschlossen |
+| N5 | Ideenlabor zeigt den Fortschritt der Recherche (auch nach Verlassen der Seite), Anleitung wieder als Seitenleiste rechts, automatisches Update auf dem Server (`scripts/install_auto_update.sh`) | ✅ abgeschlossen |
 
 **N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
 - Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.

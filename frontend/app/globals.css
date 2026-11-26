@@ -3086,3 +3086,54 @@ td.row-actions {
 .help-item summary {
   color: var(--text);
 }
+
+/* --- Idea lab: progress of the research run --- */
+.run-progress {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.run-progress.is-working {
+  border-color: var(--accent);
+}
+.run-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+}
+.run-steps {
+  margin: 0;
+  padding-left: 20px;
+}
+.run-step.is-done {
+  color: var(--muted);
+}
+.run-step.is-failed {
+  color: var(--danger, #e5484d);
+}
+.run-progress-time {
+  margin: 6px 0 0;
+  font-size: 0.9em;
+}
+.run-spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: run-spin 0.8s linear infinite;
+}
+@keyframes run-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .run-spinner {
+    animation-duration: 2.4s;
+  }
+}

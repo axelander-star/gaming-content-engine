@@ -28,6 +28,21 @@ Ablauf des Skripts:
 3. holt die Version, baut die Images und startet alles. Die Migrationen laufen dabei im Dienst `migrate`;
 4. wartet, bis `/api/health/ready` antwortet, und gibt den Befehl zum Zurückspringen aus.
 
+### Automatisches Update (seit 26.11.2026)
+
+Einmal einschalten, danach spielt der Server neue Versionen von `main` selbst ein:
+
+```bash
+./scripts/install_auto_update.sh          # an: alle 5 Minuten prüfen
+./scripts/install_auto_update.sh --log    # letzte Einträge des Protokolls
+./scripts/install_auto_update.sh --off    # aus
+```
+
+- Ein Cron-Eintrag des Benutzers `deploy` ruft alle 5 Minuten `scripts/auto_update.sh` auf. Es holt `origin/main` und ruft bei einem neuen Stand `deploy.sh` auf, also mit Datensicherung und Bereitschaftsprüfung. Nach `main` kommt nur, was die CI bestanden hat.
+- Schlägt ein Update fehl, wird sofort die vorherige Version wieder eingespielt. Der fehlerhafte Stand wird erst wieder versucht, wenn ein neuerer kommt. Migrationen laufen nur vorwärts; scheitert auch das Zurückspringen, steht das im Protokoll.
+- `.env` wird nie verändert. Ist echte Veröffentlichung eingeschaltet, fragt `deploy.sh` nach Enter; das automatische Update bricht dann ab und spielt nichts ein.
+- Protokoll: `~/.local/state/content-engine/auto-update.log` (wird auf 2.000 Zeilen gekürzt).
+
 Migrationen laufen nur vorwärts. Braucht ein Rücksprung das alte Datenbankschema, wird die vor dem Update erstellte Sicherung wiederhergestellt (Abschnitt 5).
 
 ## 3. Überwachung und Alarme
