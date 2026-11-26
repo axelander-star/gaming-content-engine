@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -77,6 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [emergency, setEmergency] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setThemeState] = useState<Theme>("dark");
+  const sidebarRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -93,6 +94,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => onEmergencyStop(setEmergency), []);
   useEffect(() => setThemeState(readTheme()), []);
   useEffect(() => setMenuOpen(false), [pathname]);
+
+  // One scrollbar for the whole page: if the sidebar is taller than the
+  // window, stick it with a negative offset so it scrolls along with the page
+  // until its last entry is visible, instead of giving it its own scrollbar.
+  useEffect(() => {
+    const el = sidebarRef.current;
+    if (!el) return;
+    const update = () => {
+      const overflow = el.offsetHeight - window.innerHeight;
+      el.style.setProperty("--sidebar-top", `${Math.min(0, -overflow)}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -116,7 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className={`shell ${menuOpen ? "menu-open" : ""}`}>
-      <aside className="sidebar" id="sidebar">
+      <aside className="sidebar" id="sidebar" ref={sidebarRef}>
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
             CE

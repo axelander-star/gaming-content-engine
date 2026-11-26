@@ -16,6 +16,14 @@
   --sidebar: #0e1016;
   --sidebar-text: #a3aab8;
   --sidebar-active: #ffffff;
+  --sidebar-strong: #ffffff;
+  --sidebar-faint: #6b7282;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active-bg: rgba(139, 123, 255, 0.16);
+  --sidebar-active-icon: #b3a8ff;
+  --sidebar-line: rgba(255, 255, 255, 0.06);
+  --avatar-bg: #262b38;
+  --avatar-text: #e9ecf2;
   --ok-bg: rgba(52, 199, 116, 0.14);
   --ok: #5fd68f;
   --warn-bg: rgba(240, 181, 68, 0.14);
@@ -43,9 +51,17 @@
   --accent-2: #4636e6;
   --accent-soft: rgba(91, 75, 255, 0.1);
   --accent-contrast: #ffffff;
-  --sidebar: #12131a;
-  --sidebar-text: #c9ccd6;
-  --sidebar-active: #ffffff;
+  --sidebar: #ffffff;
+  --sidebar-text: #4a5160;
+  --sidebar-active: #16181d;
+  --sidebar-strong: #16181d;
+  --sidebar-faint: #8a909c;
+  --sidebar-hover: #f0f2f5;
+  --sidebar-active-bg: rgba(91, 75, 255, 0.1);
+  --sidebar-active-icon: #5b4bff;
+  --sidebar-line: #e2e5ea;
+  --avatar-bg: #e7eaef;
+  --avatar-text: #16181d;
   --ok-bg: #e5f6ec;
   --ok: #17803d;
   --warn-bg: #fff4dc;
@@ -106,30 +122,34 @@ h2 {
 }
 
 /* --- shell --- */
+/* One scroll for the whole page: the sidebar has no scrollbar of its own.
+   It sticks while it fits the window; if it is taller, AppShell sets a
+   negative --sidebar-top so it scrolls along with the page until its end. */
 .shell {
   display: grid;
   grid-template-columns: 240px 1fr;
   min-height: 100vh;
+  background: linear-gradient(to right, var(--sidebar) 240px, var(--bg) 240px);
 }
 .sidebar {
   background: var(--sidebar);
   color: var(--sidebar-text);
-  padding: 18px 12px;
+  padding: 16px 12px;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
+  top: var(--sidebar-top, 0px);
+  align-self: start;
+  min-height: 100vh;
 }
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 700;
-  color: #fff;
+  color: var(--sidebar-strong);
   padding: 2px 8px;
   letter-spacing: 0.2px;
 }
@@ -151,7 +171,7 @@ h2 {
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   flex: 1;
 }
 .nav-group {
@@ -163,8 +183,8 @@ h2 {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #6b7282;
-  padding: 0 10px 4px;
+  color: var(--sidebar-faint);
+  padding: 0 10px 2px;
 }
 .sidebar a {
   display: flex;
@@ -172,28 +192,29 @@ h2 {
   gap: 10px;
   color: var(--sidebar-text);
   text-decoration: none;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-radius: 9px;
+  font-size: 14px;
 }
 .sidebar a:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-strong);
 }
 .sidebar a.active {
-  background: rgba(139, 123, 255, 0.16);
+  background: var(--sidebar-active-bg);
   color: var(--sidebar-active);
   font-weight: 600;
-  box-shadow: inset 2px 0 0 #8b7bff;
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 .sidebar a.active svg {
-  color: #b3a8ff;
+  color: var(--sidebar-active-icon);
 }
 .sidebar-foot {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 8px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--sidebar-line);
 }
 .avatar {
   display: inline-grid;
@@ -202,8 +223,8 @@ h2 {
   height: 32px;
   flex: none;
   border-radius: 50%;
-  background: #262b38;
-  color: #e9ecf2;
+  background: var(--avatar-bg);
+  color: var(--avatar-text);
   font-size: 12px;
   font-weight: 700;
 }
@@ -214,13 +235,13 @@ h2 {
   font-size: 13px;
 }
 .sidebar-user-name {
-  color: #e9ecf2;
+  color: var(--sidebar-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .sidebar-user-role {
-  color: #6b7282;
+  color: var(--sidebar-faint);
   font-size: 12px;
 }
 .scrim {
@@ -539,10 +560,17 @@ th {
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
+    background: var(--bg);
   }
+  /* Mobile: the menu is a drawer over the page; the page behind it is locked
+     (see .menu-open below), so there is still only one thing to scroll. */
   .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
+    top: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     width: 260px;
     z-index: 30;
     transform: translateX(-100%);
@@ -550,6 +578,10 @@ th {
   }
   .menu-open .sidebar {
     transform: none;
+  }
+  html:has(.menu-open),
+  body:has(.menu-open) {
+    overflow: hidden;
   }
   .menu-open .scrim {
     display: block;
