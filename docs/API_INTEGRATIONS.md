@@ -242,6 +242,22 @@ Geprüft am 16.11.2026 gegen [Create routing rule](https://developers.cloudflare
 
 **Namensvorschläge aus Marktdaten (22.11.2026, `services/name_research.py`):** Suche und Statistik laufen nur mit `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live`, nur mit API-Schlüssel (kein OAuth) und kosten nichts. Geprüft am 22.11.2026 gegen die Referenzseiten [search.list](https://developers.google.com/youtube/v3/docs/search/list) und [channels.list](https://developers.google.com/youtube/v3/docs/channels/list): Parameter `part`, `type`, `q`, `maxResults` (0–50), `regionCode`, `relevanceLanguage`; Kanaltitel in `snippet.channelTitle`, Kanal-ID in `id.channelId`. Die Seite nennt für search.list „100 calls per day“ in einem eigenen Topf; diese Angabe bitte in der Google-Cloud-Konsole unter Kontingente gegenprüfen (offener Punkt). Ohne Live-Zugang stützen sich die Vorschläge nur auf eigene Daten: Recherche-Meldungen und Ideen des Themenbereichs sowie Videotitel und Aufrufe aus dem Konkurrenz-Radar (letzte 30 Tage).
 
+### Profil nach dem Verbinden übertragen (26.11.2026)
+
+Nach dem Verbinden eines YouTube-Kanals schreibt die Engine das im Kanal-Assistenten vorbereitete Profil (`services/profile_sync.py`, erneut über „Profil übertragen“ in Einstellungen → Kanäle). Geprüft gegen die Referenz vom 12./16.11.2026:
+
+| Aufruf | Kosten | Zweck |
+|---|---|---|
+| `channels.list` (part `brandingSettings`, `id`) | 1 Einheit | aktuelle Einstellungen lesen, weil `channels.update` alle Felder des Teils ersetzt |
+| `channelBanners.insert` (Upload, `image/png`, 16:9, ≥ 2048 × 1152, ≤ 6 MB) | 50 Einheiten | Banner hochladen, Antwort enthält `url` |
+| `channels.update` (part `brandingSettings`) | 50 Einheiten | `channel.description` (≤ 1.000 Zeichen), `channel.keywords` (≤ 500 Zeichen gesamt), `image.bannerExternalUrl` |
+
+- Scope: `youtube.force-ssl` (ist schon Teil der Anmeldung).
+- Der Titel wird nie geändert; YouTube lehnt eine Änderung ab (`channelTitleUpdateForbidden`).
+- ⚠️ `image.bannerExternalUrl` steht nicht in der Liste der beschreibbaren Felder, die Banner-Anleitung nennt aber genau diesen Weg. Das wird beim ersten echten Kanal geprüft.
+- Für Profilbild und Kanal-Links gibt es keine Schnittstelle, auch nicht bei TikTok und Instagram. Das Dashboard bietet Bild und Texte zum Herunterladen und Kopieren an.
+- Ein Fehler hebt die Verbindung nicht auf, sondern steht beim Kanal („Profil nicht übertragen: …“).
+
 ## Kommentare (Ausbau A3)
 
 Geprüft gegen die Anbieter-Dokumentation am 16.11.2026.

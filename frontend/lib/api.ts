@@ -509,6 +509,8 @@ export const api = {
     request<{ url: string }>(`/channels/${id}/connect`, { method: "POST" }),
   disconnectChannel: (id: number) =>
     request<Channel>(`/channels/${id}/disconnect`, { method: "POST" }),
+  syncChannelProfile: (id: number) =>
+    request<Channel>(`/channels/${id}/profile-sync`, { method: "POST" }),
   setChannelLimits: (
     id: number,
     limits: Pick<Channel, "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes">,

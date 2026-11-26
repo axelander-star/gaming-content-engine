@@ -58,6 +58,18 @@ export interface Channel {
   max_posts_per_day: number;
   min_interval_minutes: number;
   connected_account: string | null;
+  /** Last transfer of the prepared profile to YouTube (description, keywords, banner). */
+  profile_sync: ProfileSync | null;
+}
+
+export interface ProfileSync {
+  ok: boolean;
+  /** What YouTube accepted, e.g. "Banner", "Beschreibung", "Stichwörter". */
+  applied: string[];
+  /** What the platform has no interface for and the operator does by hand. */
+  manual: string[];
+  error: string | null;
+  at: string;
 }
 
 export interface Overview {
