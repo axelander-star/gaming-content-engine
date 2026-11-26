@@ -1195,6 +1195,13 @@ try {
     const panel = page.getByRole("dialog", { name: "Kanal-Assistent" });
     await panel.getByRole("heading", { name: "So gehst du vor" }).waitFor();
     await panel.getByRole("heading", { name: "Das machst du selbst" }).waitFor();
+    // a side panel on the right, not part of the top bar (a broken stylesheet did that)
+    const box = await panel.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { position: getComputedStyle(el).position, right: r.right, width: r.width };
+    });
+    assert.equal(box.position, "fixed");
+    assert.ok(Math.abs(box.right - page.viewportSize().width) <= 1 && box.width <= 420);
     await page.keyboard.press("Escape");
     await panel.waitFor({ state: "detached" });
     // every page in the navigation has its own guide
