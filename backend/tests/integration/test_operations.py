@@ -14,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from redis import Redis
-from rq import Queue
+from rq import Queue, Worker
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -531,8 +531,8 @@ def test_idle_worker_between_heartbeats_counts_as_alive(monkeypatch: pytest.Monk
             return "idle"
 
     now = datetime.now(UTC)
-    monkeypatch.setattr(monitoring.Worker, "all", staticmethod(lambda **_: [FakeWorker(300)]))
+    monkeypatch.setattr(Worker, "all", staticmethod(lambda **_: [FakeWorker(300)]))
     assert monitoring.check_worker(None, now).status == "ok"  # type: ignore[arg-type]
 
-    monkeypatch.setattr(monitoring.Worker, "all", staticmethod(lambda **_: [FakeWorker(900)]))
+    monkeypatch.setattr(Worker, "all", staticmethod(lambda **_: [FakeWorker(900)]))
     assert monitoring.check_worker(None, now).status == "critical"  # type: ignore[arg-type]
