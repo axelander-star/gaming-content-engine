@@ -575,6 +575,16 @@ try {
     await page.getByRole("link", { name: "Themenbereiche", exact: true }).click();
     await page.getByRole("heading", { name: "Themenbereiche", level: 1 }).waitFor();
     await page.getByRole("article", { name: "Themenbereich Gaming" }).waitFor();
+    // topic ideas from trends (sample data without live access), taken into the form
+    await page.getByRole("button", { name: "Themen vorschlagen" }).click();
+    await page.getByText(/Beispieldaten/).waitFor();
+    const idea = page.getByRole("article", { name: /^Vorschlag / }).first();
+    const ideaName = (await idea.getAttribute("aria-label")).replace(/^Vorschlag /, "");
+    await idea.getByText("Zahlen dahinter").click();
+    await idea.getByText(/Aufrufe pro Stunde/).first().waitFor();
+    await idea.getByRole("button", { name: "Übernehmen" }).click();
+    assert.equal(await page.getByLabel("Name", { exact: true }).inputValue(), ideaName);
+    await page.getByRole("button", { name: "Abbrechen" }).click();
     await page.getByRole("button", { name: "Neuer Themenbereich" }).click();
     const form = page.locator("form.project-form");
     await form.getByLabel("Name").fill("Ernährung E2E");

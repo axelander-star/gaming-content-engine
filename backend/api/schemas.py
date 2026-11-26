@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -37,3 +38,5 @@ class ChannelOut(BaseModel):
     min_interval_minutes: int
     #: Name of the connected platform account (Phase 12); tokens are never returned.
     connected_account: str | None = None
+    #: Last transfer of the prepared profile (description, keywords, banner) to YouTube.
+    profile_sync: dict[str, Any] | None = None

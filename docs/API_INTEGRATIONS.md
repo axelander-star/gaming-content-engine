@@ -242,6 +242,22 @@ Geprüft am 16.11.2026 gegen [Create routing rule](https://developers.cloudflare
 
 **Namensvorschläge aus Marktdaten (22.11.2026, `services/name_research.py`):** Suche und Statistik laufen nur mit `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live`, nur mit API-Schlüssel (kein OAuth) und kosten nichts. Geprüft am 22.11.2026 gegen die Referenzseiten [search.list](https://developers.google.com/youtube/v3/docs/search/list) und [channels.list](https://developers.google.com/youtube/v3/docs/channels/list): Parameter `part`, `type`, `q`, `maxResults` (0–50), `regionCode`, `relevanceLanguage`; Kanaltitel in `snippet.channelTitle`, Kanal-ID in `id.channelId`. Die Seite nennt für search.list „100 calls per day“ in einem eigenen Topf; diese Angabe bitte in der Google-Cloud-Konsole unter Kontingente gegenprüfen (offener Punkt). Ohne Live-Zugang stützen sich die Vorschläge nur auf eigene Daten: Recherche-Meldungen und Ideen des Themenbereichs sowie Videotitel und Aufrufe aus dem Konkurrenz-Radar (letzte 30 Tage).
 
+### Profil nach dem Verbinden übertragen (26.11.2026)
+
+Nach dem Verbinden eines YouTube-Kanals schreibt die Engine das im Kanal-Assistenten vorbereitete Profil (`services/profile_sync.py`, erneut über „Profil übertragen“ in Einstellungen → Kanäle). Geprüft gegen die Referenz vom 12./16.11.2026:
+
+| Aufruf | Kosten | Zweck |
+|---|---|---|
+| `channels.list` (part `brandingSettings`, `id`) | 1 Einheit | aktuelle Einstellungen lesen, weil `channels.update` alle Felder des Teils ersetzt |
+| `channelBanners.insert` (Upload, `image/png`, 16:9, ≥ 2048 × 1152, ≤ 6 MB) | 50 Einheiten | Banner hochladen, Antwort enthält `url` |
+| `channels.update` (part `brandingSettings`) | 50 Einheiten | `channel.description` (≤ 1.000 Zeichen), `channel.keywords` (≤ 500 Zeichen gesamt), `image.bannerExternalUrl` |
+
+- Scope: `youtube.force-ssl` (ist schon Teil der Anmeldung).
+- Der Titel wird nie geändert; YouTube lehnt eine Änderung ab (`channelTitleUpdateForbidden`).
+- ⚠️ `image.bannerExternalUrl` steht nicht in der Liste der beschreibbaren Felder, die Banner-Anleitung nennt aber genau diesen Weg. Das wird beim ersten echten Kanal geprüft.
+- Für Profilbild und Kanal-Links gibt es keine Schnittstelle, auch nicht bei TikTok und Instagram. Das Dashboard bietet Bild und Texte zum Herunterladen und Kopieren an.
+- Ein Fehler hebt die Verbindung nicht auf, sondern steht beim Kanal („Profil nicht übertragen: …“).
+
 ## Kommentare (Ausbau A3)
 
 Geprüft gegen die Anbieter-Dokumentation am 16.11.2026.
@@ -270,6 +286,15 @@ Alle 12 Stunden je Kanal 2–3 Einheiten, bei 30 Kanälen also unter 200 Einheit
 ## Trend-Alarm: YouTube-Trendliste (Ausbau A11)
 
 Offizieller Aufruf der YouTube Data API v3, nur mit API-Schlüssel (kein OAuth): `GET /youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=DE&maxResults=50`, für Gaming-Themenbereiche zusätzlich mit `videoCategoryId=20`. Kosten 1 Einheit je Aufruf; bei `TREND_ALARM_REGIONS=DE,US` und einem Gaming-Bereich 4 Einheiten je Prüfung, alle 30 Minuten also rund 190 von 10.000 Einheiten am Tag. Gelesen werden nur Titel, Kanalname, Veröffentlichungszeit, Schlagwörter und Zahlen (Aufrufe, Likes, Kommentare). Fremde Videos werden **nicht** heruntergeladen oder verwendet (Nutzungsbedingungen, Urheberrecht); die Entwürfe sind Eigenproduktionen zum Thema. Fehlermeldungen enthalten nie die URL (Schlüssel). Vor dem ersten Live-Betrieb gegen die aktuelle Doku prüfen (`videos.list`, Parameter `chart`, `regionCode`, `videoCategoryId`). TikTok, Instagram und X haben keine offizielle Schnittstelle für fremde Trends und werden nicht beobachtet; „das ganze Internet“ ist damit bewusst auf freie, offizielle Quellen begrenzt (plus Recherche-Feeds und Konkurrenz-Radar).
+
+## Themenvorschläge: YouTube-Trends und Wikipedia (26.11.2026)
+
+„Themen vorschlagen“ unter Themenbereiche (`services/topic_suggest.py`, `POST /projects/suggestions`, nur Admin):
+
+- **YouTube** `videos.list` mit `chart=mostPopular`, `regionCode` aus `TREND_ALARM_REGIONS` (höchstens 3) und je einer `videoCategoryId` der Standardkategorien außer Musik. Kostet 1 Einheit pro Aufruf, bei DE und US etwa 26 Einheiten pro Klick, und läuft über das eigene Tageslimit `youtube`. Kategorien ohne Chart in einer Region (404) werden übersprungen.
+- **Wikipedia** über die Wikimedia Analytics API `GET https://wikimedia.org/api/rest_v1/metrics/pageviews/top/{de|en}.wikipedia/all-access/{JJJJ/MM/TT}`. Sie ist kostenlos und braucht keinen Schlüssel. Abgefragt werden die meistgelesenen Artikel des Vortags. Wikimedia verlangt einen eigenen User-Agent; gesendet wird ein allgemeiner Name ohne persönliche Daten.
+- Live nur mit `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live`. Im Betrieb ohne Schlüssel erscheint ein Hinweis statt erfundener Zahlen, in der Entwicklung erscheinen gekennzeichnete Beispieldaten.
+- Die KI formuliert aus den Zahlen 5 Themenbereiche und darf dabei nur die gelieferten Zahlen nennen. Ohne KI werden die stärksten Kategorien mit Vorlagentext vorgeschlagen.
 
 ## Push aufs Handy: ntfy (Ausbau A4)
 

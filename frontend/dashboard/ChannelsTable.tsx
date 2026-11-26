@@ -123,6 +123,14 @@ export function ChannelsTable({ role }: { role: UserRole }) {
     }
   }
 
+  async function syncProfile(c: Channel) {
+    try {
+      replace(await api.syncChannelProfile(c.id));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   async function disconnect(c: Channel) {
     try {
       replace(await api.disconnectChannel(c.id));
@@ -193,6 +201,9 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                       )}
                     </>
                   )}
+                  {c.platform === "youtube" && c.auth_status === "authorized" && (
+                    <ProfileSyncLine channel={c} onSync={isAdmin ? () => void syncProfile(c) : null} />
+                  )}
                 </td>
                 <td>
                   <button
@@ -219,5 +230,24 @@ export function ChannelsTable({ role }: { role: UserRole }) {
       </div>
       <ErrorText error={error} />
     </Section>
+  );
+}
+
+/** What the engine wrote to the YouTube profile, plus what stays manual. */
+function ProfileSyncLine({ channel, onSync }: { channel: Channel; onSync: (() => void) | null }) {
+  const sync = channel.profile_sync;
+  return (
+    <p className="small muted" aria-label={`Profil ${channel.name}`}>
+      {sync === null
+        ? "Profil noch nicht übertragen. "
+        : sync.ok
+          ? `Profil übertragen: ${sync.applied.join(", ")}. Selbst hochladen: ${sync.manual.join(", ")}. `
+          : `Profil nicht übertragen: ${sync.error ?? "unbekannter Fehler"}. `}
+      {onSync && (
+        <button type="button" className="btn btn-ghost small" onClick={onSync}>
+          {sync === null ? "Profil übertragen" : "Erneut übertragen"}
+        </button>
+      )}
+    </p>
   );
 }

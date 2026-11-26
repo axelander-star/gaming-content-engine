@@ -19,7 +19,8 @@ from models.channels import Channel, ChannelCredential, Platform
 from models.production import Variant
 from models.projects import ContentProject
 from models.publishing import Post
-from services import audit, instagram, meta, platform, tiktok, youtube
+from services import audit, instagram, meta, platform, profile_sync, tiktok, youtube
+from services.queue import get_redis
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def _out(channel: Channel, account: str | None = None) -> ChannelOut:
         max_posts_per_day=channel.max_posts_per_day,
         min_interval_minutes=channel.min_interval_minutes,
         connected_account=account,
+        profile_sync=(channel.strategy or {}).get("profile_sync"),
     )
 
 
@@ -406,6 +408,30 @@ def oauth_callback(
         },
     )
     db.commit()
+    if provider == "youtube" and channel.auth_status == ChannelAuthStatus.AUTHORIZED:
+        # fill the new channel's profile right away (description, keywords, banner);
+        # a failure is shown in the dashboard and never undoes the connection
+        profile_sync.sync_youtube(db, settings, get_redis(), channel)
+        db.commit()
     return back(
         "connected" if channel.auth_status == ChannelAuthStatus.AUTHORIZED else "restricted"
     )
+
+
+@router.post("/{channel_id}/profile-sync", response_model=ChannelOut)
+def sync_profile(channel_id: int, admin: Admin, db: DbSession, settings: AppSettings) -> ChannelOut:
+    """Write the prepared profile to the connected YouTube channel again."""
+    channel = _get(db, channel_id)
+    if channel.platform.code != PlatformCode.YOUTUBE:
+        raise HTTPException(422, detail="Only YouTube profiles can be written via API")
+    result = profile_sync.sync_youtube(db, settings, get_redis(), channel)
+    audit.record(
+        db,
+        "channel.profile_sync",
+        user_id=admin.id,
+        entity_type="channels",
+        entity_id=channel.id,
+        after=result.as_dict(),
+    )
+    db.commit()
+    return _out(channel)

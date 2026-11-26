@@ -1,0 +1,120 @@
+"""Topic suggestions from trends ("Themen vorschlagen"). No network: MockTransport."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from datetime import UTC, datetime
+
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from redis import Redis
+from sqlalchemy.orm import Session
+
+from core.config import Settings, get_settings
+from models.access import User
+from services import topic_suggest
+from services.projects import ensure_default_project
+from tests.conftest import login
+
+pytestmark = pytest.mark.integration
+
+NOW = datetime(2026, 11, 26, 12, tzinfo=UTC)
+
+
+def video(i: int, views: int, hours: int, channel: str, title: str) -> dict[str, object]:
+    published = datetime(2026, 11, 26, 12 - hours, tzinfo=UTC).isoformat()
+    return {
+        "id": f"v{i}",
+        "snippet": {
+            "title": title,
+            "channelId": channel,
+            "publishedAt": published.replace("+00:00", "Z"),
+        },
+        "statistics": {"viewCount": str(views)},
+    }
+
+
+def fake_google(request: httpx.Request) -> httpx.Response:
+    url = str(request.url)
+    if "wikimedia.org" in url:
+        assert "ContentEngine" in request.headers["User-Agent"]
+        articles = [
+            {"article": "Hauptseite", "views": 9_000_000},
+            {"article": "Spezial:Suche", "views": 800_000},
+            {"article": "Airfryer", "views": 120_000},
+        ]
+        return httpx.Response(200, json={"items": [{"articles": articles}]})
+    assert "key=yt-key" in url
+    category = request.url.params.get("videoCategoryId")
+    if category == "26":
+        items = [video(i, 200_000, 2, f"c{i}", "Airfryer Rezepte schnell") for i in range(6)]
+    elif category == "28":
+        items = [video(i, 50_000, 10, "big", "Handy Akku Trick") for i in range(4)]
+    elif category == "1":
+        return httpx.Response(404, json={"error": {"errors": [{"reason": "notFound"}]}})
+    else:
+        items = []
+    return httpx.Response(200, json={"items": items})
+
+
+@pytest.fixture
+def live() -> Settings:
+    return get_settings().model_copy(
+        update={
+            "youtube_api_key": SecretStr("yt-key"),
+            "trend_sources_mode": "live",
+            "trend_alarm_regions": "DE",
+        }
+    )
+
+
+def test_live_suggestions_have_real_numbers_and_skip_existing_areas(
+    db: Session, live: Settings, redis_client: Redis
+) -> None:
+    ensure_default_project(db)  # "Gaming" exists and is never suggested
+    with httpx.Client(transport=httpx.MockTransport(fake_google)) as client:
+        result = topic_suggest.suggest(db, live, redis_client, client=client, now=NOW)
+    assert result.live and not result.sample
+    assert result.errors == []  # 404 for a category is no error
+    names = [s.name for s in result.suggestions]
+    assert names[0] == "Praktische Tipps & Styling"  # fastest growth, many channels
+    assert "Gaming" not in names
+    top = result.suggestions[0]
+    assert "100.000 Aufrufe pro Stunde" in top.facts[0]
+    assert "6 verschiedene Kanäle" in top.facts[0]
+    assert top.subtopics[:2] == ["Airfryer", "Rezepte"]
+    assert top.examples == ["Airfryer Rezepte schnell"] * 3
+    tech = next(s for s in result.suggestions if s.name == "Wissenschaft & Technik")
+    assert "1 verschiedene Kanäle" in tech.facts[0]
+
+
+def test_production_without_key_gives_a_hint_not_invented_numbers(
+    db: Session, redis_client: Redis
+) -> None:
+    prod = get_settings().model_copy(update={"sample_data": False})
+    result = topic_suggest.suggest(db, prod, redis_client, now=NOW)
+    assert result.suggestions == [] and not result.sample
+    assert result.hint is not None and "YOUTUBE_API_KEY" in result.hint
+
+
+def test_development_shows_marked_sample_data(db: Session, redis_client: Redis) -> None:
+    dev = get_settings().model_copy(update={"sample_data": True})
+    result = topic_suggest.suggest(db, dev, redis_client, now=NOW)
+    assert result.sample and len(result.suggestions) == topic_suggest.SUGGESTIONS
+
+
+def test_api_for_admin_only(
+    api: TestClient, make_user: Callable[..., User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from core.enums import UserRole
+
+    make_user()
+    make_user(email="viewer@example.com", role=UserRole.VIEWER)
+    headers = login(api, "viewer@example.com")
+    assert api.post("/api/projects/suggestions", headers=headers).status_code == 403
+    headers = login(api, "admin@example.com")
+    r = api.post("/api/projects/suggestions", headers=headers)
+    assert r.status_code == 200, r.text
+    assert set(r.json()) >= {"live", "sample", "suggestions", "hint"}

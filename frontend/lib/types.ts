@@ -58,6 +58,18 @@ export interface Channel {
   max_posts_per_day: number;
   min_interval_minutes: number;
   connected_account: string | null;
+  /** Last transfer of the prepared profile to YouTube (description, keywords, banner). */
+  profile_sync: ProfileSync | null;
+}
+
+export interface ProfileSync {
+  ok: boolean;
+  /** What YouTube accepted, e.g. "Banner", "Beschreibung", "Stichwörter". */
+  applied: string[];
+  /** What the platform has no interface for and the operator does by hand. */
+  manual: string[];
+  error: string | null;
+  at: string;
 }
 
 export interface Overview {
@@ -893,6 +905,33 @@ export interface ContentProject {
   videos: number;
   published: number;
   created_at: string;
+}
+
+export interface TopicSuggestion {
+  name: string;
+  description: string;
+  subtopics: string[];
+  audience: string;
+  tone: string;
+  /** Why now, in plain words. */
+  reason: string;
+  /** The numbers behind it (YouTube charts, Wikipedia). */
+  facts: string[];
+  examples: string[];
+  score: number;
+}
+
+export interface TopicSuggestions {
+  live: boolean;
+  /** Invented example numbers (development without live data). */
+  sample: boolean;
+  suggestions: TopicSuggestion[];
+  sources: string[];
+  /** What is missing for real data, e.g. the YouTube key. */
+  hint: string | null;
+  errors: string[];
+  generated_at: string;
+  provider: string;
 }
 
 export interface ContentProjectInput {

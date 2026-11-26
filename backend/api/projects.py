@@ -14,13 +14,14 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from api.deps import Admin, DbSession, Viewer, csrf_protect
+from api.deps import Admin, AppSettings, DbSession, Viewer, csrf_protect
 from core.enums import ContentProjectStatus, Language
 from models.channels import Channel
 from models.production import GameplayFile, Variant
 from models.projects import DEFAULT_PROJECT_SLUG, ContentProject
 from models.publishing import Post
-from services import audit, projects
+from services import audit, projects, topic_suggest
+from services.queue import get_redis
 
 router = APIRouter(prefix="/projects", tags=["projects"], dependencies=[Depends(csrf_protect)])
 
@@ -267,3 +268,35 @@ def update_project(project_id: int, body: ProjectPatch, admin: Admin, db: DbSess
     )
     db.commit()
     return _out(db, project)
+
+
+class TopicSuggestionOut(BaseModel):
+    name: str
+    description: str
+    subtopics: list[str]
+    audience: str
+    tone: str
+    reason: str
+    facts: list[str]
+    examples: list[str]
+    score: int
+
+
+class TopicSuggestionsOut(BaseModel):
+    live: bool
+    #: invented example numbers (development without live data)
+    sample: bool
+    suggestions: list[TopicSuggestionOut]
+    sources: list[str]
+    hint: str | None
+    errors: list[str]
+    generated_at: str
+    provider: str
+
+
+@router.post("/suggestions", response_model=TopicSuggestionsOut)
+def suggest_topics(admin: Admin, db: DbSession, settings: AppSettings) -> TopicSuggestionsOut:
+    """Five topic areas from current trends (YouTube charts, Wikipedia), with numbers."""
+    result = topic_suggest.suggest(db, settings, get_redis(), user_id=admin.id)
+    db.commit()  # AI call log
+    return TopicSuggestionsOut.model_validate(result.as_dict())
