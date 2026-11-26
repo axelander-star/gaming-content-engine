@@ -14,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from redis import Redis
-from rq import Queue
+from rq import Queue, Worker
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -518,3 +518,21 @@ def test_credential_key_rotation(db: Session) -> None:
     stranger = base.model_copy(update={"credentials_encryption_key": SecretStr("z" * 40)})
     cred.access_token_enc = crypto.encrypt(stranger, "lost")
     assert rotate_all(db, new)[1] == 1
+
+
+def test_idle_worker_between_heartbeats_counts_as_alive(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An idle RQ worker renews its heartbeat only every ~405 s; that is not an outage."""
+
+    class FakeWorker:
+        def __init__(self, age_s: float) -> None:
+            self.last_heartbeat = datetime.now(UTC) - timedelta(seconds=age_s)
+
+        def get_state(self) -> str:
+            return "idle"
+
+    now = datetime.now(UTC)
+    monkeypatch.setattr(Worker, "all", staticmethod(lambda **_: [FakeWorker(300)]))
+    assert monitoring.check_worker(None, now).status == "ok"  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Worker, "all", staticmethod(lambda **_: [FakeWorker(900)]))
+    assert monitoring.check_worker(None, now).status == "critical"  # type: ignore[arg-type]
