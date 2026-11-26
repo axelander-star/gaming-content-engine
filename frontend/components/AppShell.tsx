@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Icon } from "@/components/icons";
 import type { IconName } from "@/components/icons";
+import { HelpButton } from "@/components/HelpPanel";
 import { NotificationBell } from "@/components/NotificationBell";
 import { api } from "@/lib/api";
 import { onEmergencyStop } from "@/lib/events";
@@ -60,6 +61,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/system", label: "System", icon: "server" },
       { href: "/einstellungen", label: "Einstellungen", icon: "settings" },
+      { href: "/hilfe", label: "Hilfe", icon: "help" },
     ],
   },
 ];
@@ -203,6 +205,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="topbar-name">
               {name} · {ROLE_LABELS[user.role]}
             </span>
+            <HelpButton />
             <NotificationBell />
             <button
               type="button"

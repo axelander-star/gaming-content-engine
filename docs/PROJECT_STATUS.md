@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 25.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander; A11 Trend-Alarm und Ideenlabor mit Seiten fertig · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; für echte Trend-Alarme `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` setzen
+**Stand:** 26.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander; A11 Trend-Alarm und Ideenlabor mit Seiten fertig · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; für echte Trend-Alarme `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` setzen
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -23,6 +23,13 @@
 | 13 | TikTok, Instagram, Facebook | ✅ abgeschlossen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
+
+## Hilfe und Anleitungen im Studio (26.11.2026)
+
+- Auf jeder Seite öffnet das Fragezeichen oben rechts ein Seitenpanel mit der Anleitung genau für diese Seite: was die Seite macht, „So gehst du vor“, „Das machst du selbst“ (z. B. Konto anlegen, SMS/Captcha, beim Verbinden anmelden, Link bei Content Rewards einreichen) und „Gut zu wissen“.
+- Neue Seite **Hilfe** (Menü → System): „Erste Schritte“ (Themenbereich anlegen → Kanal-Assistent → Kanal verbinden → erstes Video → freigeben) mit Links, darunter alle Anleitungen zum Aufklappen und eine Suche.
+- Texte stehen zentral in `frontend/lib/help.ts`. Neue Seite im Menü → dort eine Anleitung ergänzen; der E2E-Test prüft, dass jede Menüseite eine hat.
+- Behoben: In `globals.css` fehlten drei schließende Klammern (seit #47/#49/#51). Dadurch wurden alle Regeln dahinter (Kampagnen-Hilfe, Fixkosten, Serien) als verschachtelte Regeln gelesen und griffen nicht. `.row-actions` mit `nowrap` gilt jetzt nur für Tabellenzellen.
 
 ## Kostenseite mit Live-Kosten (22.11.2026)
 
