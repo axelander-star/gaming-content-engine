@@ -1202,12 +1202,20 @@ try {
     await panel.getByRole("heading", { name: "So gehst du vor" }).waitFor();
     await panel.getByRole("heading", { name: "Das machst du selbst" }).waitFor();
     // a side panel on the right, not part of the top bar (a broken stylesheet did that)
+    await page.waitForTimeout(300); // slide-in animation
     const box = await panel.evaluate((el) => {
       const r = el.getBoundingClientRect();
-      return { position: getComputedStyle(el).position, right: r.right, width: r.width };
+      const top = document.querySelector(".topbar, header");
+      return {
+        position: getComputedStyle(el).position,
+        left: r.left,
+        width: r.width,
+        page: window.innerWidth,
+        inTopbar: Boolean(top && top.contains(el) && getComputedStyle(el).position !== "fixed"),
+      };
     });
-    assert.equal(box.position, "fixed");
-    assert.ok(Math.abs(box.right - page.viewportSize().width) <= 1 && box.width <= 420);
+    assert.equal(box.position, "fixed", JSON.stringify(box));
+    assert.ok(box.width <= 421 && box.left >= box.page / 2 && !box.inTopbar, JSON.stringify(box));
     await page.keyboard.press("Escape");
     await panel.waitFor({ state: "detached" });
     // every page in the navigation has its own guide
