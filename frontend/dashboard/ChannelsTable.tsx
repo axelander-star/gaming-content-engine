@@ -15,8 +15,31 @@ const PROVIDER_NAMES: Record<string, string> = {
   instagram: "Instagram",
 };
 
-function connectMessage(provider: string, result: string): string {
+/** Plain explanation for ``?<provider>=failed&reason=…`` from the OAuth callback. */
+const FAILURE_REASONS: Record<string, string> = {
+  no_channel:
+    "Zu dem gewählten Google-Konto gibt es noch keinen YouTube-Kanal. Melde dich mit dem Konto auf youtube.com an, lege den Kanal an und wähle ihn beim Verbinden aus.",
+  api_disabled:
+    "Im Google-Cloud-Projekt ist die „YouTube Data API v3“ nicht eingeschaltet. In der Google Cloud Console unter „APIs & Dienste → Bibliothek“ die YouTube Data API v3 aktivieren und nach ein paar Minuten erneut verbinden.",
+  client:
+    "Die Plattform kennt die App-Zugangsdaten nicht (Client-ID oder Client-Geheimnis in der .env auf dem Server falsch). Werte in der Entwickler-Konsole prüfen und in der .env korrigieren.",
+  redirect:
+    "Die Rücksprung-Adresse passt nicht. Sie muss in der Entwickler-Konsole und in der .env auf dem Server genau gleich sein.",
+  no_refresh:
+    "Die Plattform hat keinen dauerhaften Zugriff erteilt. Bitte noch einmal verbinden und alle Berechtigungen bestätigen.",
+  scopes:
+    "Beim Anmelden wurden nicht alle Berechtigungen bestätigt. Bitte noch einmal verbinden und alle Häkchen setzen.",
+  not_configured:
+    "Die App-Zugangsdaten für diese Plattform fehlen in der .env auf dem Server.",
+  temporary:
+    "Die Plattform war gerade nicht erreichbar. Bitte in ein paar Minuten noch einmal verbinden.",
+};
+
+function connectMessage(provider: string, result: string, reason = ""): string {
   const name = PROVIDER_NAMES[provider] ?? provider;
+  if (result === "failed" && FAILURE_REASONS[reason]) {
+    return `${name}: Die Verbindung ist fehlgeschlagen. ${FAILURE_REASONS[reason]}`;
+  }
   switch (result) {
     case "connected":
       return `${name}: Kanal verbunden.`;
@@ -29,7 +52,7 @@ function connectMessage(provider: string, result: string): string {
     case "invalid":
       return `${name}: Der Anmeldevorgang war ungültig oder abgelaufen. Bitte erneut verbinden.`;
     default:
-      return `${name}: Die Verbindung ist fehlgeschlagen. Details stehen im Protokoll.`;
+      return `${name}: Die Verbindung ist fehlgeschlagen. Den Grund zeigt das Server-Protokoll: docker compose logs backend | grep "connect failed"`;
   }
 }
 
@@ -40,9 +63,18 @@ const CONNECT_LABELS: Record<string, string> = {
   facebook: "Mit Facebook verbinden",
 };
 
-type Limits = Pick<Channel, "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes">;
+type Limits = Pick<
+  Channel,
+  "min_posts_per_day" | "max_posts_per_day" | "min_interval_minutes"
+>;
 
-function LimitsEditor({ channel, onSaved }: { channel: Channel; onSaved: (c: Channel) => void }) {
+function LimitsEditor({
+  channel,
+  onSaved,
+}: {
+  channel: Channel;
+  onSaved: (c: Channel) => void;
+}) {
   const [limits, setLimits] = useState<Limits>({
     min_posts_per_day: channel.min_posts_per_day,
     max_posts_per_day: channel.max_posts_per_day,
@@ -90,7 +122,11 @@ function LimitsEditor({ channel, onSaved }: { channel: Channel; onSaved: (c: Cha
 export function ChannelsTable({ role }: { role: UserRole }) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ provider: string; value: string } | null>(null);
+  const [result, setResult] = useState<{
+    provider: string;
+    value: string;
+    reason: string;
+  } | null>(null);
   const isAdmin = hasRole(role, "admin");
   const isOperator = hasRole(role, "operator");
 
@@ -101,14 +137,24 @@ export function ChannelsTable({ role }: { role: UserRole }) {
       .catch((e: Error) => setError(e.message));
     const params = new URLSearchParams(window.location.search);
     const provider = Object.keys(PROVIDER_NAMES).find((p) => params.has(p));
-    if (provider) setResult({ provider, value: params.get(provider) ?? "" });
+    if (provider)
+      setResult({
+        provider,
+        value: params.get(provider) ?? "",
+        reason: params.get("reason") ?? "",
+      });
   }, []);
 
-  const replace = (c: Channel) => setChannels((all) => all.map((x) => (x.id === c.id ? c : x)));
+  const replace = (c: Channel) =>
+    setChannels((all) => all.map((x) => (x.id === c.id ? c : x)));
 
   async function toggle(c: Channel) {
     try {
-      replace(c.is_paused ? await api.resumeChannel(c.id) : await api.pauseChannel(c.id));
+      replace(
+        c.is_paused
+          ? await api.resumeChannel(c.id)
+          : await api.pauseChannel(c.id),
+      );
     } catch (e) {
       setError((e as Error).message);
     }
@@ -142,15 +188,18 @@ export function ChannelsTable({ role }: { role: UserRole }) {
   return (
     <Section title="Kanäle und Sicherheitsgrenzen">
       {result && (
-        <p role="status" className={result.value === "connected" ? "muted" : "error"}>
-          {connectMessage(result.provider, result.value)}
+        <p
+          role="status"
+          className={result.value === "connected" ? "muted" : "error"}
+        >
+          {connectMessage(result.provider, result.value, result.reason)}
         </p>
       )}
       <p className="muted small">
-        Die Grenzen sind technische Obergrenzen, keine Tagesziele. Wie viel tatsächlich
-        veröffentlicht wird, entscheidet der Publishing Strategy Agent pro Kanal. Verbinden führt
-        zur Anmeldung bei der Plattform; Zugangsschlüssel werden verschlüsselt gespeichert und nie
-        angezeigt.
+        Die Grenzen sind technische Obergrenzen, keine Tagesziele. Wie viel
+        tatsächlich veröffentlicht wird, entscheidet der Publishing Strategy
+        Agent pro Kanal. Verbinden führt zur Anmeldung bei der Plattform;
+        Zugangsschlüssel werden verschlüsselt gespeichert und nie angezeigt.
       </p>
       <div className="table-wrap">
         <table>
@@ -173,7 +222,9 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                 <td>{c.content_project}</td>
                 <td>{c.language.toUpperCase()}</td>
                 <td>
-                  <Badge tone={c.auth_status === "authorized" ? "ok" : "neutral"}>
+                  <Badge
+                    tone={c.auth_status === "authorized" ? "ok" : "neutral"}
+                  >
                     {AUTH_STATUS_LABELS[c.auth_status]}
                   </Badge>
                   {c.connected_account && (
@@ -182,7 +233,8 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                   {isAdmin && CONNECT_LABELS[c.platform] && (
                     <>
                       {" "}
-                      {c.auth_status === "not_connected" || c.auth_status === "expired" ? (
+                      {c.auth_status === "not_connected" ||
+                      c.auth_status === "expired" ? (
                         <button
                           type="button"
                           className="btn btn-ghost small"
@@ -201,9 +253,13 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                       )}
                     </>
                   )}
-                  {c.platform === "youtube" && c.auth_status === "authorized" && (
-                    <ProfileSyncLine channel={c} onSync={isAdmin ? () => void syncProfile(c) : null} />
-                  )}
+                  {c.platform === "youtube" &&
+                    c.auth_status === "authorized" && (
+                      <ProfileSyncLine
+                        channel={c}
+                        onSync={isAdmin ? () => void syncProfile(c) : null}
+                      />
+                    )}
                 </td>
                 <td>
                   <button
@@ -211,9 +267,15 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                     className="btn btn-ghost"
                     disabled={c.is_paused ? !isAdmin : !isOperator}
                     onClick={() => void toggle(c)}
-                    title={c.is_paused ? "Nur Admins können fortsetzen" : "Kanal pausieren"}
+                    title={
+                      c.is_paused
+                        ? "Nur Admins können fortsetzen"
+                        : "Kanal pausieren"
+                    }
                   >
-                    {c.is_paused ? "Pausiert · fortsetzen" : "Aktiv · pausieren"}
+                    {c.is_paused
+                      ? "Pausiert · fortsetzen"
+                      : "Aktiv · pausieren"}
                   </button>
                 </td>
                 <td>
@@ -234,7 +296,13 @@ export function ChannelsTable({ role }: { role: UserRole }) {
 }
 
 /** What the engine wrote to the YouTube profile, plus what stays manual. */
-function ProfileSyncLine({ channel, onSync }: { channel: Channel; onSync: (() => void) | null }) {
+function ProfileSyncLine({
+  channel,
+  onSync,
+}: {
+  channel: Channel;
+  onSync: (() => void) | null;
+}) {
   const sync = channel.profile_sync;
   return (
     <p className="small muted" aria-label={`Profil ${channel.name}`}>

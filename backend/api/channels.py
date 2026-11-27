@@ -326,6 +326,32 @@ def _status_after_connect(
     return ChannelAuthStatus.AUTHORIZED if ok else ChannelAuthStatus.CONNECTED_RESTRICTED
 
 
+#: Platform error reasons -> short code the dashboard explains in plain words.
+_FAILURE_REASONS = {
+    "no_channel": "no_channel",
+    "youtubeSignupRequired": "no_channel",
+    "no_refresh_token": "no_refresh",
+    "accessNotConfigured": "api_disabled",
+    "SERVICE_DISABLED": "api_disabled",
+    "invalid_client": "client",
+    "unauthorized_client": "client",
+    "redirect_uri_mismatch": "redirect",
+    "insufficientPermissions": "scopes",
+    "ACCESS_TOKEN_SCOPE_INSUFFICIENT": "scopes",
+}
+
+
+def connect_failure_reason(exc: Exception) -> str:
+    """Why connecting failed, as a code for ``?<provider>=failed&reason=…`` ("" = unknown)."""
+    if isinstance(exc, platform.NotConfiguredError):
+        return "not_configured"
+    if isinstance(exc, platform.TransientError):
+        return "temporary"
+    if isinstance(exc, platform.PlatformError) and exc.reason:
+        return _FAILURE_REASONS.get(exc.reason, "")
+    return ""
+
+
 oauth_router = APIRouter(prefix="/oauth", tags=["oauth"])
 PROVIDERS = ("youtube", "tiktok", "meta", "instagram")
 
@@ -345,8 +371,9 @@ def oauth_callback(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown provider")
     target = "/einstellungen"
 
-    def back(result: str) -> RedirectResponse:
-        return RedirectResponse(f"{target}?{provider}={result}", status_code=303)
+    def back(result: str, reason: str = "") -> RedirectResponse:
+        extra = f"&reason={reason}" if reason else ""
+        return RedirectResponse(f"{target}?{provider}={result}{extra}", status_code=303)
 
     try:
         channel_id, user_id = platform.read_state(settings, provider, state)
@@ -371,11 +398,14 @@ def oauth_callback(
         cred = connect[provider](db, settings, channel, code, user_id)
     except (platform.PlatformError, platform.NotConfiguredError) as exc:
         db.rollback()
+        reason = connect_failure_reason(exc)
         log.warning(
-            "platform connect failed",
+            "platform connect failed: %s (%s)",
+            exc,
+            reason or "unknown",
             extra={"provider": provider, "channel": channel_id, "error": str(exc)},
         )
-        return back("failed")
+        return back("failed", reason)
     # One real account belongs to exactly one channel: otherwise two topic areas
     # (e.g. Gaming and Ernährung) would post to the same YouTube channel.
     if cred.external_account_id and db.scalar(
