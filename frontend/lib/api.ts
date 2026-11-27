@@ -184,6 +184,10 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   });
   if (res.status === 204) return undefined as T;
   const body: unknown = await res.json().catch(() => null);
+  if (res.status === 401 && !path.startsWith("/auth/") && typeof window !== "undefined") {
+    // the login expired while the page was open: back to the login instead of an error
+    window.location.assign("/login");
+  }
   if (!res.ok) throw new ApiError(res.status, errorMessage(body, res.status));
   return body as T;
 }
