@@ -198,12 +198,14 @@ const json = (data: unknown): string => JSON.stringify(data);
 /** Multipart upload; the browser sets the Content-Type with the boundary itself. */
 async function upload<T>(
   path: string,
-  file: File,
+  file: File | null,
   fields: Record<string, string> = {},
+  files: File[] = [],
 ): Promise<T> {
   const form = new FormData();
   for (const [key, value] of Object.entries(fields)) form.append(key, value);
-  form.append("file", file);
+  if (file) form.append("file", file);
+  for (const f of files) form.append("files", f);
   const headers = new Headers();
   const csrf = readCookie("gce_csrf");
   if (csrf) headers.set("X-CSRF-Token", csrf);
@@ -754,12 +756,19 @@ export const api = {
   updateChannelSetup: (id: number, changes: ChannelSetupPatch) =>
     request<ChannelSetupTask>(`/channel-setup/tasks/${id}`, { method: "PATCH", body: json(changes) }),
   /** AI buttons: renew one field, both pictures together, or everything ("all"). */
-  researchChannelSetup: (id: number, part: ChannelSetupAiPart = "all", idea = "") =>
+  /** AI symbols; ``useChat`` (the "other variant" symbol) builds on the idea chat. */
+  researchChannelSetup: (id: number, part: ChannelSetupAiPart = "all", idea = "", useChat = false) =>
     request<ChannelSetupTask>(
       `/channel-setup/tasks/${id}/research?part=${part}` +
-        (idea.trim() ? `&idea=${encodeURIComponent(idea.trim())}` : ""),
+        (idea.trim() ? `&idea=${encodeURIComponent(idea.trim())}` : "") +
+        (useChat ? "&use_chat=true" : ""),
       { method: "POST" },
     ),
+  /** Idea chat: text (typed or dictated) and files; the AI rebuilds all values. */
+  sendChannelSetupIdea: (id: number, text: string, files: File[] = []) =>
+    upload<ChannelSetupTask>(`/channel-setup/tasks/${id}/chat`, null, { text }, files),
+  clearChannelSetupIdeas: (id: number) =>
+    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/chat`, { method: "DELETE" }),
   uploadChannelSetupImage: (id: number, kind: "avatar" | "banner", file: File) =>
     upload<{ task: ChannelSetupTask; hint: string | null }>(
       `/channel-setup/tasks/${id}/upload/${kind}`,

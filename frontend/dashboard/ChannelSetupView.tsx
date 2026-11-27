@@ -5,7 +5,7 @@
 // creates platform accounts itself; the operator signs up, confirms phone/captcha
 // and connects the account afterwards.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
@@ -13,6 +13,7 @@ import { Icon } from "@/components/icons";
 import { Badge, ErrorText, PageHeader, Section } from "@/components/ui";
 import { api } from "@/lib/api";
 import { PLATFORM_LABELS } from "@/lib/labels";
+import { useDictation } from "@/lib/speech";
 import { hasRole } from "@/lib/roles";
 import type {
   ChannelSetupAiPart,
@@ -40,17 +41,19 @@ function AiButton({
   thinking,
   disabled,
   onClick,
+  icon = "wand",
 }: {
   label: string;
   hint: string;
   thinking: boolean;
   disabled: boolean;
   onClick: () => void;
+  icon?: "wand" | "reverse";
 }) {
   return (
     <button
       type="button"
-      className="cs-ai-btn"
+      className={`cs-ai-btn cs-ai-${icon}`}
       aria-label={label}
       aria-busy={thinking}
       title={hint}
@@ -60,9 +63,191 @@ function AiButton({
       {thinking ? (
         <span className="run-spinner" aria-hidden="true" />
       ) : (
-        <Icon name="wand" />
+        <Icon name={icon} />
       )}
     </button>
+  );
+}
+
+/** Idea chat under the pictures: write, dictate or attach files; the AI then
+ * builds name, user name, bio, profile picture and banner on the idea. */
+function IdeaChat({
+  task,
+  disabled,
+  onSend,
+  onClear,
+}: {
+  task: ChannelSetupTask;
+  disabled: boolean;
+  onSend: (text: string, files: File[]) => Promise<boolean>;
+  onClear: () => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [sending, setSending] = useState(false);
+  const log = useRef<HTMLOListElement>(null);
+  const dictation = useDictation((text) =>
+    setDraft((d) => (d.trim() ? `${d.trimEnd()} ${text}` : text)),
+  );
+  const fieldId = `cs-chat-${task.id}`;
+
+  useEffect(() => {
+    log.current?.scrollTo({ top: log.current.scrollHeight });
+  }, [task.chat.length]);
+
+  async function send() {
+    if (sending || disabled || (!draft.trim() && files.length === 0)) return;
+    dictation.stop();
+    setSending(true);
+    const ok = await onSend(draft, files);
+    setSending(false);
+    if (ok) {
+      setDraft("");
+      setFiles([]);
+    }
+  }
+
+  return (
+    <section className="cs-chat" aria-label="Ideen-Chat">
+      <div className="cs-chat-head">
+        <strong className="small">Ideen-Chat</strong>
+        {task.chat.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-small"
+            disabled={disabled}
+            onClick={onClear}
+          >
+            Leeren
+          </button>
+        )}
+      </div>
+      {task.chat.length === 0 ? (
+        <p className="muted small">
+          Beschreib deine Idee, sprich sie ein oder häng Bilder, PDFs oder
+          Notizen an. Die KI gestaltet dann Profilbild, Banner, Name,
+          Benutzername und Bio passend dazu.
+        </p>
+      ) : (
+        <ol className="cs-chat-log" ref={log}>
+          {task.chat.map((e, i) => (
+            <li key={i} className={`cs-chat-msg is-${e.role}`}>
+              {e.text && <span>{e.text}</span>}
+              {e.files.length > 0 && (
+                <span className="cs-chat-files">
+                  {e.files.map((f) => (
+                    <span key={f} className="chip">
+                      {f}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      <label htmlFor={fieldId} className="sr-only">
+        Deine Idee für die KI
+      </label>
+      <textarea
+        id={fieldId}
+        rows={3}
+        value={draft}
+        maxLength={2000}
+        placeholder="z. B. „Schockierte Gesichter, frech und laut, Neonfarben“"
+        disabled={disabled && !sending}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            void send();
+          }
+        }}
+      />
+      {files.length > 0 && (
+        <div className="cs-chat-files">
+          {files.map((f, i) => (
+            <span key={`${f.name}-${i}`} className="chip">
+              {f.name}
+              <button
+                type="button"
+                className="cs-chip-x"
+                aria-label={`${f.name} entfernen`}
+                onClick={() => setFiles((all) => all.filter((_, j) => j !== i))}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="cs-chat-actions">
+        <label
+          className="cs-chat-icon"
+          title="Bilder, PDFs oder Notizen als Idee anhängen"
+        >
+          <Icon name="paperclip" />
+          <span className="sr-only">Datei als Idee anhängen</span>
+          <input
+            type="file"
+            multiple
+            accept="image/png,image/jpeg,image/webp,application/pdf,text/plain,.md,.txt"
+            className="sr-only"
+            aria-label="Datei als Idee anhängen"
+            disabled={disabled}
+            onChange={(e) => {
+              const picked = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              setFiles((all) => [...all, ...picked].slice(0, 5));
+            }}
+          />
+        </label>
+        {dictation.supported && (
+          <button
+            type="button"
+            className={`cs-chat-icon${dictation.listening ? " is-live" : ""}`}
+            aria-label={
+              dictation.listening ? "Diktat beenden" : "Idee diktieren"
+            }
+            aria-pressed={dictation.listening}
+            title={
+              dictation.listening
+                ? "Diktat beenden"
+                : "Idee per Mikrofon diktieren"
+            }
+            disabled={disabled}
+            onClick={() =>
+              dictation.listening ? dictation.stop() : dictation.start()
+            }
+          >
+            <Icon name="mic" />
+          </button>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary btn-small cs-chat-send"
+          disabled={disabled || (!draft.trim() && files.length === 0)}
+          aria-busy={sending}
+          onClick={() => void send()}
+        >
+          {sending ? (
+            <>
+              <span className="run-spinner" aria-hidden="true" /> KI gestaltet …
+            </>
+          ) : (
+            <>
+              <Icon name="send" /> Idee umsetzen
+            </>
+          )}
+        </button>
+      </div>
+      {dictation.listening && (
+        <p className="small cs-chat-live" role="status">
+          Ich höre zu … sprich deine Idee.
+        </p>
+      )}
+      {dictation.error && <p className="error small">{dictation.error}</p>}
+    </section>
   );
 }
 
@@ -257,10 +442,9 @@ function TaskCard({
   onChanged: (connectChannel?: number) => Promise<void>;
 }) {
   const [testMail, setTestMail] = useState<string | null>(null);
-  const [idea, setIdea] = useState("");
   const [uploadHint, setUploadHint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [thinking, setThinking] = useState<ChannelSetupAiPart | null>(null);
+  const [thinking, setThinking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stamp, setStamp] = useState(0);
   const title = `${task.platform_label} ${LANG[task.language]}: ${task.content_project}`;
@@ -309,24 +493,45 @@ function TaskCard({
     );
   }
 
-  // one AI symbol per field: only that value is created anew (pictures together)
-  function aiRedo(part: ChannelSetupAiPart) {
-    setThinking(part);
+  // one AI symbol per field: only that value is created anew (pictures together);
+  // the "other variant" symbol builds on the idea chat
+  const hasIdea = task.chat.some((e) => e.role === "user");
+  function aiRedo(part: ChannelSetupAiPart, useChat = false) {
+    setThinking(`${part}${useChat ? ":chat" : ""}`);
     void run(async () => {
-      await api.researchChannelSetup(task.id, part, idea);
+      await api.researchChannelSetup(task.id, part, "", useChat);
     }).finally(() => setThinking(null));
   }
 
   const aiFor = (part: ChannelSetupAiPart, label: string, hint: string) =>
     canEdit ? (
-      <AiButton
-        label={label}
-        hint={hint}
-        thinking={thinking === part}
-        disabled={busy}
-        onClick={() => aiRedo(part)}
-      />
+      <span className="cs-ai-group">
+        {hasIdea && (
+          <AiButton
+            icon="reverse"
+            label={`Andere Variante zu deiner Idee: ${label.replace(/ von der KI.*$/, "")}`}
+            hint="Andere Variante passend zu deiner Idee aus dem Ideen-Chat. Jeder Klick gibt eine neue Richtung."
+            thinking={thinking === `${part}:chat`}
+            disabled={busy}
+            onClick={() => aiRedo(part, true)}
+          />
+        )}
+        <AiButton
+          label={label}
+          hint={`${hint}${hasIdea ? " Frei, ohne deine Idee aus dem Chat." : ""}`}
+          thinking={thinking === part}
+          disabled={busy}
+          onClick={() => aiRedo(part)}
+        />
+      </span>
     ) : null;
+
+  function sendIdea(text: string, files: File[]): Promise<boolean> {
+    setThinking("all");
+    return run(async () => {
+      await api.sendChannelSetupIdea(task.id, text, files);
+    }).finally(() => setThinking(null));
+  }
 
   const imagesAi = aiFor(
     "images",
@@ -440,27 +645,27 @@ function TaskCard({
               </figcaption>
             </figure>
           )}
+          {canEdit && (
+            <IdeaChat
+              task={task}
+              disabled={busy}
+              onSend={sendIdea}
+              onClear={() =>
+                void run(() => api.clearChannelSetupIdeas(task.id))
+              }
+            />
+          )}
         </div>
 
         <div className="cs-fields">
           {canEdit && (
-            <div className="cs-copy">
-              <label htmlFor={`cs-idea-${task.id}`} className="muted small">
-                Deine Idee für die KI (optional)
-              </label>
-              <input
-                id={`cs-idea-${task.id}`}
-                value={idea}
-                maxLength={300}
-                placeholder="z. B. „Name mit Gehirn oder Explosion, frech und jung“"
-                onChange={(e) => setIdea(e.target.value)}
-              />
-              <span className="muted small">
-                Die KI-Symbole bauen deine Idee ein. Eigene Texte kannst du
-                direkt in die Felder tippen oder einfügen, sie werden beim
-                Verlassen des Felds gespeichert.
-              </span>
-            </div>
+            <p className="muted small cs-fields-hint">
+              Eigene Texte tippst oder fügst du direkt in die Felder ein, sie
+              werden beim Verlassen des Felds gespeichert.
+              {hasIdea
+                ? " Zauberstab: frei neu. Pfeile: andere Variante zu deiner Idee."
+                : " Deine Idee schreibst du links in den Ideen-Chat."}
+            </p>
           )}
           <CopyField
             id={`cs-name-${task.id}`}

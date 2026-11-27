@@ -938,6 +938,25 @@ try {
     await tiktok.getByRole("link", { name: "Bei TikTok registrieren" }).waitFor();
     await tiktok.getByRole("img", { name: /^Profilbild / }).waitFor();
     await tiktok.getByLabel(/^Benutzername/).waitFor();
+    // idea chat under the pictures: the AI builds all values on the idea
+    const chat = tiktok.getByRole("region", { name: "Ideen-Chat" });
+    await chat.getByLabel("Deine Idee für die KI").fill("frisch und frech, Neonfarben");
+    await Promise.all([
+      page.waitForResponse((r) => r.url().endsWith("/chat") && r.status() === 200),
+      chat.getByRole("button", { name: "Idee umsetzen" }).click(),
+    ]);
+    await chat.getByText("frisch und frech, Neonfarben").waitFor();
+    await chat.getByText(/^Neuer Entwurf nach deiner Idee/).waitFor();
+    // "other variant" symbol next to the AI symbol: same idea, new proposal
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/research?part=bio&use_chat=true") && r.status() === 200,
+      ),
+      tiktok.getByRole("button", { name: "Andere Variante zu deiner Idee: Neue Bio" }).click(),
+    ]);
+    await tiktok
+      .locator('button[aria-label="Neue Bio von der KI erstellen"][aria-busy="false"]:enabled')
+      .waitFor();
     // own text: type straight into the field, saved when leaving it
     const nameField = tiktok.getByLabel("Name", { exact: true });
     await nameField.fill("Küchenwissen E2E");
@@ -970,8 +989,6 @@ try {
     ]);
     await tiktok.getByText("Eigenes Bild").waitFor();
     await tiktok.getByText(/empfohlen sind mindestens 400 × 400/).waitFor();
-    // an own idea goes along with the AI symbols
-    await tiktok.getByLabel("Deine Idee für die KI (optional)").fill("frisch und frech");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kanal-assistent.png`, fullPage: true });
     const insta = page.getByRole("article", { name: "Aufgabe Instagram DE: Ernährung E2E" });
     await insta.getByText(/professionelles Konto/).waitFor({ state: "attached" });

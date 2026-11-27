@@ -134,6 +134,10 @@ class AIRequest:
     #: caller executes ``tool_use`` blocks and sends results in the next request.
     tools: list[dict[str, Any]] | None = None
     meta: dict[str, Any] = field(default_factory=dict)
+    #: Use the free Cloudflare model while the operator setting is still "mock",
+    #: if the operator set up Cloudflare (IMAGE_AI_MODE=cloudflare + token). Never
+    #: switches to a paid provider.
+    prefer_free: bool = False
 
 
 @dataclass(frozen=True)
@@ -291,9 +295,20 @@ def selected_provider(session: Session) -> str:
     return provider if provider in PROVIDERS else MOCK
 
 
-def _live_problem(session: Session, settings: Settings) -> tuple[str, str] | None:
+def free_available(settings: Settings) -> bool:
+    """Cloudflare Workers AI is set up (the free plan cannot charge anything)."""
+    return (
+        settings.image_ai_mode == "cloudflare"
+        and bool(settings.cloudflare_ai_account_id)
+        and bool(settings.cloudflare_ai_token.get_secret_value())
+    )
+
+
+def _live_problem(
+    session: Session, settings: Settings, provider: str | None = None
+) -> tuple[str, str] | None:
     """Why a live call cannot happen right now (code, German reason) – or ``None``."""
-    provider = selected_provider(session)
+    provider = provider or selected_provider(session)
     if provider == CLOUDFLARE:
         if not (
             settings.cloudflare_ai_account_id and settings.cloudflare_ai_token.get_secret_value()
@@ -526,7 +541,7 @@ def _cloudflare_reply(settings: Settings, req: AIRequest) -> _Reply:
 def _generate_cloudflare(session: Session, settings: Settings, req: AIRequest) -> AIResult:
     """Free provider: no reservation, no booking (the free plan cannot charge)."""
     model = settings.cloudflare_text_model
-    problem = _live_problem(session, settings)
+    problem = _live_problem(session, settings, CLOUDFLARE)
     if problem is not None:
         raise _record_blocked(session, req, CLOUDFLARE, model, *problem)
     started = time.monotonic()
@@ -616,6 +631,8 @@ def generate(session: Session, settings: Settings, req: AIRequest) -> AIResult:
     _validate(settings, req)
     model = model_for(settings, req.tier)
     provider = selected_provider(session)
+    if provider == MOCK and req.prefer_free and free_available(settings):
+        provider = CLOUDFLARE
 
     if provider == MOCK:
         reply = _mock_reply(req, model)

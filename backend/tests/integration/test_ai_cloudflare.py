@@ -151,3 +151,17 @@ def test_own_idea_reaches_the_ai(db: Session, settings: Settings, cf: dict[str, 
     prompt = json.loads(cf["requests"][-1].content)["messages"][-1]["content"]
     assert "was mit Gehirn" in prompt
     assert task.display_name == "Hirnexplosion"
+
+
+def test_assistant_uses_free_model_while_provider_is_test(
+    db: Session, settings: Settings, cf: dict[str, Any]
+) -> None:
+    """prefer_free: with Cloudflare set up (IMAGE_AI_MODE=cloudflare), the channel
+    assistant writes real texts although the operator setting is still "mock"."""
+    update_operations(db, None, {"ai_provider": "mock"})
+    db.flush()
+    free = ai.AIRequest(**{**req().__dict__, "prefer_free": True})
+    assert ai.generate(db, settings, free).provider == "mock"  # image AI mode off
+    on = settings.model_copy(update={"image_ai_mode": "cloudflare"})
+    assert ai.generate(db, on, free).provider == "cloudflare"
+    assert ai.generate(db, on, req()).provider == "mock"  # others stay on test

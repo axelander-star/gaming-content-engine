@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -51,6 +51,13 @@ class NameOption(BaseModel):
     reason: str
 
 
+class ChatEntryOut(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str
+    files: list[str] = []
+    at: str | None = None
+
+
 class TaskOut(BaseModel):
     id: int
     content_project_id: int
@@ -76,6 +83,8 @@ class TaskOut(BaseModel):
     image_note: str | None
     #: pictures the operator uploaded ("avatar", "banner")
     uploaded: list[str]
+    #: idea chat (operator's ideas and the AI's answers), oldest first
+    chat: list[ChatEntryOut]
     signup_url: str
     steps: list[str]
     text_source: str
@@ -156,6 +165,16 @@ def _out(task: ChannelSetupTask) -> TaskOut:
         image_source=str((task.research or {}).get("image_source") or "local"),
         image_note=(task.research or {}).get("image_note"),
         uploaded=[str(k) for k in (task.research or {}).get("uploaded", [])],
+        chat=[
+            ChatEntryOut(
+                role=e["role"],
+                text=str(e.get("text") or ""),
+                files=[str(f) for f in e.get("files") or []],
+                at=e.get("at"),
+            )
+            for e in (task.research or {}).get("chat") or []
+            if isinstance(e, dict) and e.get("role") in ("user", "assistant")
+        ],
         signup_url=rules.signup_url,
         steps=list(rules.steps),
         text_source=task.text_source,
@@ -308,11 +327,15 @@ def research_again(
     settings: AppSettings,
     part: Literal["all", "name", "handle", "bio", "images"] = "all",
     idea: Annotated[str, Query(max_length=300)] = "",
+    use_chat: bool = False,
 ) -> TaskOut:
     """AI buttons: renew one field (name, handle, bio), both pictures together, or all.
 
-    ``idea`` is the operator's own idea; the AI builds on it."""
+    ``idea`` is the operator's own idea; the AI builds on it. ``use_chat`` (the
+    "other variant" symbol) adds everything from the idea chat."""
     task = _task(db, task_id)
+    if use_chat:
+        idea = f"{channel_setup.chat_idea(task)} {idea}".strip()
     try:
         channel_setup.research_again(db, settings, task, user_id=admin.id, part=part, idea=idea)
     except channel_setup.SetupError as exc:
@@ -396,6 +419,35 @@ async def upload_image(
     except channel_setup.SetupError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     return UploadOut(task=_out(task), hint=hint)
+
+
+@router.post("/tasks/{task_id}/chat", response_model=TaskOut)
+async def idea_chat(
+    task_id: int,
+    admin: Admin,
+    db: DbSession,
+    settings: AppSettings,
+    text: Annotated[str, Form(max_length=channel_setup.CHAT_TEXT_MAX)] = "",
+    files: Annotated[list[UploadFile] | None, File()] = None,
+) -> TaskOut:
+    """Idea chat: text, dictation and files; the AI rebuilds all values on the idea."""
+    items: list[channel_setup.ChatFile] = []
+    for f in (files or [])[: channel_setup.CHAT_FILES_MAX + 1]:
+        data = await f.read(channel_setup.CHAT_FILE_MAX + 1)
+        items.append(channel_setup.ChatFile(f.filename or "Datei", data))
+    task = _task(db, task_id)
+    try:
+        await run_in_threadpool(channel_setup.chat, db, settings, task, text, items, admin.id)
+    except channel_setup.SetupError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    return _out(task)
+
+
+@router.delete("/tasks/{task_id}/chat", response_model=TaskOut)
+def clear_idea_chat(task_id: int, _: Admin, db: DbSession) -> TaskOut:
+    task = _task(db, task_id)
+    channel_setup.clear_chat(db, task)
+    return _out(task)
 
 
 def _image(db: DbSession, settings: AppSettings, task_id: int, kind: str) -> FileResponse:
