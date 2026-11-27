@@ -613,6 +613,29 @@ try {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/themenbereiche.png`, fullPage: true });
   });
 
+  await step("Themenbereiche: Bereich mit Sicherheitsabfrage löschen", async () => {
+    // the default area cannot be deleted; the panel says why
+    const gaming = page.getByRole("article", { name: "Themenbereich Gaming" });
+    await gaming.getByRole("button", { name: "Löschen" }).click();
+    await gaming.getByText(/kann gerade nicht gelöscht werden/).waitFor();
+    await gaming.getByRole("button", { name: "Schließen" }).click();
+
+    await page.getByRole("button", { name: "Neuer Themenbereich" }).click();
+    const form = page.locator("form.project-form");
+    await form.getByLabel("Name").fill("Löschtest E2E");
+    await form.getByRole("button", { name: "Anlegen" }).click();
+    const card = page.getByRole("article", { name: "Themenbereich Löschtest E2E" });
+    await card.getByRole("button", { name: "Löschen" }).click();
+    const panel = card.getByRole("form", { name: "Löschtest E2E löschen" });
+    await panel.getByText(/endgültig löschen\?/).waitFor();
+    const confirm = panel.getByRole("button", { name: "Endgültig löschen" });
+    assert.equal(await confirm.isDisabled(), true);
+    await panel.getByLabel(/Zum Bestätigen den Namen/).fill("löschtest e2e");
+    if (SHOTS) await card.screenshot({ path: `${SHOTS}/themenbereich-loeschen.png` });
+    await confirm.click();
+    await card.waitFor({ state: "detached" });
+  });
+
   await step("Plan per Chat ändern: Bereich fortsetzen, Tag einplanen, rückgängig", async () => {
     await page.getByRole("link", { name: "Assistent", exact: true }).click();
     await page.getByRole("heading", { name: "Assistent", level: 1 }).waitFor();
