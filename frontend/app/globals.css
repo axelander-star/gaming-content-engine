@@ -3188,3 +3188,34 @@ td.row-actions {
   margin: 6px 0 0;
   padding-left: 20px;
 }
+
+/* --- channel assistant: one AI symbol per field --- */
+.cs-avatar-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cs-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: none;
+  align-self: flex-start;
+  min-width: 44px;
+  min-height: 38px;
+  padding: 0 8px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+.cs-ai-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.cs-ai-tag {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

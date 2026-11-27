@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
@@ -290,11 +291,17 @@ def edit_task(
 
 
 @router.post("/tasks/{task_id}/research", response_model=TaskOut)
-def research_again(task_id: int, admin: Admin, db: DbSession, settings: AppSettings) -> TaskOut:
-    """Fresh market data and new name ideas for an open task."""
+def research_again(
+    task_id: int,
+    admin: Admin,
+    db: DbSession,
+    settings: AppSettings,
+    part: Literal["all", "name", "handle", "bio", "images"] = "all",
+) -> TaskOut:
+    """AI buttons: renew one field (name, handle, bio), both pictures together, or all."""
     task = _task(db, task_id)
     try:
-        channel_setup.research_again(db, settings, task, user_id=admin.id)
+        channel_setup.research_again(db, settings, task, user_id=admin.id, part=part)
     except channel_setup.SetupError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     return _out(task)

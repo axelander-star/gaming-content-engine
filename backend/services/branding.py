@@ -8,7 +8,7 @@ Sizes follow the platforms' published recommendations:
   that every device shows.
 
 Colours come from the topic area's name, so all channels of one topic share a look
-and different topics are easy to tell apart. "Von der KI neu erstellen" passes a
+and different topics are easy to tell apart. The AI symbol for the pictures passes a
 new seed, which gives another colour pair and another pattern.
 """
 

@@ -951,9 +951,30 @@ try {
     await insta.getByText(/professionelles Konto/).waitFor({ state: "attached" });
     // names are based on market data; the basis is shown and can be refreshed
     await insta.getByText("Datengrundlage").waitFor();
+    // one AI symbol per field: only that value is renewed; pictures are redrawn together
+    assert.equal(await insta.getByRole("button", { name: "Von der KI neu erstellen", exact: true }).count(), 0);
+    const bioBefore = await insta.getByLabel("Bio", { exact: true }).inputValue();
+    const nameBefore = await insta.getByLabel("Name", { exact: true }).inputValue();
     await Promise.all([
-      page.waitForResponse((r) => r.url().endsWith("/research") && r.status() === 200),
-      insta.getByRole("button", { name: "Von der KI neu erstellen" }).click(),
+      page.waitForResponse((r) => r.url().includes("/research?part=bio") && r.status() === 200),
+      insta.getByRole("button", { name: "Neue Bio von der KI erstellen" }).click(),
+    ]);
+    await insta
+      .locator('button[aria-label="Neue Bio von der KI erstellen"][aria-busy="false"]:enabled')
+      .waitFor();
+    assert.notEqual(await insta.getByLabel("Bio", { exact: true }).inputValue(), bioBefore);
+    assert.equal(await insta.getByLabel("Name", { exact: true }).inputValue(), nameBefore);
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/research?part=images") && r.status() === 200),
+      insta.getByRole("button", { name: /von der KI neu gestalten$/ }).click(),
+    ]);
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/research?part=handle") && r.status() === 200),
+      insta.getByRole("button", { name: "Neuen Benutzernamen von der KI erstellen" }).click(),
+    ]);
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/research?part=name") && r.status() === 200),
+      insta.getByRole("button", { name: "Neuen Namen von der KI erstellen" }).click(),
     ]);
     await insta.getByRole("button", { name: "Nicht gebraucht" }).click();
     await insta.waitFor({ state: "detached" });
