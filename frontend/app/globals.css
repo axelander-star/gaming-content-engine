@@ -3137,3 +3137,27 @@ td.row-actions {
     animation-duration: 2.4s;
   }
 }
+
+/* --- Topic areas: "Von der KI ausfüllen" --- */
+.ai-fill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ai-fill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  border-color: var(--accent-soft);
+}
+.ai-fill-facts {
+  margin: 0 0 10px;
+  font-size: 0.9em;
+}
+.ai-fill-facts ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}

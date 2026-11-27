@@ -163,3 +163,31 @@ def test_api_for_admin_only(
     r = api.post("/api/projects/suggestions", headers=headers)
     assert r.status_code == 200, r.text
     assert set(r.json()) >= {"live", "sample", "suggestions", "hint"}
+
+
+def test_area_profile_from_trends(db: Session, live: Settings, redis_client: Redis) -> None:
+    assert topic_suggest.category_for("Unterhaltung", []) == "24"
+    assert topic_suggest.category_for("Zocken am Abend", []) == "20"
+    with httpx.Client(transport=httpx.MockTransport(fake_google)) as client:
+        profile = topic_suggest.profile_for(
+            db, live, redis_client, name="Unterhaltung", subtopics=["Fakten"], client=client,
+            now=NOW,
+        )  # fmt: skip
+    assert profile.live and profile.errors == []
+    assert profile.description and profile.audience and profile.tone
+    # the category chart is missing (404): the overall chart's entertainment videos count
+    assert profile.facts == [
+        "Unterhaltung (Deutschland): 3 der 50 meistgesehenen Videos, Median 30.000 Aufrufe, "
+        "10.000 Aufrufe pro Stunde, 3 verschiedene Kanäle, 3 Plätze in den Top 50 insgesamt"
+    ]
+    assert profile.subtopics[:3] == ["Fakten", "Reaction", "Show"]
+
+
+def test_area_profile_api(api: TestClient, make_user: Callable[..., User]) -> None:
+    make_user()
+    headers = login(api, "admin@example.com")
+    r = api.post("/api/projects/profile-suggestion", json={"name": "Unterhaltung"}, headers=headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["description"] and body["audience"] and body["tone"]
+    assert isinstance(body["subtopics"], list)

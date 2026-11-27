@@ -569,3 +569,193 @@ def suggest(
         generated_at=now.isoformat(),
         provider=provider,
     )
+
+
+# --- filling one area's profile ("KI ausfüllen") ----------------------------------
+
+#: words in an area name that point to a YouTube category
+_CATEGORY_HINTS: dict[str, tuple[str, ...]] = {
+    "20": ("gaming", "game", "spiel", "zock", "esport", "konsole"),
+    "23": ("comedy", "humor", "witz", "lustig", "funny", "sketch"),
+    "24": ("unterhaltung", "entertainment", "show", "fakten", "kurios", "reaction"),
+    "26": ("koch", "rezept", "ernährung", "essen", "food", "fitness", "styling", "diy", "tipps"),
+    "28": ("tech", "technik", "handy", "ki", "wissenschaft", "gadget"),
+    "27": ("bildung", "wissen", "lernen", "geschichte", "erklär"),
+    "15": ("tier", "hund", "katze", "pet"),
+    "17": ("sport", "fußball", "fussball", "training"),
+    "2": ("auto", "fahrzeug", "motor", "car"),
+    "19": ("reise", "travel", "urlaub"),
+    "1": ("film", "serie", "kino", "anime"),
+}
+
+
+def category_for(name: str, subtopics: list[str]) -> str | None:
+    text = " ".join([name, *subtopics]).lower()
+    for category, label in CATEGORIES.items():
+        if label.lower() in text:
+            return category
+    for category, hints in _CATEGORY_HINTS.items():
+        if any(h in text for h in hints):
+            return category
+    return None
+
+
+@dataclass
+class Profile:
+    description: str
+    audience: str
+    tone: str
+    subtopics: list[str]
+    facts: list[str]
+    live: bool
+    sample: bool
+    provider: str = "template"
+    hint: str | None = None
+    errors: list[str] = field(default_factory=list)
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+PROFILE_SYSTEM = (
+    "You write the profile of one topic area for short-video channels (YouTube Shorts, "
+    "TikTok, Reels) of one operator in Germany who produces his own videos without "
+    "licensed footage. Base it on the trend numbers given; never invent figures. Pick a "
+    "clear, repeatable format the audience recognises, not a vague mix. Answer in German "
+    "with JSON only."
+)
+
+
+def _profile_prompt(
+    name: str, description: str, subtopics: list[str], stats: list[CategoryStat], home: str
+) -> str:
+    lines = [s.fact() + (f"; Begriffe: {', '.join(s.words)}" if s.words else "") for s in stats]
+    return (
+        f"Themenbereich: {name}\n"
+        f"Bisherige Beschreibung: {description or '-'}\n"
+        f"Bisherige Unterthemen: {', '.join(subtopics) or '-'}\n"
+        f"Heimatmarkt: {REGION_NAMES.get(home, home)}\n"
+        "YouTube-Trends (Stand jetzt):\n- " + ("\n- ".join(lines) or "keine Daten") + "\n\nJSON: "
+        '{"description": "1-2 Sätze, was der Kanal bringt", "audience": "Zielgruppe mit '
+        'Alter und Interesse", "tone": "Tonalität in wenigen Worten", "subtopics": ["4-6 '
+        'konkrete Unterthemen oder Formate"]}'
+    )
+
+
+def _profile_template(
+    name: str, description: str, subtopics: list[str], stats: list[CategoryStat]
+) -> dict[str, Any]:
+    words = [w.capitalize() for s in stats for w in s.words]
+    topics = list(dict.fromkeys([*subtopics, *words]))[:6]
+    return {
+        "description": description
+        or f"Kurze, unterhaltsame Videos rund um {name}, ausgerichtet an dem, was gerade läuft.",
+        "audience": f"Junge Erwachsene (16–34) im deutschsprachigen Raum, die sich für {name} "
+        "interessieren und kurze Videos am Handy schauen",
+        "tone": "locker, direkt, mit Pointe",
+        "subtopics": topics,
+    }
+
+
+def profile_for(
+    session: Session,
+    settings: Settings,
+    redis: Redis,
+    *,
+    name: str,
+    description: str = "",
+    subtopics: list[str] | None = None,
+    user_id: int | None = None,
+    client: httpx.Client | None = None,
+    now: datetime | None = None,
+) -> Profile:
+    """Description, audience, tone and sub-topics for one area from current trends."""
+    now = now or datetime.now(UTC)
+    name = " ".join(name.split())[:120]
+    subtopics = [" ".join(s.split())[:60] for s in subtopics or [] if s.strip()]
+    home = regions_of(settings)[0]
+    category = category_for(name, subtopics)
+    errors: list[str] = []
+    live = competitors.live(settings)
+    stats: list[CategoryStat] = []
+    sample = False
+    if live:
+        own = client is None
+        http = client or httpx.Client(timeout=settings.http_timeout_s, transport=TRANSPORT)
+        try:
+            quota.consume(redis, "youtube", 2, settings.youtube_daily_quota_units)
+            overall = _chart(http, settings, home, None)
+            raw: list[dict[str, Any]] = []
+            if category:
+                try:
+                    raw = _chart(http, settings, home, category)
+                except (competitors.RadarError, httpx.HTTPError, ValueError) as exc:
+                    if "404" not in str(exc):
+                        errors.append(f"YouTube {home}: {exc}"[:200])
+                in_overall = [
+                    v for v in overall
+                    if str((v.get("snippet") or {}).get("categoryId") or "") == category
+                ]  # fmt: skip
+                if len(raw) < 2:
+                    raw = in_overall
+                stat = stats_for(raw, category, home, now)
+                if stat is not None:
+                    stat.overall = len(in_overall)
+                    stats.append(stat)
+            if not stats:
+                stat = stats_for(overall, "0", home, now)
+                if stat is not None:
+                    stat.label = "Alle Kategorien"
+                    stats.append(stat)
+        except QuotaExceededError:
+            errors.append("YouTube-Tageskontingent erreicht")
+        except (competitors.RadarError, httpx.HTTPError, ValueError) as exc:
+            errors.append(f"YouTube {home}: {exc}"[:200])
+        finally:
+            if own:
+                http.close()
+    elif settings.sample_data_enabled:
+        stats = [s for s in sample_stats(now) if s.category_id == (category or "24")]
+        sample = True
+    fallback = _profile_template(name, description, subtopics, stats)
+    data, provider = fallback, "template"
+    try:
+        result = ai.generate(
+            session,
+            settings,
+            ai.AIRequest(
+                purpose="area_profile",
+                tier="text",
+                messages=[
+                    ai.AIMessage("user", _profile_prompt(name, description, subtopics, stats, home))
+                ],
+                system=PROFILE_SYSTEM,
+                max_tokens=800,
+                mock=lambda _req: json.dumps(fallback, ensure_ascii=False),
+                user_id=user_id,
+            ),
+        )
+        start, end = result.text.find("{"), result.text.rfind("}")
+        parsed = json.loads(result.text[start : end + 1]) if 0 <= start < end else {}
+        if isinstance(parsed, dict) and parsed.get("description"):
+            data, provider = parsed, result.provider
+    except (ai.AIError, ValueError) as exc:
+        log.info("area profile from template (%s)", type(exc).__name__)
+    hint = None
+    if not live and not sample:
+        hint = (
+            "Ohne YouTube-Schlüssel (YOUTUBE_API_KEY, TREND_SOURCES_MODE=live) "
+            "ohne aktuelle Trenddaten ausgefüllt."
+        )
+    return Profile(
+        description=" ".join(str(data.get("description") or "").split())[:500],
+        audience=" ".join(str(data.get("audience") or "").split())[:300],
+        tone=" ".join(str(data.get("tone") or "").split())[:120],
+        subtopics=_strs(data.get("subtopics"), 6, 60) or fallback["subtopics"],
+        facts=[s.fact() for s in stats],
+        live=live,
+        sample=sample,
+        provider=provider,
+        hint=hint,
+        errors=errors,
+    )
