@@ -40,7 +40,7 @@ PROVIDERS: dict[str, Callable[[Settings], TextModel]] = {}
 
 def get_model(provider: str, settings: Settings) -> TextModel | None:
     """``None`` means: use the free templates."""
-    if provider == MOCK:
+    if provider in (MOCK, "cloudflare"):  # script rewrites stay template-based there
         return None
     factory = PROVIDERS.get(provider)
     if factory is None:

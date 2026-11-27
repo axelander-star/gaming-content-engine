@@ -318,6 +318,13 @@ Geprüft gegen https://docs.ntfy.sh/publish/ am 16.11.2026: `POST https://ntfy.s
 - Verworfen: Pollinations (kostenlos, aber Logo im Bild, max. 768 px, ein Bild je 45 s), Hugging Face (Gratis-Guthaben zu klein), Midjourney/ChatGPT/Ideogram (keine kostenlose API, Automatisierung nicht erlaubt).
 - Gemalte Grundbilder werden gespeichert (`research.art`); ein neuer Name setzt nur die Schrift neu, ohne neuen KI-Aufruf.
 
+## Kostenlose Text-KI: Cloudflare Workers AI (27.11.2026)
+
+- KI-Anbieter `cloudflare` in Einstellungen → Betrieb → KI-Anbieter („Cloudflare-KI (kostenlos, Tageskontingent)“). Nutzt `CLOUDFLARE_AI_ACCOUNT_ID` und `CLOUDFLARE_AI_TOKEN` der Bild-KI.
+- Endpunkt (offiziell): `POST https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/{model}` mit `{"messages": [...], "max_tokens": n}`, Antwort `result.response` und `result.usage`. Modell `CLOUDFLARE_TEXT_MODEL`, Standard `@cf/meta/llama-3.3-70b-instruct-fp8-fast`.
+- Kosten: teilt sich das freie Tageskontingent (10.000 Neurons) mit der Bild-KI; ein Namensvorschlag liegt grob bei 100 Neurons. Im Free-Tarif gibt es danach einen Fehler statt Kosten, die Aufrufer fallen auf ihre Vorlagen zurück. Gebucht wird nichts (`ai_calls` mit 0 $).
+- Ohne Werkzeuge (tool use): der Chat-Assistent nutzt Werkzeuge nur mit Claude; Skript-Feinschliff bleibt bei Cloudflare vorlagenbasiert.
+
 ## Speicher
 
 - **Cloudflare R2** (S3-kompatibel). Seit E8 nur für kurzlebige Video-Adressen beim Instagram-Login genutzt (`services/r2.py`, eigene SigV4-Signatur, kein SDK). Ablage der Medien sonst weiter lokal. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.

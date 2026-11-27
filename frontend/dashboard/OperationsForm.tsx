@@ -89,11 +89,16 @@ export function OperationsForm({
         <label>
           KI-Anbieter
           <select
-            value={values.ai_provider === "claude" ? "claude" : "mock"}
+            value={
+              values.ai_provider === "claude" || values.ai_provider === "cloudflare"
+                ? values.ai_provider
+                : "mock"
+            }
             disabled={!editable}
             onChange={(e) => setValues({ ...values, ai_provider: e.target.value })}
           >
             <option value="mock">Test (Mock, kostenlos)</option>
+            <option value="cloudflare">Cloudflare-KI (kostenlos, Tageskontingent)</option>
             <option value="claude">Claude (kostenpflichtig)</option>
           </select>
         </label>
