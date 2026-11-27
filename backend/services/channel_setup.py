@@ -22,6 +22,7 @@ operator gets alternatives and sees availability during sign-up.
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import re
@@ -513,12 +514,19 @@ ART_SYSTEM = (
 
 
 def _art_subject(
-    session: Session, settings: Settings, project: ContentProject, user_id: int | None
+    session: Session,
+    settings: Settings,
+    project: ContentProject,
+    user_id: int | None,
+    idea: str = "",
 ) -> str:
     """What the pictures show, in English, e.g. "Krasse Fakten" -> "glowing light bulb,
     question marks and a magnifying glass". Falls back to the area's own words."""
     subs = ", ".join(str(t) for t in (project.subtopics or [])[:3])
-    fallback = f"{project.name}{f' ({subs})' if subs else ''}"
+    fallback = idea.strip() or f"{project.name}{f' ({subs})' if subs else ''}"
+    wish = (
+        f"\nOperator's own idea (the motif must follow it): {idea.strip()}" if idea.strip() else ""
+    )
     try:
         result = ai.generate(
             session,
@@ -530,7 +538,7 @@ def _art_subject(
                     ai.AIMessage(
                         "user",
                         f"Topic area: {project.name}\nSub-topics: {subs or '-'}\n"
-                        f"Description: {project.description or '-'}\n"
+                        f"Description: {project.description or '-'}{wish}\n"
                         "Visual subject for the channel's logo and banner:",
                     )
                 ],
@@ -565,6 +573,7 @@ def _paint_art(
     seed: str,
     research: dict[str, Any],
     user_id: int | None,
+    idea: str = "",
 ) -> tuple[Image.Image, Image.Image | None]:
     """Artwork of the current look: reused while the look stays (e.g. after a new
     name), painted anew by the image AI for a new look. Raises ImageAIError."""
@@ -576,9 +585,9 @@ def _paint_art(
         if avatar is not None and (banner is not None or not want_banner):
             return avatar, banner
     if session is not None:
-        subject = _art_subject(session, settings, project, user_id)
+        subject = _art_subject(session, settings, project, user_id, idea)
     else:
-        subject = project.name
+        subject = idea.strip() or project.name
     look = image_ai.design(subject, seed, branding.palette(seed))
     avatar = image_ai.paint(settings, look.avatar_prompt())
     banner = image_ai.paint(settings, look.banner_prompt()) if want_banner else None
@@ -603,6 +612,29 @@ def _images(
     tagline: str,
     session: Session | None = None,
     user_id: int | None = None,
+    idea: str = "",
+    replace_uploads: bool = False,
+) -> None:
+    """New pictures; the operator's own uploads stay unless ``replace_uploads``."""
+    uploaded = [] if replace_uploads else list((task.research or {}).get("uploaded", []))
+    want = ["avatar", "banner"] if RULES[task.platform].banner else ["avatar"]
+    if all(k in uploaded for k in want):
+        return  # both pictures are the operator's own: nothing to draw
+    keep = {"avatar": task.avatar_uri, "banner": task.banner_uri}
+    _draw_images(settings, task, project, tagline, session, user_id, idea)
+    for kind in uploaded:
+        setattr(task, f"{kind}_uri", keep[kind])
+    task.research = {**(task.research or {}), "uploaded": uploaded}
+
+
+def _draw_images(
+    settings: Settings,
+    task: ChannelSetupTask,
+    project: ContentProject,
+    tagline: str,
+    session: Session | None = None,
+    user_id: int | None = None,
+    idea: str = "",
 ) -> None:
     """Profile picture and banner of one look (same colours, same style).
 
@@ -614,7 +646,9 @@ def _images(
     want_banner = RULES[task.platform].banner
     if image_ai.available(settings):
         try:
-            avatar, banner = _paint_art(session, settings, task, project, seed, research, user_id)
+            avatar, banner = _paint_art(
+                session, settings, task, project, seed, research, user_id, idea
+            )
         except image_ai.ImageAIError as exc:
             log.info("channel pictures drawn locally: %s", exc)
             research["image_source"] = "local"
@@ -866,6 +900,7 @@ def research_again(
     task: ChannelSetupTask,
     user_id: int | None = None,
     part: str = "all",
+    idea: str = "",
 ) -> ChannelSetupTask:
     """AI buttons of the channel assistant: renew one field, both pictures, or everything.
 
@@ -889,7 +924,16 @@ def research_again(
         research = dict(task.research or {})
         research["look"] = f"{project.slug}-{secrets.token_hex(3)}"
         task.research = research
-        _images(settings, task, project, _tagline(task, project), session, user_id)
+        _images(
+            settings,
+            task,
+            project,
+            _tagline(task, project),
+            session,
+            user_id,
+            idea,
+            replace_uploads=True,
+        )
         _record_research(session, task, user_id, part, live=bool(research.get("live")))
         session.commit()
         return task
@@ -906,6 +950,12 @@ def research_again(
             f'Keep the channel name "{task.display_name}". Write a different bio than: "{task.bio}"'
         ),
     }[part]
+    idea = " ".join(idea.split())[:300]
+    if idea:
+        note = (
+            f"{note}\nThe operator's own idea, build on it and make it shine (keep its "
+            f"intent, improve the wording): {idea}"
+        ).strip()
     texts = write_texts(
         session, settings, project, task.platform, task.language, user_id, ctx, note
     )
@@ -958,7 +1008,15 @@ def research_again(
     task.research = research
     if part in ("all", "name"):
         # "all" gets a new look; a new name keeps the colours and only changes the lettering
-        _images(settings, task, project, texts.tagline, session, user_id)
+        _images(
+            settings,
+            task,
+            project,
+            texts.tagline,
+            session,
+            user_id,
+            replace_uploads=part == "all",
+        )
     _record_research(session, task, user_id, part, live=ctx.live)
     session.commit()
     return task
@@ -976,6 +1034,72 @@ def _record_research(
         entity_id=task.id,
         after={"part": part, "display_name": task.display_name, "live": live},
     )
+
+
+#: Accepted uploads (checked by content, not by name) and the largest file.
+UPLOAD_FORMATS = {"PNG", "JPEG", "WEBP"}
+UPLOAD_MAX_BYTES = 15 * 1024 * 1024
+#: Smaller pictures are accepted but get a hint (platform minimums / sharpness).
+UPLOAD_MIN = {"avatar": (400, 400), "banner": (2048, 1152)}
+
+
+def upload_image(
+    session: Session,
+    settings: Settings,
+    task: ChannelSetupTask,
+    kind: str,
+    data: bytes,
+    user_id: int | None = None,
+) -> str | None:
+    """The operator's own profile picture or banner from the PC.
+
+    The picture is cut to the platform size (800 x 800, banner 2560 x 1440, centred)
+    and replaces the AI version; later renames and connecting the channel use it
+    as it is. Returns a hint if the picture is smaller than recommended."""
+    if task.status != ChannelSetupStatus.OPEN:
+        raise SetupError("Die Aufgabe ist schon abgeschlossen.")
+    if kind not in ("avatar", "banner"):
+        raise SetupError("Unbekannte Bildart.")
+    if kind == "banner" and not RULES[task.platform].banner:
+        raise SetupError(f"{RULES[task.platform].label} hat kein Banner.")
+    if not data:
+        raise SetupError("Die Datei ist leer.")
+    if len(data) > UPLOAD_MAX_BYTES:
+        raise SetupError("Das Bild ist größer als 15 MB.")
+    try:
+        img = Image.open(io.BytesIO(data))
+        fmt = img.format
+        img.load()
+    except (OSError, Image.DecompressionBombError) as exc:
+        raise SetupError("Die Datei ist kein lesbares Bild (PNG, JPG oder WebP).") from exc
+    if fmt not in UPLOAD_FORMATS:
+        raise SetupError("Bitte ein PNG-, JPG- oder WebP-Bild hochladen.")
+    min_w, min_h = UPLOAD_MIN[kind]
+    hint = None
+    if img.width < min_w or img.height < min_h:
+        hint = (
+            f"Dein Bild hat {img.width} × {img.height} Pixel, empfohlen sind mindestens "
+            f"{min_w} × {min_h}. Es kann unscharf wirken."
+        )
+    if kind == "avatar":
+        png = branding.avatar_from_art(img)
+    else:
+        png = branding.png_cover(img, branding.BANNER_SIZE)
+    uri = branding.store_png(settings, png)
+    setattr(task, f"{kind}_uri", uri)
+    research = dict(task.research or {})
+    research["uploaded"] = sorted({*research.get("uploaded", []), kind})
+    task.research = research
+    audit.record(
+        session,
+        "channel_setup.upload_image",
+        user_id=user_id,
+        entity_type="channel_setup_tasks",
+        entity_id=task.id,
+        after={"kind": kind, "size": [img.width, img.height]},
+    )
+    session.commit()
+    return hint
 
 
 def update(

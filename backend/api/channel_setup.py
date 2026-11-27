@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -73,6 +74,8 @@ class TaskOut(BaseModel):
     image_source: str
     #: why the image AI was not used this time (e.g. daily allowance used up)
     image_note: str | None
+    #: pictures the operator uploaded ("avatar", "banner")
+    uploaded: list[str]
     signup_url: str
     steps: list[str]
     text_source: str
@@ -152,6 +155,7 @@ def _out(task: ChannelSetupTask) -> TaskOut:
         has_banner=bool(task.banner_uri),
         image_source=str((task.research or {}).get("image_source") or "local"),
         image_note=(task.research or {}).get("image_note"),
+        uploaded=[str(k) for k in (task.research or {}).get("uploaded", [])],
         signup_url=rules.signup_url,
         steps=list(rules.steps),
         text_source=task.text_source,
@@ -303,11 +307,14 @@ def research_again(
     db: DbSession,
     settings: AppSettings,
     part: Literal["all", "name", "handle", "bio", "images"] = "all",
+    idea: Annotated[str, Query(max_length=300)] = "",
 ) -> TaskOut:
-    """AI buttons: renew one field (name, handle, bio), both pictures together, or all."""
+    """AI buttons: renew one field (name, handle, bio), both pictures together, or all.
+
+    ``idea`` is the operator's own idea; the AI builds on it."""
     task = _task(db, task_id)
     try:
-        channel_setup.research_again(db, settings, task, user_id=admin.id, part=part)
+        channel_setup.research_again(db, settings, task, user_id=admin.id, part=part, idea=idea)
     except channel_setup.SetupError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     return _out(task)
@@ -363,6 +370,32 @@ def dismiss(task_id: int, admin: Admin, db: DbSession, settings: AppSettings) ->
     except channel_setup.SetupError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     return _out(task)
+
+
+class UploadOut(BaseModel):
+    task: TaskOut
+    hint: str | None
+
+
+@router.post("/tasks/{task_id}/upload/{kind}", response_model=UploadOut)
+async def upload_image(
+    task_id: int,
+    kind: Literal["avatar", "banner"],
+    admin: Admin,
+    db: DbSession,
+    settings: AppSettings,
+    file: Annotated[UploadFile, File()],
+) -> UploadOut:
+    """Own profile picture or banner from the PC; replaces the AI version."""
+    data = await file.read(channel_setup.UPLOAD_MAX_BYTES + 1)
+    task = _task(db, task_id)
+    try:
+        hint = await run_in_threadpool(
+            channel_setup.upload_image, db, settings, task, kind, data, admin.id
+        )
+    except channel_setup.SetupError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    return UploadOut(task=_out(task), hint=hint)
 
 
 def _image(db: DbSession, settings: AppSettings, task_id: int, kind: str) -> FileResponse:

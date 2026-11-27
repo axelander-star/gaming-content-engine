@@ -754,10 +754,17 @@ export const api = {
   updateChannelSetup: (id: number, changes: ChannelSetupPatch) =>
     request<ChannelSetupTask>(`/channel-setup/tasks/${id}`, { method: "PATCH", body: json(changes) }),
   /** AI buttons: renew one field, both pictures together, or everything ("all"). */
-  researchChannelSetup: (id: number, part: ChannelSetupAiPart = "all") =>
-    request<ChannelSetupTask>(`/channel-setup/tasks/${id}/research?part=${part}`, {
-      method: "POST",
-    }),
+  researchChannelSetup: (id: number, part: ChannelSetupAiPart = "all", idea = "") =>
+    request<ChannelSetupTask>(
+      `/channel-setup/tasks/${id}/research?part=${part}` +
+        (idea.trim() ? `&idea=${encodeURIComponent(idea.trim())}` : ""),
+      { method: "POST" },
+    ),
+  uploadChannelSetupImage: (id: number, kind: "avatar" | "banner", file: File) =>
+    upload<{ task: ChannelSetupTask; hint: string | null }>(
+      `/channel-setup/tasks/${id}/upload/${kind}`,
+      file,
+    ),
   retryChannelSetupEmail: (id: number) =>
     request<ChannelSetupTask>(`/channel-setup/tasks/${id}/email`, { method: "POST" }),
   completeChannelSetup: (id: number, handle?: string) =>

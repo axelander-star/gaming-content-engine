@@ -938,14 +938,40 @@ try {
     await tiktok.getByRole("link", { name: "Bei TikTok registrieren" }).waitFor();
     await tiktok.getByRole("img", { name: /^Profilbild / }).waitFor();
     await tiktok.getByLabel(/^Benutzername/).waitFor();
-    await tiktok.getByRole("button", { name: "Werte ändern" }).click();
-    const form = tiktok.getByRole("form", { name: "Werte TikTok DE: Ernährung E2E" });
-    await form.getByLabel("Name", { exact: true }).fill("Küchenwissen E2E");
-    await form.getByLabel("Benutzername", { exact: true }).fill("Küchen Wissen");
-    await form.getByRole("button", { name: "Speichern" }).click();
-    await form.waitFor({ state: "detached" });
-    assert.equal(await tiktok.getByLabel("Name", { exact: true }).inputValue(), "Küchenwissen E2E");
-    assert.equal(await tiktok.getByLabel(/^Benutzername/).inputValue(), "kuechen_wissen");
+    // own text: type straight into the field, saved when leaving it
+    const nameField = tiktok.getByLabel("Name", { exact: true });
+    await nameField.fill("Küchenwissen E2E");
+    await Promise.all([
+      page.waitForResponse((r) => r.request().method() === "PATCH" && r.status() === 200),
+      nameField.press("Enter"),
+    ]);
+    const handleField = tiktok.getByRole("textbox", { name: /^Benutzername/ });
+    await handleField.fill("Küchen Wissen");
+    await Promise.all([
+      page.waitForResponse((r) => r.request().method() === "PATCH" && r.status() === 200),
+      handleField.press("Enter"),
+    ]);
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll("input")].some((i) => i.value === "kuechen_wissen"),
+    );
+    assert.equal(await nameField.inputValue(), "Küchenwissen E2E");
+    // own profile picture from the PC
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/upload/avatar") && r.status() === 200),
+      tiktok.getByLabel("Eigenes Profilbild hochladen").setInputFiles({
+        name: "logo.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      }),
+    ]);
+    await tiktok.getByText("Eigenes Bild").waitFor();
+    await tiktok.getByText(/empfohlen sind mindestens 400 × 400/).waitFor();
+    // an own idea goes along with the AI symbols
+    await tiktok.getByLabel("Deine Idee für die KI (optional)").fill("frisch und frech");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kanal-assistent.png`, fullPage: true });
     const insta = page.getByRole("article", { name: "Aufgabe Instagram DE: Ernährung E2E" });
     await insta.getByText(/professionelles Konto/).waitFor({ state: "attached" });

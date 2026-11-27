@@ -34,7 +34,8 @@
   --info-bg: rgba(77, 160, 255, 0.14);
   --info: #6cb2ff;
   --radius: 12px;
-  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.25);
   --series-1: #3987e5;
   color-scheme: dark;
 }
@@ -2902,7 +2903,6 @@ td.row-actions {
   cursor: grab;
 }
 
-
 /* --- Help: question mark in the top bar, side panel, /hilfe page --- */
 .help-btn {
   color: var(--accent);
@@ -3196,26 +3196,124 @@ td.row-actions {
   justify-content: space-between;
   gap: 8px;
 }
+/* AI symbols: small and see-through like the upload icon, clearer on hover */
+.cs-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.cs-field input,
+.cs-field textarea {
+  flex: 1;
+  min-width: 0;
+}
+.cs-field.has-ai input,
+.cs-field.has-ai textarea {
+  padding-right: 36px;
+}
 .cs-ai-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  flex: none;
-  align-self: flex-start;
-  min-width: 44px;
-  min-height: 38px;
-  padding: 0 8px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   color: var(--accent);
   background: var(--accent-soft);
-  border-color: var(--accent-soft);
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.cs-pic .cs-ai-btn {
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+}
+.cs-field:hover .cs-ai-btn,
+.cs-pic:hover .cs-ai-btn,
+.cs-ai-btn:hover,
+.cs-ai-btn:focus-visible,
+.cs-ai-btn[aria-busy="true"] {
+  opacity: 1;
+}
+.cs-ai-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cs-ai-btn:disabled {
+  cursor: default;
+}
+.cs-ai-btn:disabled:not([aria-busy="true"]) {
+  opacity: 0.25;
 }
 .cs-ai-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
-.cs-ai-tag {
-  font-size: 0.72em;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+.cs-ai-btn .run-spinner {
+  width: 12px;
+  height: 12px;
+}
+.cs-copy-label {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.cs-saved {
+  color: var(--ok, #16a34a);
+  font-weight: 600;
+}
+.cs-images figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 6px;
+}
+.cs-pic {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.cs-pic .cs-banner {
+  width: 100%;
+}
+/* own picture upload: small, see-through, clearer on hover */
+.cs-upload {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.cs-pic:hover .cs-upload,
+.cs-upload:hover,
+.cs-upload:focus-within {
+  opacity: 1;
+}
+.cs-upload:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cs-upload svg {
+  width: 14px;
+  height: 14px;
+}
+.cs-upload.is-disabled {
+  opacity: 0.25;
+  cursor: default;
 }
