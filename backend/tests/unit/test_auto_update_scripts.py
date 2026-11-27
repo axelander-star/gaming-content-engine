@@ -85,3 +85,46 @@ def test_only_one_watcher_at_a_time(tmp_path: Path) -> None:
 def test_server_scripts_parse() -> None:
     for name in ("auto_update.sh", "auto_update_watch.sh", "install_auto_update.sh", "deploy.sh"):
         subprocess.run(["bash", "-n", str(SCRIPTS / name)], check=True)
+
+
+def _install_env(tmp_path: Path) -> tuple[Path, Path, dict[str, str]]:
+    """Copy of the repository's scripts with a fake ``crontab`` that stores into a file."""
+    repo = tmp_path / "repo"
+    shutil.copytree(SCRIPTS, repo / "scripts")
+    (repo / "infrastructure" / "deploy-hook").mkdir(parents=True)
+    tab = tmp_path / "crontab.txt"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake = bin_dir / "crontab"
+    fake.write_text(
+        "#!/usr/bin/env bash\n"
+        f'F="{tab}"\n'
+        'if [[ "$1" == "-l" ]]; then [[ -f "$F" ]] || { echo "no crontab" >&2; exit 1; }; '
+        'cat "$F"; else data="$(cat)"; printf "%s\\n" "$data" >"$F"; fi\n'
+    )
+    fake.chmod(0o755)
+    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+    return repo, tab, env
+
+
+def test_install_with_empty_crontab_adds_both_lines(tmp_path: Path) -> None:
+    """Regression 27.11.2026: with no crontab yet the script ended silently."""
+    repo, tab, env = _install_env(tmp_path)
+    script = str(repo / "scripts" / "install_auto_update.sh")
+    out = subprocess.run(["bash", script], env=env, check=True, capture_output=True, text=True)
+    assert "Automatisches Update ist an" in out.stdout
+    lines = tab.read_text().splitlines()
+    assert len(lines) == 2
+    assert lines[0].endswith("# content-engine auto-update")
+    assert lines[1].endswith("# content-engine auto-update-watch")
+    secret = (repo / "infrastructure" / "deploy-hook" / "secret").read_text()
+    assert len(secret) == 64
+    # again: same two lines, other entries kept, secret unchanged
+    tab.write_text("0 4 * * * /bin/true # other\n" + tab.read_text())
+    subprocess.run(["bash", script], env=env, check=True, capture_output=True)
+    lines = tab.read_text().splitlines()
+    assert lines[0] == "0 4 * * * /bin/true # other" and len(lines) == 3
+    assert (repo / "infrastructure" / "deploy-hook" / "secret").read_text() == secret
+    # off removes both, keeps the rest
+    subprocess.run(["bash", script, "--off"], env=env, check=True, capture_output=True)
+    assert tab.read_text().splitlines() == ["0 4 * * * /bin/true # other"]

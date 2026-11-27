@@ -20,7 +20,8 @@ case "${1:-}" in
     ;;
   --off)
     # also removes the watcher line ("# content-engine auto-update-watch")
-    (crontab -l 2>/dev/null || true) | grep -vF "$MARK" | crontab -
+    current="$(crontab -l 2>/dev/null || true)"
+    grep -vF "$MARK" <<<"$current" | grep -v '^$' | crontab - || true
     echo "Automatisches Update ist aus."
     exit 0
     ;;
@@ -36,7 +37,10 @@ command -v flock >/dev/null || { echo "FEHLER: flock fehlt (sudo apt install uti
 chmod +x "$SCRIPT" scripts/deploy.sh scripts/auto_update_watch.sh
 LINE="*/5 * * * * $SCRIPT >/dev/null 2>&1 $MARK"
 WATCH="* * * * * $(pwd)/scripts/auto_update_watch.sh >/dev/null 2>&1 $MARK-watch"
-{ (crontab -l 2>/dev/null || true) | grep -vF "$MARK"; echo "$LINE"; echo "$WATCH"; } | crontab -
+# Read first, then filter without letting grep's "no line left" status stop the
+# script (set -e/pipefail): with an empty crontab that used to end it silently.
+CURRENT="$(crontab -l 2>/dev/null || true)"
+{ grep -vF "$MARK" <<<"$CURRENT" | grep -v '^$' || true; echo "$LINE"; echo "$WATCH"; } | crontab -
 HOOK_DIR=infrastructure/deploy-hook
 chmod 0733 "$HOOK_DIR"
 if [[ ! -s "$HOOK_DIR/secret" ]]; then
