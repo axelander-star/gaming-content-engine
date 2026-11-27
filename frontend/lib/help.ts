@@ -221,7 +221,9 @@ export const HELP_GUIDES: HelpGuide[] = [
       "Das Konto auf der Plattform selbst anlegen. Telefonnummer, SMS-Code und Captcha bestätigst nur du.",
       "Beim Verbinden mit dem richtigen Konto anmelden und den Zugriff erlauben.",
     ],
-    tips: ["Gefällt dir ein Name nicht, drück „Neu recherchieren“ oder „Werte ändern“."],
+    tips: [
+      "Gefällt dir etwas nicht, drück „Von der KI neu erstellen“: Name, Benutzername, Bio, Profilbild und Banner kommen neu. Jeder Klick gibt einen neuen Vorschlag. Einzelnes änderst du mit „Werte ändern“.",
+    ],
   },
   {
     href: "/konkurrenz",

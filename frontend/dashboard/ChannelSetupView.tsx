@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { Icon } from "@/components/icons";
 import { Badge, ErrorText, PageHeader, Section } from "@/components/ui";
 import { api } from "@/lib/api";
 import { PLATFORM_LABELS } from "@/lib/labels";
@@ -128,6 +129,7 @@ function TaskCard({
   const [handle, setHandle] = useState(task.handle);
   const [bio, setBio] = useState(task.bio);
   const [busy, setBusy] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stamp, setStamp] = useState(0);
   const title = `${task.platform_label} ${LANG[task.language]}: ${task.content_project}`;
@@ -170,6 +172,17 @@ function TaskCard({
     );
   }
 
+  // one click: fresh market data, new name, user name, bio, profile picture and banner
+  function aiRedo() {
+    setThinking(true);
+    void run(async () => {
+      const fresh = await api.researchChannelSetup(task.id);
+      setName(fresh.display_name);
+      setHandle(fresh.handle);
+      setBio(fresh.bio);
+    }).finally(() => setThinking(false));
+  }
+
   const img = (kind: "avatar" | "banner") => `${api.channelSetupImage(task.id, kind)}?v=${stamp}`;
 
   return (
@@ -181,9 +194,24 @@ function TaskCard({
           <span className="chip">{task.content_project}</span>
           {task.text_source === "mock" && <Badge tone="info">Testtexte</Badge>}
         </div>
-        <a className="btn btn-primary" href={task.signup_url} target="_blank" rel="noreferrer">
-          {task.platform === "youtube" ? "Kanal bei YouTube erstellen" : `Bei ${task.platform_label} registrieren`}
-        </a>
+        <div className="row-actions">
+          {canEdit && !editing && (
+            <button
+              type="button"
+              className="btn ai-fill-btn"
+              disabled={busy}
+              aria-busy={thinking}
+              title="Die KI wertet Trends und Konkurrenz aus und erstellt Name, Benutzername, Bio, Profilbild und Banner neu. Jeder Klick gibt einen neuen Vorschlag."
+              onClick={aiRedo}
+            >
+              {thinking ? <span className="run-spinner" aria-hidden="true" /> : <Icon name="wand" />}
+              {thinking ? "KI erstellt …" : "Von der KI neu erstellen"}
+            </button>
+          )}
+          <a className="btn btn-primary" href={task.signup_url} target="_blank" rel="noreferrer">
+            {task.platform === "youtube" ? "Kanal bei YouTube erstellen" : `Bei ${task.platform_label} registrieren`}
+          </a>
+        </div>
       </div>
 
       <div className="cs-task-body">
@@ -395,16 +423,6 @@ function TaskCard({
           {!editing && (
             <button className="btn" disabled={busy} onClick={() => setEditing(true)}>
               Werte ändern
-            </button>
-          )}
-          {!editing && (
-            <button
-              className="btn"
-              disabled={busy}
-              title="Trends und Konkurrenz neu auswerten und neue Namen vorschlagen"
-              onClick={() => void run(() => api.researchChannelSetup(task.id))}
-            >
-              Neu recherchieren
             </button>
           )}
           <button
