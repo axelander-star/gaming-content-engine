@@ -90,10 +90,14 @@ services:
     environment:
       <<: *backend-env
       BACKUP_DIR: /data/backups
+      DEPLOY_HOOK_DIR: /data/deploy-hook
     volumes:
       - media_data:/data/media
       - backup_data:/data/backups:ro
       - piper_voices:/data/piper-voices
+      # Instant update (docs/INSTANT_UPDATE.md): shared with the server's watcher.
+      # The backend only drops a trigger file here; it has no Docker access.
+      - ./infrastructure/deploy-hook:/data/deploy-hook
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -200,7 +204,9 @@ services:
       - "${CADDY_BIND:-0.0.0.0}:80:80"
       - "${CADDY_BIND:-0.0.0.0}:443:443"
     volumes:
-      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Folder, not the single file: git replaces the file on update, and a file
+      # mount would keep showing the old one; deploy.sh reloads Caddy afterwards.
+      - ./infrastructure/caddy:/etc/caddy:ro
       - ./infrastructure/legal:/srv/legal:ro
       - caddy_data:/data
       - caddy_config:/config

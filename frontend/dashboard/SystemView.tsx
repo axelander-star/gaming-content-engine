@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/labels";
 import type { CheckStatus, MonitorSample, SystemStatus } from "@/lib/types";
 
 import { ColumnChart } from "./charts";
+import { InstantUpdatePanel } from "./InstantUpdatePanel";
 
 const STATUS: Record<CheckStatus, [string, "ok" | "warn" | "danger" | "neutral"]> = {
   ok: ["In Ordnung", "ok"],
@@ -97,6 +98,7 @@ export function SystemView() {
           </table>
         </div>
       </Section>
+      <InstantUpdatePanel />
       <Section title="Datensicherung">
         {b && !b.configured && (
           <p className="muted" role="alert">

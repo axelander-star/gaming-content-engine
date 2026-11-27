@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Switch the automatic update on or off (cron job of the current user).
 #
-#   ./scripts/install_auto_update.sh         on: check every 5 minutes
-#   ./scripts/install_auto_update.sh --off   off
+#   ./scripts/install_auto_update.sh         on: check every 5 minutes, plus the
+#                                            instant update right after a merge
+#                                            (GitHub webhook, docs/INSTANT_UPDATE.md)
+#   ./scripts/install_auto_update.sh --off   off (both)
 #   ./scripts/install_auto_update.sh --log   show the last log lines
 set -euo pipefail
 
@@ -17,6 +19,7 @@ case "${1:-}" in
     exit 0
     ;;
   --off)
+    # also removes the watcher line ("# content-engine auto-update-watch")
     (crontab -l 2>/dev/null || true) | grep -vF "$MARK" | crontab -
     echo "Automatisches Update ist aus."
     exit 0
@@ -30,8 +33,15 @@ esac
 
 command -v crontab >/dev/null || { echo "FEHLER: cron fehlt (sudo apt install cron)" >&2; exit 1; }
 command -v flock >/dev/null || { echo "FEHLER: flock fehlt (sudo apt install util-linux)" >&2; exit 1; }
-chmod +x "$SCRIPT" scripts/deploy.sh
+chmod +x "$SCRIPT" scripts/deploy.sh scripts/auto_update_watch.sh
 LINE="*/5 * * * * $SCRIPT >/dev/null 2>&1 $MARK"
-{ (crontab -l 2>/dev/null || true) | grep -vF "$MARK"; echo "$LINE"; } | crontab -
-echo "Automatisches Update ist an: alle 5 Minuten wird main geprüft und bei Neuem eingespielt."
+WATCH="* * * * * $(pwd)/scripts/auto_update_watch.sh >/dev/null 2>&1 $MARK-watch"
+{ (crontab -l 2>/dev/null || true) | grep -vF "$MARK"; echo "$LINE"; echo "$WATCH"; } | crontab -
+HOOK_DIR=infrastructure/deploy-hook
+chmod 0733 "$HOOK_DIR"
+if [[ ! -s "$HOOK_DIR/secret" ]]; then
+  (umask 022 && head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$HOOK_DIR/secret")
+fi
+echo "Automatisches Update ist an: nach einem Merge sofort (GitHub-Webhook), sonst alle 5 Minuten."
+echo "Webhook-Geheimnis und Status: im Studio unter System > Sofort-Update."
 echo "Protokoll: ./scripts/install_auto_update.sh --log   Ausschalten: ./scripts/install_auto_update.sh --off"

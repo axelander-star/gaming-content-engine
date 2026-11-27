@@ -867,6 +867,23 @@ export interface MonitorSample {
   disk_pct: number;
 }
 
+/** Instant server update via GitHub webhook (System page, admins only). */
+export interface DeployHookStatus {
+  secret_ready: boolean;
+  secret: string | null;
+  watcher_active: boolean;
+  watcher_seen_at: string | null;
+  pending: boolean;
+  last_hook: { at: string; event: string; action: string; detail: string } | null;
+  last_update: {
+    at: string;
+    from: string;
+    to: string;
+    subject: string;
+    result: "ok" | "rolled_back" | "failed";
+  } | null;
+}
+
 export interface SystemStatus {
   checked_at: string;
   status: CheckStatus;
