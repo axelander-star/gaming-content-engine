@@ -169,6 +169,7 @@ function UploadButton({
 }) {
   return (
     <label className={`btn btn-small cs-upload${disabled ? " is-disabled" : ""}`} title={hint}>
+      <Icon name="upload" />
       {label}
       <input
         type="file"

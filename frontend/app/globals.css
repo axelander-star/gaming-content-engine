@@ -3236,7 +3236,19 @@ td.row-actions {
   margin-top: 6px;
 }
 .cs-upload {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  font-weight: 600;
+}
+.cs-upload svg {
+  width: 14px;
+  height: 14px;
 }
 .cs-upload.is-disabled {
   opacity: 0.6;
