@@ -17,6 +17,7 @@ from api.analytics import router as analytics_router
 from api.approval import router as approval_router
 from api.assistant import planning_router
 from api.assistant import router as assistant_router
+from api.auth import renew_session
 from api.auth import router as auth_router
 from api.calendar import router as calendar_router
 from api.campaigns import router as campaigns_router
@@ -126,6 +127,15 @@ def create_app() -> FastAPI:
                     )
                     return JSONResponse({"detail": "Access denied"}, status_code=403)
             return await call_next(request)
+
+    @app.middleware("http")
+    async def sliding_session(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """Extend an active session (see ``api.auth.renew_session``)."""
+        response = await call_next(request)
+        renew_session(request, response, settings)
+        return response
 
     @app.middleware("http")
     async def count_server_errors(

@@ -15,6 +15,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PLACEHOLDER = "change-me"
 
 
+PRIVATE_SESSION_MINUTES = 365 * 24 * 60
+
+
 class Settings(BaseSettings):
     """Typed runtime configuration. Field names map to upper-case env vars."""
 
@@ -372,6 +375,17 @@ class Settings(BaseSettings):
     #: 0 = Monday … 6 = Sunday, local time (TZ).
     report_weekday: int = Field(default=0, ge=0, le=6)
     report_hour: int = Field(default=8, ge=0, le=23)
+
+    @property
+    def session_minutes(self) -> int:
+        """Lifetime of a dashboard login.
+
+        In private operation (one user, every request already checked by Cloudflare
+        Access) the operator stays logged in: one year, extended on every use.
+        Otherwise ``ACCESS_TOKEN_EXPIRE_MINUTES`` (default 30), also extended on use."""
+        if self.single_user_mode and self.access_guard == "cloudflare":
+            return PRIVATE_SESSION_MINUTES
+        return self.access_token_expire_minutes
 
     @property
     def database_url(self) -> str:

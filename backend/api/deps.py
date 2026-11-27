@@ -66,10 +66,15 @@ def csrf_protect(
     request: Request,
     csrf_cookie: Annotated[str | None, Cookie(alias=CSRF_COOKIE)] = None,
     csrf_header: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
 ) -> None:
     """Double-submit CSRF check for every state-changing request."""
     if request.method in _SAFE_METHODS:
         return
+    if not session_token and not csrf_cookie:
+        # both cookies expired together: say so (the dashboard sends the user to
+        # the login) instead of a puzzling "CSRF check failed"
+        raise _unauthorized()
     if not csrf_matches(csrf_cookie, csrf_header):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="CSRF check failed")
 
