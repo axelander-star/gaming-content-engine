@@ -956,6 +956,20 @@ try {
         [...document.querySelectorAll("input")].some((i) => i.value === "kuechen_wissen"),
     );
     assert.equal(await nameField.inputValue(), "Küchenwissen E2E");
+    // own profile picture from the PC
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/upload/avatar") && r.status() === 200),
+      tiktok.getByLabel("Eigenes Profilbild hochladen").setInputFiles({
+        name: "logo.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      }),
+    ]);
+    await tiktok.getByText("Eigenes Bild").waitFor();
+    await tiktok.getByText(/empfohlen sind mindestens 400 × 400/).waitFor();
     // an own idea goes along with the AI symbols
     await tiktok.getByLabel("Deine Idee für die KI (optional)").fill("frisch und frech");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/kanal-assistent.png`, fullPage: true });

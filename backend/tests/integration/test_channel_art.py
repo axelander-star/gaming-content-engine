@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import pytest
@@ -94,3 +95,74 @@ def test_pictures_from_image_ai(
     assert r.json()["image_source"] == "local"
     assert "Tageskontingent" in r.json()["image_note"]
     assert api.get(f"{base}/avatar.png", headers=headers).status_code == 200
+
+
+def _png_bytes(size: tuple[int, int], colour: tuple[int, int, int]) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", size, colour).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_own_pictures_upload(
+    api: TestClient, db: Session, tmp_path: Path, make_user: object
+) -> None:
+    seed_base_data(db)
+    project = ContentProject(slug="fakten2", name="Krasse Fakten", languages=["de"])
+    db.add(project)
+    db.commit()
+    local = get_settings().model_copy(
+        update={"media_root": str(tmp_path / "media"), "trend_sources_mode": "mock"}
+    )
+    api.app.dependency_overrides[get_settings] = lambda: local  # type: ignore[attr-defined]
+    make_user()  # type: ignore[operator]
+    headers = login(api, "admin@example.com")
+    tasks = api.post(
+        "/api/channel-setup/prepare", json={"project_id": project.id}, headers=headers
+    ).json()
+    yt = next(t for t in tasks if t["platform"] == "youtube")
+    ig = next(t for t in tasks if t["platform"] == "instagram")
+    base = f"/api/channel-setup/tasks/{yt['id']}"
+
+    # a small square avatar is accepted with a hint and cut to 800 x 800
+    r = api.post(
+        f"{base}/upload/avatar",
+        files={"file": ("logo.png", _png_bytes((300, 300), (250, 10, 10)), "image/png")},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    assert "300 × 300" in r.json()["hint"]
+    assert r.json()["task"]["uploaded"] == ["avatar"]
+    avatar = Image.open(io.BytesIO(api.get(f"{base}/avatar.png", headers=headers).content))
+    assert avatar.size == (800, 800) and avatar.getpixel((400, 400)) == (250, 10, 10)
+
+    # a banner in another ratio is cut to 2560 x 1440 without a hint
+    r = api.post(
+        f"{base}/upload/banner",
+        files={"file": ("b.png", _png_bytes((3000, 3000), (10, 250, 10)), "image/png")},
+        headers=headers,
+    )
+    assert r.status_code == 200 and r.json()["hint"] is None
+    banner = Image.open(io.BytesIO(api.get(f"{base}/banner.png", headers=headers).content))
+    assert banner.size == (2560, 1440)
+
+    # renaming keeps the own pictures
+    r = api.patch(base, json={"display_name": "Hirnfutter"}, headers=headers)
+    assert r.status_code == 200, r.text
+    again = Image.open(io.BytesIO(api.get(f"{base}/avatar.png", headers=headers).content))
+    assert again.getpixel((400, 400)) == (250, 10, 10)
+
+    # the pictures AI symbol replaces them on purpose
+    r = api.post(f"{base}/research?part=images", headers=headers)
+    assert r.json()["uploaded"] == []
+
+    # not an image, and no banner on Instagram
+    r = api.post(
+        f"{base}/upload/avatar", files={"file": ("x.png", b"hello", "image/png")}, headers=headers
+    )
+    assert r.status_code == 422
+    r = api.post(
+        f"/api/channel-setup/tasks/{ig['id']}/upload/banner",
+        files={"file": ("b.png", _png_bytes((2560, 1440), (0, 0, 0)), "image/png")},
+        headers=headers,
+    )
+    assert r.status_code == 422

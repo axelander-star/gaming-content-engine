@@ -760,6 +760,11 @@ export const api = {
         (idea.trim() ? `&idea=${encodeURIComponent(idea.trim())}` : ""),
       { method: "POST" },
     ),
+  uploadChannelSetupImage: (id: number, kind: "avatar" | "banner", file: File) =>
+    upload<{ task: ChannelSetupTask; hint: string | null }>(
+      `/channel-setup/tasks/${id}/upload/${kind}`,
+      file,
+    ),
   retryChannelSetupEmail: (id: number) =>
     request<ChannelSetupTask>(`/channel-setup/tasks/${id}/email`, { method: "POST" }),
   completeChannelSetup: (id: number, handle?: string) =>

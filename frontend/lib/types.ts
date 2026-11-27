@@ -1749,6 +1749,8 @@ export interface ChannelSetupTask {
   /** "ai": painted by the image AI; "local": drawn locally */
   image_source: "ai" | "local";
   image_note: string | null;
+  /** pictures the operator uploaded from the PC */
+  uploaded: ("avatar" | "banner")[];
   signup_url: string;
   steps: string[];
   text_source: string;

@@ -177,6 +177,11 @@ def art_png(art: Image.Image) -> bytes:
     return _png(art.convert("RGB"))
 
 
+def png_cover(img: Image.Image, size: tuple[int, int]) -> bytes:
+    """Own picture cut to ``size`` (centred), as PNG."""
+    return _png(_cover(img.convert("RGB"), size))
+
+
 def avatar_from_art(art: Image.Image) -> bytes:
     """Profile picture from AI artwork: square, motif centered for the circle crop."""
     return _png(_cover(art, AVATAR_SIZE))

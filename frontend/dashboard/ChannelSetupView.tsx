@@ -155,6 +155,37 @@ function CopyField({
   );
 }
 
+/** "Eigenes Bild hochladen": a file picker styled as a small button. */
+function UploadButton({
+  label,
+  hint,
+  disabled,
+  onFile,
+}: {
+  label: string;
+  hint: string;
+  disabled: boolean;
+  onFile: (file: File) => void;
+}) {
+  return (
+    <label className={`btn btn-small cs-upload${disabled ? " is-disabled" : ""}`} title={hint}>
+      {label}
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="sr-only"
+        disabled={disabled}
+        aria-label={label}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) onFile(file);
+        }}
+      />
+    </label>
+  );
+}
+
 function SlotChip({
   slot,
   onPrepare,
@@ -208,6 +239,7 @@ function TaskCard({
 }) {
   const [testMail, setTestMail] = useState<string | null>(null);
   const [idea, setIdea] = useState("");
+  const [uploadHint, setUploadHint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [thinking, setThinking] = useState<ChannelSetupAiPart | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -231,6 +263,15 @@ function TaskCard({
     } finally {
       setBusy(false);
     }
+  }
+
+  // own picture from the PC: cut to the platform size, replaces the AI version
+  function uploadImage(kind: "avatar" | "banner", file: File) {
+    setUploadHint(null);
+    void run(async () => {
+      const res = await api.uploadChannelSetupImage(task.id, kind, file);
+      setUploadHint(res.hint);
+    });
   }
 
   // own text: saved as typed (name changes redraw the lettering on the pictures)
@@ -297,6 +338,15 @@ function TaskCard({
                   <a href={img("avatar")} download className="small">
                     Profilbild laden
                   </a>
+                  {task.uploaded.includes("avatar") && <Badge tone="ok">Eigenes Bild</Badge>}
+                  {canEdit && (
+                    <UploadButton
+                      label="Eigenes Profilbild hochladen"
+                      hint="PNG, JPG oder WebP, quadratisch, mindestens 800 × 800 Pixel. Wichtiges in die Mitte, die Plattform schneidet einen Kreis aus."
+                      disabled={busy}
+                      onFile={(f) => uploadImage("avatar", f)}
+                    />
+                  )}
                 </figcaption>
               </figure>
             )}
@@ -312,12 +362,16 @@ function TaskCard({
               )}
           </div>
           <p className="muted small cs-art-source">
-            {task.image_source === "ai" ? (
+            {task.uploaded.includes("avatar") &&
+            (!task.has_banner || task.uploaded.includes("banner")) ? (
+              <Badge tone="ok">Eigene Bilder</Badge>
+            ) : task.image_source === "ai" ? (
               <Badge tone="ok">Von der Bild-KI gestaltet</Badge>
             ) : (
               <Badge tone="info">Einfache Grafik</Badge>
             )}
             {task.image_note && <span> {task.image_note}</span>}
+            {uploadHint && <span role="status"> {uploadHint}</span>}
           </p>
           {task.has_banner && (
             <figure>
@@ -327,6 +381,15 @@ function TaskCard({
                 <a href={img("banner")} download className="small">
                   Banner laden (2560 × 1440)
                 </a>
+                {task.uploaded.includes("banner") && <Badge tone="ok">Eigenes Bild</Badge>}
+                {canEdit && (
+                  <UploadButton
+                    label="Eigenen Banner hochladen"
+                    hint="PNG, JPG oder WebP, ideal 2560 × 1440 Pixel (16:9). Schrift und Logo in die Mitte (1546 × 423), dieser Bereich ist auf jedem Gerät sichtbar."
+                    disabled={busy}
+                    onFile={(f) => uploadImage("banner", f)}
+                  />
+                )}
               </figcaption>
             </figure>
           )}
