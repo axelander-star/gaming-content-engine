@@ -38,6 +38,7 @@ import type {
   ContentProject,
   ContentProjectInput,
   ContentProjectPatch,
+  ProjectDeletionPreview,
   AnalyticsFilters,
   AnalyticsOverview,
   ChannelPlan,
@@ -514,6 +515,12 @@ export const api = {
   suggestTopics: () => request<TopicSuggestions>("/projects/suggestions", { method: "POST" }),
   updateProject: (id: number, changes: ContentProjectPatch) =>
     request<ContentProject>(`/projects/${id}`, { method: "PATCH", body: json(changes) }),
+  projectDeletion: (id: number) => request<ProjectDeletionPreview>(`/projects/${id}/deletion`),
+  deleteProject: (id: number, confirmName: string) =>
+    request<void>(`/projects/${id}/delete`, {
+      method: "POST",
+      body: json({ confirm_name: confirmName }),
+    }),
   pauseChannel: (id: number) => request<Channel>(`/channels/${id}/pause`, { method: "POST" }),
   resumeChannel: (id: number) => request<Channel>(`/channels/${id}/resume`, { method: "POST" }),
   connectChannel: (id: number) =>

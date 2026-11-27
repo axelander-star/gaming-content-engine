@@ -180,8 +180,12 @@ export const HELP_GUIDES: HelpGuide[] = [
       "Prüfen und speichern.",
       "Unter „Kanäle nach Themenbereich“ mit „Kanal anlegen“ die Kanäle hinzufügen, oder das dem Kanal-Assistenten überlassen.",
       "Mit „Pausieren“ stoppst du einen Themenbereich, ohne etwas zu löschen.",
+      "„Löschen“ entfernt den Bereich mit allem, was dazugehört. Vorher siehst du, was mitgelöscht wird, und tippst zur Sicherheit den Namen ein.",
     ],
-    tips: ["Neue Kanäle starten pausiert und ohne Verbindung. Erst nach dem Verbinden wird etwas gepostet."],
+    tips: [
+      "Neue Kanäle starten pausiert und ohne Verbindung. Erst nach dem Verbinden wird etwas gepostet.",
+      "Schon veröffentlichte Videos bleiben beim Löschen auf YouTube, TikTok usw. online. Sponsorenanfragen bleiben erhalten, nur ohne Themenbereich.",
+    ],
   },
   {
     href: "/konten",
