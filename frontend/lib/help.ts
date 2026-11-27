@@ -226,7 +226,7 @@ export const HELP_GUIDES: HelpGuide[] = [
       "Beim Verbinden mit dem richtigen Konto anmelden und den Zugriff erlauben.",
     ],
     tips: [
-      "Gefällt dir etwas nicht, drück das KI-Symbol (Zauberstab) daneben: Es erstellt nur dieses Feld neu, also Name, Benutzername oder Bio. Das KI-Symbol neben dem Profilbild gestaltet Profilbild und Banner zusammen neu, passend zueinander. Jeder Klick gibt einen neuen Vorschlag. Selbst ändern geht mit „Werte ändern“.",
+      "Gefällt dir etwas nicht, drück das KI-Symbol (Zauberstab) daneben: Es erstellt nur dieses Feld neu, also Name, Benutzername oder Bio. Das KI-Symbol neben dem Profilbild gestaltet Profilbild und Banner zusammen neu, passend zueinander. Ist die Bild-KI eingerichtet, malt sie beide Bilder im selben Stil („Von der Bild-KI gestaltet“), sonst entsteht eine einfache Grafik. Jeder Klick gibt einen neuen Vorschlag. Selbst ändern geht mit „Werte ändern“.",
     ],
   },
   {
