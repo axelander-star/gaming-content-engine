@@ -509,6 +509,9 @@ try {
       await checks.getByRole("cell", { name: label, exact: true }).waitFor();
     }
     await page.getByText("Wiederherstellungstest", { exact: true }).waitFor();
+    // instant update after a merge: shown to admins, not set up in CI
+    await page.getByRole("heading", { name: "Sofort-Update nach einem Merge" }).waitFor();
+    await page.getByText("Wird auf dem Server eingerichtet").waitFor();
     await page.getByRole("list", { name: "Skalierungsempfehlung" }).waitFor();
     await page.getByRole("figure", { name: "CPU-Last je Kern (%)" }).waitFor();
     await page.getByRole("button", { name: "Neu prüfen" }).click();

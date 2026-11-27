@@ -203,6 +203,13 @@ class Settings(BaseSettings):
     backup_timeout_s: int = Field(default=3600, ge=60)
     timezone: str = Field(default="Europe/Berlin", alias="TZ")
 
+    # --- Instant server update (GitHub webhook, 27.11.2026) ---
+    #: Folder shared with the server (bind mount): the host writes ``secret`` and the
+    #: watcher heartbeat, the backend writes ``trigger`` when GitHub reports a push to main.
+    deploy_hook_dir: str = "./data/deploy-hook"
+    #: Branch whose pushes start an update (only main receives merged, CI-green changes).
+    deploy_hook_branch: str = "main"
+
     # --- Local file storage (Phase 6: license documents; R2 follows later) ---
     media_root: str = "./data/media"
     max_document_bytes: int = Field(default=10 * 1024 * 1024, gt=0)

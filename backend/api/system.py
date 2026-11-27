@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from redis import Redis
 
-from api.deps import AppSettings, DbSession, Viewer
-from services import backup, monitoring
+from api.deps import Admin, AppSettings, DbSession, Viewer
+from services import backup, deploy_hook, monitoring
 from services.queue import get_redis
 
 router = APIRouter(prefix="/system", tags=["system"])
@@ -87,3 +87,21 @@ def system_status(
             backups=[_backup_out(m) for m in backups[:14]],
         ),
     )
+
+
+class DeployHookOut(BaseModel):
+    """Instant server update via GitHub webhook (27.11.2026)."""
+
+    secret_ready: bool
+    #: Only shown to admins, to copy it into the GitHub webhook form.
+    secret: str | None
+    watcher_active: bool
+    watcher_seen_at: str | None
+    pending: bool
+    last_hook: dict[str, Any] | None
+    last_update: dict[str, Any] | None
+
+
+@router.get("/deploy-hook", response_model=DeployHookOut)
+def deploy_hook_status(_: Admin, settings: AppSettings) -> DeployHookOut:
+    return DeployHookOut(**vars(deploy_hook.status(settings)))

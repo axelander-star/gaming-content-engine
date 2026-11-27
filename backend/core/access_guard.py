@@ -26,7 +26,9 @@ COOKIE = "CF_Authorization"
 #: Paths reachable without the Access token: container health checks and Uptime Kuma
 #: call the backend directly inside the Docker network, not through Cloudflare.
 #: Public bio-link pages (A8) have their own host without Cloudflare Access.
-EXEMPT_PREFIXES = ("/api/health", "/api/public")
+#: The GitHub webhook (instant server update) has its own host as well and is
+#: authenticated by its HMAC signature instead.
+EXEMPT_PREFIXES = ("/api/health", "/api/public", "/api/hooks")
 #: Tolerated clock difference between Cloudflare and the server.
 LEEWAY_S = 30
 

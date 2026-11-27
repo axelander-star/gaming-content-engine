@@ -32,6 +32,9 @@ PUBLIC = {
     ("GET", "/public/n/unsubscribe/{token}"),
     ("POST", "/public/n/unsubscribe/{token}"),
     ("GET", "/public/go/{link_id}"),
+    # Instant server update (27.11.2026): GitHub webhook, authenticated by its
+    # HMAC-SHA256 signature over the body; without a valid one nothing is written.
+    ("POST", "/hooks/github"),
 }
 
 

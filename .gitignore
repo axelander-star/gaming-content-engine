@@ -62,3 +62,7 @@ Thumbs.db
 dump.rdb
 appendonly.aof
 next-env.d.ts
+
+# --- Instant server update: secret and state files written on the server ---
+infrastructure/deploy-hook/*
+!infrastructure/deploy-hook/.gitkeep
