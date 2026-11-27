@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 from core import crypto
 from core.config import Settings
 from models.channels import Channel, ChannelCredential
-from services import platform
+from services import platform, platform_apps
 from services.platform import AuthExpiredError, PlatformError, RestrictedError, TransientError
 
 AUTH_URL = "https://www.tiktok.com/v2/auth/authorize/"
@@ -74,7 +74,10 @@ RESTRICTED_CODES = {
 
 def _client(settings: Settings) -> tuple[str, str]:
     if not settings.tiktok_client_key or not settings.tiktok_client_secret.get_secret_value():
-        raise platform.NotConfiguredError("TikTok-App ist nicht eingerichtet")
+        raise platform.NotConfiguredError(
+            "TikTok-App ist nicht eingerichtet: Client Key und Client Secret im Studio unter "
+            "System → TikTok-App eintragen"
+        )
     return settings.tiktok_client_key, settings.tiktok_client_secret.get_secret_value()
 
 
@@ -131,6 +134,7 @@ def connect(
     session: Session, settings: Settings, channel: Channel, code: str, user_id: int
 ) -> ChannelCredential:
     """Exchange the code, read the creator, store the tokens encrypted."""
+    settings = platform_apps.apply(session, settings)
     tokens = _token_request(
         settings,
         {
@@ -161,6 +165,7 @@ def access_token(session: Session, settings: Settings, cred: ChannelCredential) 
     if not cred.refresh_token_enc:
         raise AuthExpiredError("Kein TikTok-Refresh-Token gespeichert")
     refresh = crypto.decrypt(settings, cred.refresh_token_enc)
+    settings = platform_apps.apply(session, settings)
     tokens = _token_request(settings, {"grant_type": "refresh_token", "refresh_token": refresh})
     _store_tokens(settings, cred, tokens, now)
     return str(tokens["access_token"])

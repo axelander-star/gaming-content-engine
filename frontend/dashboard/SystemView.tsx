@@ -9,6 +9,7 @@ import type { CheckStatus, MonitorSample, SystemStatus } from "@/lib/types";
 
 import { ColumnChart } from "./charts";
 import { InstantUpdatePanel } from "./InstantUpdatePanel";
+import { TikTokAppPanel } from "./TikTokAppPanel";
 
 const STATUS: Record<CheckStatus, [string, "ok" | "warn" | "danger" | "neutral"]> = {
   ok: ["In Ordnung", "ok"],
@@ -98,6 +99,7 @@ export function SystemView() {
           </table>
         </div>
       </Section>
+      <TikTokAppPanel />
       <InstantUpdatePanel />
       <Section title="Datensicherung">
         {b && !b.configured && (

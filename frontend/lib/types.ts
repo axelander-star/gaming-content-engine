@@ -868,6 +868,24 @@ export interface MonitorSample {
 }
 
 /** Instant server update via GitHub webhook (System page, admins only). */
+/** App keys of a platform (TikTok), entered in the dashboard or set in .env. */
+export interface PlatformAppStatus {
+  provider: string;
+  configured: boolean;
+  source: "studio" | "env" | null;
+  client_key: string;
+  secret_set: boolean;
+  redirect_uri: string;
+  redirect_uri_ok: boolean;
+}
+
+export interface PlatformAppInput {
+  client_key: string;
+  /** empty keeps the saved secret */
+  client_secret: string;
+  redirect_uri: string;
+}
+
 export interface DeployHookStatus {
   secret_ready: boolean;
   secret: string | null;
