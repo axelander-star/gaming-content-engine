@@ -123,6 +123,7 @@ import type {
   SourceType,
   StrategyVersion,
   SystemStatus,
+  DeployHookStatus,
   TrendHistoryPoint,
   TrendItem,
   TrendReport,
@@ -701,6 +702,7 @@ export const api = {
     request<FixedCost>(`/costs/fixed/${id}`, { method: "PATCH", body: json(data) }),
   deleteFixedCost: (id: number) => request<void>(`/costs/fixed/${id}`, { method: "DELETE" }),
   systemStatus: () => request<SystemStatus>("/system/status"),
+  deployHookStatus: () => request<DeployHookStatus>("/system/deploy-hook"),
 
   // comments: drafts, replies, review
   comments: (state?: CommentStatus) =>

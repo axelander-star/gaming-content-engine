@@ -62,6 +62,9 @@ echo "Neu: $(git log --oneline -1)"
 say "4. Bauen und starten"
 "${COMPOSE[@]}" build --pull
 "${COMPOSE[@]}" up -d --remove-orphans
+# Pick up a changed Caddyfile without a restart (the folder is mounted read-only).
+"${COMPOSE[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile \
+  >/dev/null 2>&1 || true
 
 say "5. Bereitschaft prüfen"
 for _ in $(seq 1 60); do

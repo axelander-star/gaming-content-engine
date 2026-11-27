@@ -28,6 +28,7 @@ from api.comments import router as comments_router
 from api.competitors import router as competitors_router
 from api.fixed_costs import router as fixed_costs_router
 from api.health import router as health_router
+from api.hooks import router as hooks_router
 from api.library import router as library_router
 from api.marketing import router as marketing_router
 from api.notifications import router as notifications_router
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     )
     for router in (
         health_router,
+        hooks_router,
         auth_router,
         users_router,
         settings_router,

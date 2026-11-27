@@ -81,6 +81,7 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | N6 | Themenbereich-Formular: „Von der KI ausfüllen“ füllt Unterthemen, Zielgruppe, Tonalität und Beschreibung aus aktuellen YouTube-Trends; erneuter Klick gibt einen neuen Vorschlag | ✅ abgeschlossen |
 | N7 | Kanal-Assistent: Knopf „Von der KI neu erstellen“ (Name, Benutzername, Bio, Profilbild, Banner auf einen Klick, jeder Klick ein neuer Vorschlag mit neuen Farben und Muster); Vorlagentexte nutzen Unterthemen des Themenbereichs | ✅ abgeschlossen |
 | N8 | Anmeldung im Studio bleibt bestehen: im Privatbetrieb (ein Benutzer hinter Cloudflare Access) ein Jahr, sonst gleitend verlängert; abgelaufene Anmeldung führt zur Login-Seite statt „CSRF check failed“ | ✅ abgeschlossen |
+| N9 | Sofort-Update nach einem Merge: GitHub-Webhook (signiert) über eigenen Tunnel-Hostnamen, Server-Wächter startet das Update in Sekunden, 5-Minuten-Prüfung als Rückfall, Status und Geheimnis im Studio unter System (`docs/INSTANT_UPDATE.md`) | ✅ abgeschlossen |
 
 **N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
 - Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.
@@ -1407,6 +1408,8 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 15.11.2026 | Instagram-Login holt das Video über eine signierte, 15 Minuten gültige R2-Adresse | Meta erlaubt dort nur `video_url`; Dashboard und API bleiben privat |
 
 ## Offene Punkte
+
+- Sofort-Update: Tunnel-Hostname `update.kanalfabrik.de` → `http://caddy:8083` (ohne Access) und Webhook in GitHub anlegen (Betreiber, `docs/INSTANT_UPDATE.md`)
 
 - `docker compose up` des Gesamtsystems auf einem echten Docker-Host bestätigen (Image-Build ist in der CI grün)
 - Entwickler-Apps bei Google, TikTok und Meta anlegen (Betreiber); Audits können Wochen dauern

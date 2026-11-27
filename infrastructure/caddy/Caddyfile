@@ -99,6 +99,33 @@ http://:8082 {
 	}
 }
 
+# GitHub webhook for the instant server update (docs/INSTANT_UPDATE.md): own
+# hostname, e.g. update.<domain>, tunnel -> http://caddy:8083, WITHOUT Cloudflare
+# Access (GitHub cannot log in). Only POST /github is forwarded; the backend checks
+# the HMAC signature and then only drops a trigger file for the server.
+http://:8083 {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	request_body {
+		max_size 1MB
+	}
+	@github {
+		method POST
+		path /github
+	}
+	handle @github {
+		rewrite * /api/hooks/github
+		reverse_proxy backend:8000
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
+
 # Internal entry point for Cloudflare Tunnel (cloudflared -> http://caddy:8080).
 # Not published on the host; TLS ends at Cloudflare, the tunnel itself is encrypted.
 http://:8080 {
