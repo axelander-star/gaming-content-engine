@@ -79,6 +79,7 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | N4 | „Themen vorschlagen“: 5 Themenbereiche aus YouTube-Trends und Wikipedia mit Zahlen, Übernehmen füllt das Formular; nach dem Verbinden überträgt die Engine Beschreibung, Stichwörter und Banner zu YouTube | ✅ abgeschlossen |
 | N5 | Ideenlabor zeigt den Fortschritt der Recherche (auch nach Verlassen der Seite), Anleitung wieder als Seitenleiste rechts, automatisches Update auf dem Server (`scripts/install_auto_update.sh`); Themenvorschläge mit Deutschland als Heimatmarkt, Gaming und Unterhaltung immer dabei (Gesamt-Chart als Ersatz für fehlende Kategorie-Charts), 8 statt 5 Vorschläge | ✅ abgeschlossen |
 | N6 | Themenbereich-Formular: „Von der KI ausfüllen“ füllt Unterthemen, Zielgruppe, Tonalität und Beschreibung aus aktuellen YouTube-Trends; erneuter Klick gibt einen neuen Vorschlag | ✅ abgeschlossen |
+| N7 | Kanal-Assistent: Knopf „Von der KI neu erstellen“ (Name, Benutzername, Bio, Profilbild, Banner auf einen Klick, jeder Klick ein neuer Vorschlag mit neuen Farben und Muster); Vorlagentexte nutzen Unterthemen des Themenbereichs | ✅ abgeschlossen |
 
 **N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
 - Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.

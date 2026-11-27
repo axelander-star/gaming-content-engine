@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import secrets
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -265,12 +266,15 @@ class Texts:
 def _template_options(
     project: ContentProject, language: Language, ctx: MarketContext | None
 ) -> list[dict[str, str]]:
-    """Name ideas from the most frequent topic words (no AI)."""
-    if ctx is None:
-        return []
+    """Name ideas from the area's sub-topics and the most frequent topic words (no AI)."""
     topic = project.name.strip()
     suffix = "Kompakt" if language == Language.DE else "Daily"
     out: list[dict[str, str]] = []
+    if language == Language.DE:
+        for sub in [str(t).strip() for t in project.subtopics or [] if str(t).strip()][:3]:
+            out.append({"name": sub, "reason": "Unterthema des Themenbereichs"})
+    if ctx is None:
+        return out
     for word, n in ctx.keywords[:3]:
         for name in (f"{word} {suffix}", f"{topic} & {word}"):
             out.append({"name": name, "reason": f"„{word}“ kam zuletzt {n}× in Meldungen vor"})
@@ -286,6 +290,7 @@ def template_texts(
     """Texts without AI: simple, honest and editable in the dashboard."""
     topic = project.name.strip()
     base = _ascii(topic).lower().replace(" ", "")
+    subtopics = [str(t).strip() for t in project.subtopics or [] if str(t).strip()]
     if language == Language.DE:
         name = f"{topic} Kompakt"
         tagline = f"{topic} in unter 60 Sekunden"
@@ -293,6 +298,13 @@ def template_texts(
             f"{topic} kurz und ehrlich erklärt. Jede Woche neue Shorts mit Tipps, Trends "
             f"und Aha-Momenten."
         )
+        if subtopics:  # the area's own words beat a generic sentence
+            tagline = _clip(f"{subtopics[0]} in unter 60 Sekunden", 45)
+            bio = _clip(
+                f"{', '.join(subtopics[:3])}: kurz, verblüffend und ehrlich. "
+                "Jeden Tag neue Shorts.",
+                160,
+            )
         handles = [f"{base}kompakt", f"{base}.kurz", f"{base}_de"]
     else:
         name = f"{topic} Daily"
@@ -476,10 +488,16 @@ def _unique_handles(texts: Texts, platform: PlatformCode) -> list[str]:
     return seen[:4]
 
 
+def _look(task: ChannelSetupTask, project: ContentProject) -> str:
+    """Seed of the pictures: the area's name, or the one a fresh AI run picked."""
+    look = (task.research or {}).get("look")
+    return str(look) if look else project.slug
+
+
 def _images(
     settings: Settings, task: ChannelSetupTask, project: ContentProject, tagline: str
 ) -> None:
-    seed = project.slug
+    seed = _look(task, project)
     task.avatar_uri = branding.store_png(settings, branding.avatar_png(task.display_name, seed))
     if RULES[task.platform].banner:
         task.banner_uri = branding.store_png(
@@ -642,14 +660,23 @@ def prepare_for_channel(
 def research_again(
     session: Session, settings: Settings, task: ChannelSetupTask, user_id: int | None = None
 ) -> ChannelSetupTask:
-    """Collect fresh market data and write new name ideas for an open task.
+    """ "Von der KI neu erstellen": fresh market data, new name, handles, bio and pictures.
 
-    Name, handles, bio and pictures are replaced; the e-mail address stays."""
+    Every click gives another proposal: a name equal to the current one is swapped
+    for the next idea, and the pictures get a new colour pair and pattern. The
+    e-mail address stays."""
     if task.status != ChannelSetupStatus.OPEN:
         raise SetupError("Die Aufgabe ist schon abgeschlossen.")
     project = task.content_project
     ctx = market_context(session, settings, project, task.language)
     texts = write_texts(session, settings, project, task.platform, task.language, user_id, ctx)
+    previous = norm_name(task.display_name)
+    if norm_name(texts.display_name) == previous:
+        fresh = [o for o in texts.options if norm_name(o["name"]) != previous]
+        if fresh:
+            old = {"name": texts.display_name, "reason": "bisheriger Vorschlag"}
+            texts.display_name = fresh[0]["name"]
+            texts.options = [*fresh[1:], old]
     rules = RULES[task.platform]
     handles = _unique_handles(texts, task.platform)
     task.display_name = _clip(texts.display_name, rules.name_max)
@@ -664,7 +691,7 @@ def research_again(
     task.name_options = [
         {"name": _clip(o["name"], rules.name_max), "reason": o["reason"]} for o in texts.options
     ]
-    task.research = ctx.to_json()
+    task.research = {**ctx.to_json(), "look": f"{project.slug}-{secrets.token_hex(3)}"}
     _images(settings, task, project, texts.tagline)
     audit.record(
         session,

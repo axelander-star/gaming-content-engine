@@ -950,7 +950,7 @@ try {
     await insta.getByText("Datengrundlage").waitFor();
     await Promise.all([
       page.waitForResponse((r) => r.url().endsWith("/research") && r.status() === 200),
-      insta.getByRole("button", { name: "Neu recherchieren" }).click(),
+      insta.getByRole("button", { name: "Von der KI neu erstellen" }).click(),
     ]);
     await insta.getByRole("button", { name: "Nicht gebraucht" }).click();
     await insta.waitFor({ state: "detached" });

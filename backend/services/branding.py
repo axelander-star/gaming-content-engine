@@ -8,7 +8,8 @@ Sizes follow the platforms' published recommendations:
   that every device shows.
 
 Colours come from the topic area's name, so all channels of one topic share a look
-and different topics are easy to tell apart.
+and different topics are easy to tell apart. "Von der KI neu erstellen" passes a
+new seed, which gives another colour pair and another pattern.
 """
 
 from __future__ import annotations
@@ -92,9 +93,45 @@ def _png(img: Image.Image) -> bytes:
     return buf.getvalue()
 
 
+PATTERNS = 4
+
+
+def pattern_of(seed: str) -> int:
+    return int(hashlib.sha256(f"pattern:{seed.casefold()}".encode()).hexdigest()[:4], 16) % PATTERNS
+
+
+def _decorate(img: Image.Image, seed: str) -> None:
+    """Soft shapes over the gradient so pictures do not look flat (0 = plain)."""
+    kind = pattern_of(seed)
+    if kind == 0:
+        return
+    w, h = img.size
+    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    unit = min(w, h)
+    if kind == 1:  # large circles in the corners
+        for cx, cy, r in ((0, 0, 0.55), (w, h, 0.7), (w, 0, 0.3)):
+            rad = unit * r
+            draw.ellipse((cx - rad, cy - rad, cx + rad, cy + rad), fill=(255, 255, 255, 28))
+    elif kind == 2:  # diagonal stripes
+        step = max(unit // 8, 40)
+        for x in range(-h, w + h, step * 2):
+            draw.polygon(
+                [(x, 0), (x + step, 0), (x + step - h, h), (x - h, h)], fill=(255, 255, 255, 18)
+            )
+    else:  # dot grid
+        step = max(unit // 12, 30)
+        dot = max(step // 7, 3)
+        for y in range(step // 2, h, step):
+            for x in range(step // 2, w, step):
+                draw.ellipse((x - dot, y - dot, x + dot, y + dot), fill=(255, 255, 255, 26))
+    img.paste(layer, (0, 0), layer)
+
+
 def avatar_png(name: str, seed: str) -> bytes:
     a, b = palette(seed)
     img = _gradient(AVATAR_SIZE, a, b)
+    _decorate(img, seed)
     draw = ImageDraw.Draw(img)
     text = initials(name)
     # inside the inscribed circle: a square of side ~ 0.7 * diameter is always visible
@@ -106,6 +143,7 @@ def avatar_png(name: str, seed: str) -> bytes:
 def banner_png(title: str, tagline: str, seed: str) -> bytes:
     a, b = palette(seed)
     img = _gradient(BANNER_SIZE, b, a)
+    _decorate(img, seed)
     draw = ImageDraw.Draw(img)
     cx, cy = BANNER_SIZE[0] / 2, BANNER_SIZE[1] / 2
     safe_w, safe_h = BANNER_SAFE

@@ -233,6 +233,14 @@ def test_api_research_again(
     r = api.post(f"/api/channel-setup/tasks/{task['id']}/research", headers=headers)
     assert r.status_code == 200, r.text
     assert r.json()["researched_at"]
+    # "Von der KI neu erstellen" again: another name and another look each time
+    first = r.json()["display_name"]
+    first_avatar = api.get(f"/api/channel-setup/tasks/{task['id']}/avatar.png", headers=headers)
+    r = api.post(f"/api/channel-setup/tasks/{task['id']}/research", headers=headers)
+    assert r.json()["display_name"] != first
+    assert first in [o["name"] for o in r.json()["name_options"]]
+    second_avatar = api.get(f"/api/channel-setup/tasks/{task['id']}/avatar.png", headers=headers)
+    assert second_avatar.status_code == 200 and second_avatar.content != first_avatar.content
     r = api.post(f"/api/channel-setup/tasks/{task['id']}/dismiss", headers=headers)
     r = api.post(f"/api/channel-setup/tasks/{task['id']}/research", headers=headers)
     assert r.status_code == 422
