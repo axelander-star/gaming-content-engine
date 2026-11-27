@@ -33,6 +33,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -49,7 +50,7 @@ from models.channel_setup import ChannelSetupTask
 from models.channels import Channel, Platform
 from models.marketing import OutgoingMail
 from models.projects import ContentProject
-from services import ai, audit, branding, mail_alias, mailer, name_research
+from services import ai, audit, branding, image_ai, mail_alias, mailer, name_research, storage
 from services.name_research import MarketContext, norm_name
 from services.queue import get_redis
 
@@ -499,17 +500,142 @@ def _look(task: ChannelSetupTask, project: ContentProject) -> str:
     return str(look) if look else project.slug
 
 
+ART_SYSTEM = (
+    "You write short visual subjects for an image model. Answer with one English noun "
+    "phrase of at most 12 words that shows the topic as concrete, iconic objects. No names, "
+    "no brands, no text, no quotes."
+)
+
+
+def _art_subject(
+    session: Session, settings: Settings, project: ContentProject, user_id: int | None
+) -> str:
+    """What the pictures show, in English, e.g. "Krasse Fakten" -> "glowing light bulb,
+    question marks and a magnifying glass". Falls back to the area's own words."""
+    subs = ", ".join(str(t) for t in (project.subtopics or [])[:3])
+    fallback = f"{project.name}{f' ({subs})' if subs else ''}"
+    try:
+        result = ai.generate(
+            session,
+            settings,
+            ai.AIRequest(
+                purpose="channel_art",
+                tier="text",
+                messages=[
+                    ai.AIMessage(
+                        "user",
+                        f"Topic area: {project.name}\nSub-topics: {subs or '-'}\n"
+                        f"Description: {project.description or '-'}\n"
+                        "Visual subject for the channel's logo and banner:",
+                    )
+                ],
+                system=ART_SYSTEM,
+                max_tokens=80,
+                mock=lambda _req: fallback,
+                content_project_id=project.id,
+                user_id=user_id,
+            ),
+        )
+    except ai.AIError as exc:
+        log.info("art subject from template (%s)", exc.code)
+        return fallback
+    text = " ".join(result.text.replace('"', " ").split())[:160]
+    return text or fallback
+
+
+def _stored_art(settings: Settings, uri: object) -> Image.Image | None:
+    if not isinstance(uri, str) or not uri:
+        return None
+    try:
+        return Image.open(storage.resolve(settings, uri)).convert("RGB")
+    except (storage.StorageError, OSError):
+        return None
+
+
+def _paint_art(
+    session: Session | None,
+    settings: Settings,
+    task: ChannelSetupTask,
+    project: ContentProject,
+    seed: str,
+    research: dict[str, Any],
+    user_id: int | None,
+) -> tuple[Image.Image, Image.Image | None]:
+    """Artwork of the current look: reused while the look stays (e.g. after a new
+    name), painted anew by the image AI for a new look. Raises ImageAIError."""
+    want_banner = RULES[task.platform].banner
+    art = research.get("art")
+    if isinstance(art, dict) and art.get("look") == seed:
+        avatar = _stored_art(settings, art.get("avatar"))
+        banner = _stored_art(settings, art.get("banner"))
+        if avatar is not None and (banner is not None or not want_banner):
+            return avatar, banner
+    if session is not None:
+        subject = _art_subject(session, settings, project, user_id)
+    else:
+        subject = project.name
+    look = image_ai.design(subject, seed, branding.palette(seed))
+    avatar = image_ai.paint(settings, look.avatar_prompt())
+    banner = image_ai.paint(settings, look.banner_prompt()) if want_banner else None
+    research["art"] = {
+        "look": seed,
+        "subject": subject,
+        "style": look.style,
+        "avatar": branding.store_png(settings, branding.art_png(avatar), "channel-art"),
+        "banner": (
+            branding.store_png(settings, branding.art_png(banner), "channel-art")
+            if banner is not None
+            else None
+        ),
+    }
+    return avatar, banner
+
+
 def _images(
-    settings: Settings, task: ChannelSetupTask, project: ContentProject, tagline: str
+    settings: Settings,
+    task: ChannelSetupTask,
+    project: ContentProject,
+    tagline: str,
+    session: Session | None = None,
+    user_id: int | None = None,
 ) -> None:
+    """Profile picture and banner of one look (same colours, same style).
+
+    With the image AI set up, the model paints both and the name is set as sharp
+    text on the banner; otherwise (or if the AI fails) they are drawn locally."""
     seed = _look(task, project)
+    research = dict(task.research or {})
+    research.pop("image_note", None)
+    want_banner = RULES[task.platform].banner
+    if image_ai.available(settings):
+        try:
+            avatar, banner = _paint_art(session, settings, task, project, seed, research, user_id)
+        except image_ai.ImageAIError as exc:
+            log.info("channel pictures drawn locally: %s", exc)
+            research["image_source"] = "local"
+            research["image_note"] = f"{exc} Die Bilder sind deshalb einfach gezeichnet."
+        else:
+            task.avatar_uri = branding.store_png(settings, branding.avatar_from_art(avatar))
+            task.banner_uri = (
+                branding.store_png(
+                    settings, branding.banner_from_art(banner, task.display_name, tagline)
+                )
+                if want_banner and banner is not None
+                else None
+            )
+            research["image_source"] = "ai"
+            task.research = research
+            return
+    else:
+        research["image_source"] = "local"
     task.avatar_uri = branding.store_png(settings, branding.avatar_png(task.display_name, seed))
-    if RULES[task.platform].banner:
+    if want_banner:
         task.banner_uri = branding.store_png(
             settings, branding.banner_png(task.display_name, tagline, seed)
         )
     else:
         task.banner_uri = None
+    task.research = research
 
 
 def _email(settings: Settings, task: ChannelSetupTask, project: ContentProject) -> None:
@@ -563,7 +689,7 @@ def prepare_one(
     if task.handle_check.get(task.handle) == "taken" and free:
         task.handle = free[0]
         task.alt_handles = [h for h in handles if h != free[0]]
-    _images(settings, task, project, texts.tagline)
+    _images(settings, task, project, texts.tagline, session, user_id)
     _email(settings, task, project)
     session.add(task)
     session.flush()
@@ -758,7 +884,7 @@ def research_again(
         research = dict(task.research or {})
         research["look"] = f"{project.slug}-{secrets.token_hex(3)}"
         task.research = research
-        _images(settings, task, project, _tagline(task, project))
+        _images(settings, task, project, _tagline(task, project), session, user_id)
         _record_research(session, task, user_id, part, live=bool(research.get("live")))
         session.commit()
         return task
@@ -827,7 +953,7 @@ def research_again(
     task.research = research
     if part in ("all", "name"):
         # "all" gets a new look; a new name keeps the colours and only changes the lettering
-        _images(settings, task, project, texts.tagline)
+        _images(settings, task, project, texts.tagline, session, user_id)
     _record_research(session, task, user_id, part, live=ctx.live)
     session.commit()
     return task
@@ -867,7 +993,7 @@ def update(
         if name != task.display_name:
             task.display_name = name
             project = task.content_project
-            _images(settings, task, project, _tagline(task, project))
+            _images(settings, task, project, _tagline(task, project), session)
     if handle is not None:
         new = normalize_handle(handle, task.platform)
         if new != task.handle:

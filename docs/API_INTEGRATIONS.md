@@ -308,6 +308,16 @@ Geprüft gegen https://docs.ntfy.sh/publish/ am 16.11.2026: `POST https://ntfy.s
 - **Affiliate-Programme:** keine Schnittstelle. Die Engine speichert nur den Link, den Alexander aus dem Partnerprogramm kopiert, und zählt Klicks über die eigene Weiterleitung `/go/<id>`. Werbe-Labels der Plattformen (TikTok „Markeninhalt“, YouTube „Bezahlte Werbung“, Instagram „Bezahlte Partnerschaft“) werden nicht per API gesetzt; TikTok-Beiträge gehen als Entwurf ins Postfach, dort schaltet Alexander das Label ein. Die Kennzeichnung „Anzeige“ steht immer im Text.
 - **Mailversand:** SMTP mit STARTTLS (Port 587) oder TLS (Port 465) über Python `smtplib`, Zugangsdaten nur in `.env`. Standard `MAIL_MODE=mock`: nichts wird gesendet. Kosten: keine (Postfach des Domain-Anbieters).
 
+## Bild-KI für Profilbild und Banner: Cloudflare Workers AI (27.11.2026)
+
+- Zweck: Der Kanal-Assistent lässt Profilbild und Banner von einer Bild-KI im selben Stil malen (`services/image_ai.py`). Kanalname und Slogan setzt die Engine danach als echte Schrift aufs Banner (`branding.banner_from_art`), weil Bildmodelle Wörter verfälschen.
+- Endpunkt (offiziell, geprüft 27.11.2026 gegen https://developers.cloudflare.com/workers-ai/models/flux-1-schnell/): `POST https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/@cf/black-forest-labs/flux-1-schnell`, Header `Authorization: Bearer <token>`, Body `{"prompt": "...", "steps": 8}` (Prompt max. 2048 Zeichen, steps max. 8), Antwort `{"result": {"image": "<Base64>"}}`, etwa 1024 × 1024.
+- Zugang: eigenes API-Token mit „Workers AI – Read“ und „Workers AI – Edit“, Konto-ID. In `.env`: `IMAGE_AI_MODE=cloudflare`, `CLOUDFLARE_AI_ACCOUNT_ID`, `CLOUDFLARE_AI_TOKEN`. Standard bleibt `IMAGE_AI_MODE=off` (lokal gezeichnete Bilder).
+- Kosten: Workers Free enthält 10.000 Neurons pro Tag kostenlos. flux-1-schnell: 4,80 Neurons je 512er-Kachel und 9,60 je Schritt; ein Bild mit 8 Schritten liegt bei rund 100 Neurons, also etwa 100 Bilder pro Tag. Ist das Kontingent aufgebraucht, antwortet die API im Free-Tarif mit einem Fehler (keine Kosten); die Engine zeichnet die Bilder dann lokal und zeigt einen Hinweis. Im Paid-Tarif kosten weitere 1.000 Neurons 0,011 $.
+- Austauschbar über `IMAGE_AI_MODEL`. Höherwertige Modelle (z. B. `@cf/black-forest-labs/flux-2-klein-9b`, rund 1.364 Neurons pro Megapixel) haben ein anderes Eingabeformat (multipart) und sind noch nicht angebunden.
+- Verworfen: Pollinations (kostenlos, aber Logo im Bild, max. 768 px, ein Bild je 45 s), Hugging Face (Gratis-Guthaben zu klein), Midjourney/ChatGPT/Ideogram (keine kostenlose API, Automatisierung nicht erlaubt).
+- Gemalte Grundbilder werden gespeichert (`research.art`); ein neuer Name setzt nur die Schrift neu, ohne neuen KI-Aufruf.
+
 ## Speicher
 
 - **Cloudflare R2** (S3-kompatibel). Seit E8 nur für kurzlebige Video-Adressen beim Instagram-Login genutzt (`services/r2.py`, eigene SigV4-Signatur, kein SDK). Ablage der Medien sonst weiter lokal. Preis- und Freikontingent vor Einrichtung prüfen ⚠️.

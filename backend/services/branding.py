@@ -1,4 +1,8 @@
-"""Profile pictures and banners for new channels, drawn locally with Pillow (no paid AI).
+"""Profile pictures and banners for new channels.
+
+With the image AI (:mod:`services.image_ai`) the model paints the artwork and this
+module crops it and sets the channel name as real text. Without it (or when the AI
+fails) the pictures are drawn locally with Pillow: gradient, pattern and initials.
 
 Sizes follow the platforms' published recommendations:
 
@@ -19,7 +23,7 @@ import hashlib
 import io
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from core.config import Settings
 from services import storage
@@ -154,6 +158,67 @@ def banner_png(title: str, tagline: str, seed: str) -> bytes:
         draw.text(
             (cx, cy + safe_h * 0.28), tagline, font=tag_font, fill=(235, 235, 235), anchor="mm"
         )
+    return _png(img)
+
+
+def _cover(art: Image.Image, size: tuple[int, int]) -> Image.Image:
+    """Scale ``art`` to fill ``size`` and cut the overflow evenly (like CSS cover)."""
+    w, h = size
+    scale = max(w / art.width, h / art.height)
+    img = art.convert("RGB").resize(
+        (round(art.width * scale), round(art.height * scale)), Image.Resampling.LANCZOS
+    )
+    left, top = (img.width - w) // 2, (img.height - h) // 2
+    return img.crop((left, top, left + w, top + h))
+
+
+def art_png(art: Image.Image) -> bytes:
+    """Raw AI artwork as PNG (kept so a new name does not need a new painting)."""
+    return _png(art.convert("RGB"))
+
+
+def avatar_from_art(art: Image.Image) -> bytes:
+    """Profile picture from AI artwork: square, motif centered for the circle crop."""
+    return _png(_cover(art, AVATAR_SIZE))
+
+
+def _shadow_text(
+    img: Image.Image,
+    xy: tuple[float, float],
+    text: str,
+    font: Font,
+    fill: tuple[int, int, int],
+) -> None:
+    """Text with a soft drop shadow, readable on any artwork."""
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(layer).text(
+        (xy[0] + 4, xy[1] + 6), text, font=font, fill=(0, 0, 0, 190), anchor="mm"
+    )
+    layer = layer.filter(ImageFilter.GaussianBlur(10))
+    img.paste(layer, (0, 0), layer)
+    ImageDraw.Draw(img).text(xy, text, font=font, fill=fill, anchor="mm")
+
+
+def banner_from_art(art: Image.Image, title: str, tagline: str) -> bytes:
+    """Banner from AI artwork with the name set as real, sharp text in the safe area."""
+    img = _cover(art, BANNER_SIZE).filter(ImageFilter.GaussianBlur(1.2))
+    cx, cy = BANNER_SIZE[0] / 2, BANNER_SIZE[1] / 2
+    safe_w, safe_h = BANNER_SAFE
+    # darker band behind the text: the name stays readable on bright artwork
+    band = Image.new("L", BANNER_SIZE, 0)
+    ImageDraw.Draw(band).rounded_rectangle(
+        (cx - safe_w * 0.58, cy - safe_h * 0.62, cx + safe_w * 0.58, cy + safe_h * 0.62),
+        radius=60,
+        fill=150,
+    )
+    band = band.filter(ImageFilter.GaussianBlur(70))
+    img = Image.composite(Image.new("RGB", BANNER_SIZE, (0, 0, 0)), img, band)
+    draw = ImageDraw.Draw(img)
+    title_font = _fit(draw, title, int(safe_w * 0.92), int(safe_h * 0.5), 200)
+    _shadow_text(img, (cx, cy - safe_h * 0.12), title, title_font, (255, 255, 255))
+    if tagline:
+        tag_font = _fit(draw, tagline, int(safe_w * 0.92), int(safe_h * 0.2), 72)
+        _shadow_text(img, (cx, cy + safe_h * 0.28), tagline, tag_font, (238, 238, 238))
     return _png(img)
 
 

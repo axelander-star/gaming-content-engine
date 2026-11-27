@@ -69,6 +69,10 @@ class TaskOut(BaseModel):
     email_error: str | None
     has_avatar: bool
     has_banner: bool
+    #: ``ai``: painted by the image AI; ``local``: drawn locally (gradient + initials)
+    image_source: str
+    #: why the image AI was not used this time (e.g. daily allowance used up)
+    image_note: str | None
     signup_url: str
     steps: list[str]
     text_source: str
@@ -146,6 +150,8 @@ def _out(task: ChannelSetupTask) -> TaskOut:
         email_error=task.email_error,
         has_avatar=bool(task.avatar_uri),
         has_banner=bool(task.banner_uri),
+        image_source=str((task.research or {}).get("image_source") or "local"),
+        image_note=(task.research or {}).get("image_note"),
         signup_url=rules.signup_url,
         steps=list(rules.steps),
         text_source=task.text_source,

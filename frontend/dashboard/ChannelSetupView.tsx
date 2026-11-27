@@ -273,6 +273,14 @@ function TaskCard({
                   : "Die KI gestaltet das Profilbild neu: neue Farben und neues Muster. Jeder Klick gibt einen neuen Entwurf.",
               )}
           </div>
+          <p className="muted small cs-art-source">
+            {task.image_source === "ai" ? (
+              <Badge tone="ok">Von der Bild-KI gestaltet</Badge>
+            ) : (
+              <Badge tone="info">Einfache Grafik</Badge>
+            )}
+            {task.image_note && <span> {task.image_note}</span>}
+          </p>
           {task.has_banner && (
             <figure>
               {/* eslint-disable-next-line @next/next/no-img-element */}

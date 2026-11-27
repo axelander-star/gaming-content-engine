@@ -1746,6 +1746,9 @@ export interface ChannelSetupTask {
   email_error: string | null;
   has_avatar: boolean;
   has_banner: boolean;
+  /** "ai": painted by the image AI; "local": drawn locally */
+  image_source: "ai" | "local";
+  image_note: string | null;
   signup_url: string;
   steps: string[];
   text_source: string;

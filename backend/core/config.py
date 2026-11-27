@@ -356,6 +356,19 @@ class Settings(BaseSettings):
     #: API token with the permission "Zone > Email Routing Rules > Edit" for that zone only.
     cloudflare_api_token: SecretStr = SecretStr("")
 
+    # --- Channel assistant: AI pictures (profile picture + banner) ---
+    #: ``off`` draws the pictures locally (gradient + initials); ``cloudflare`` lets an
+    #: image model on Cloudflare Workers AI paint them. The Workers Free plan has a
+    #: daily free allowance and answers with an error when it is used up (no charge).
+    image_ai_mode: Literal["off", "cloudflare"] = "off"
+    cloudflare_ai_account_id: str = ""
+    #: API token with "Workers AI - Read" and "Workers AI - Edit" (own token, not the mail one).
+    cloudflare_ai_token: SecretStr = SecretStr("")
+    image_ai_model: str = "@cf/black-forest-labs/flux-1-schnell"
+    #: Diffusion steps (flux-1-schnell allows 1-8; more = finer details, more neurons).
+    image_ai_steps: int = Field(default=8, ge=1, le=8)
+    image_ai_timeout_s: float = Field(default=60.0, ge=5, le=300)
+
     # --- Bio-link pages, affiliate links, newsletter (A8) ---
     #: Public address of the bio-link pages, e.g. https://links.example.de (own tunnel host).
     public_links_base_url: str = ""
