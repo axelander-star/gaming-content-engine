@@ -3219,3 +3219,12 @@ td.row-actions {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+.cs-copy-label {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.cs-saved {
+  color: var(--ok, #16a34a);
+  font-weight: 600;
+}

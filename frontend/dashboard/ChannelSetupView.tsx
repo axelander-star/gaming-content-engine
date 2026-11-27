@@ -6,7 +6,7 @@
 // and connects the account afterwards.
 
 import { useCallback, useEffect, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { Icon } from "@/components/icons";
@@ -65,39 +65,86 @@ function AiButton({
   );
 }
 
+/** Value to copy; with ``onSave`` it is also editable: type or paste, saved on leaving the field. */
 function CopyField({
   label,
   value,
   id,
   multiline = false,
   ai,
+  onSave,
+  maxLength,
 }: {
   label: string;
   value: string;
   id: string;
   multiline?: boolean;
   ai?: ReactNode;
+  onSave?: (value: string) => Promise<boolean>;
+  maxLength?: number;
 }) {
   const [copied, setCopied] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setDraft(value), [value]);
   async function copy() {
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(draft);
     } catch {
       (document.getElementById(id) as HTMLInputElement | null)?.select();
     }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
   }
+  async function commit() {
+    if (!onSave || draft.trim() === value.trim()) return;
+    if (!draft.trim()) {
+      setDraft(value); // empty is not allowed: keep the last value
+      return;
+    }
+    if (await onSave(draft)) {
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 1800);
+    } else {
+      setDraft(value);
+    }
+  }
+  const editable = Boolean(onSave);
+  const common = {
+    id,
+    value: draft,
+    readOnly: !editable,
+    maxLength,
+    onChange: (e: { target: { value: string } }) => setDraft(e.target.value),
+    onBlur: () => void commit(),
+    onFocus: editable ? undefined : (e: { currentTarget: { select: () => void } }) => e.currentTarget.select(),
+  };
   return (
     <div className="cs-copy">
-      <label htmlFor={id} className="muted small">
-        {label}
-      </label>
+      <div className="cs-copy-label">
+        <label htmlFor={id} className="muted small">
+          {label}
+        </label>
+        {multiline && maxLength ? (
+          <span className="muted small"> ({draft.length}/{maxLength})</span>
+        ) : null}
+        {saved && (
+          <span role="status" className="small cs-saved">
+            {" "}
+            Gespeichert
+          </span>
+        )}
+      </div>
       <div className="cs-copy-row">
         {multiline ? (
-          <textarea id={id} readOnly value={value} rows={3} onFocus={(e) => e.currentTarget.select()} />
+          <textarea {...common} rows={3} />
         ) : (
-          <input id={id} readOnly value={value} onFocus={(e) => e.currentTarget.select()} />
+          <input
+            {...common}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+          />
         )}
         {ai}
         <button type="button" className="btn btn-small" onClick={() => void copy()}>
@@ -160,10 +207,7 @@ function TaskCard({
   onChanged: (connectChannel?: number) => Promise<void>;
 }) {
   const [testMail, setTestMail] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(task.display_name);
-  const [handle, setHandle] = useState(task.handle);
-  const [bio, setBio] = useState(task.bio);
+  const [idea, setIdea] = useState("");
   const [busy, setBusy] = useState(false);
   const [thinking, setThinking] = useState<ChannelSetupAiPart | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -189,14 +233,11 @@ function TaskCard({
     }
   }
 
-  function save(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    void run(() => api.updateChannelSetup(task.id, { display_name: name, handle, bio })).then(
-      (ok) => {
-        if (ok) setEditing(false);
-      },
-    );
-  }
+  // own text: saved as typed (name changes redraw the lettering on the pictures)
+  const saveField =
+    (field: "display_name" | "handle" | "bio") =>
+    (value: string): Promise<boolean> =>
+      run(() => api.updateChannelSetup(task.id, { [field]: value }));
 
   function done() {
     let channelId: number | undefined;
@@ -212,15 +253,12 @@ function TaskCard({
   function aiRedo(part: ChannelSetupAiPart) {
     setThinking(part);
     void run(async () => {
-      const fresh = await api.researchChannelSetup(task.id, part);
-      setName(fresh.display_name);
-      setHandle(fresh.handle);
-      setBio(fresh.bio);
+      await api.researchChannelSetup(task.id, part, idea);
     }).finally(() => setThinking(null));
   }
 
   const aiFor = (part: ChannelSetupAiPart, label: string, hint: string) =>
-    canEdit && !editing ? (
+    canEdit ? (
       <AiButton
         label={label}
         hint={hint}
@@ -294,35 +332,31 @@ function TaskCard({
           )}
         </div>
 
-        {editing ? (
-          <form className="cs-fields" onSubmit={save} aria-label={`Werte ${title}`}>
-            <label>
-              Name
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
-            </label>
-            <label>
-              Benutzername
-              <input value={handle} onChange={(e) => setHandle(e.target.value)} maxLength={40} />
-            </label>
-            <label>
-              Bio ({bio.length}/{task.bio_max})
-              <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} maxLength={task.bio_max} />
-            </label>
-            <div className="form-actions">
-              <button className="btn btn-primary" disabled={busy}>
-                Speichern
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => setEditing(false)}>
-                Abbrechen
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="cs-fields">
+        <div className="cs-fields">
+            {canEdit && (
+              <div className="cs-copy">
+                <label htmlFor={`cs-idea-${task.id}`} className="muted small">
+                  Deine Idee für die KI (optional)
+                </label>
+                <input
+                  id={`cs-idea-${task.id}`}
+                  value={idea}
+                  maxLength={300}
+                  placeholder="z. B. „Name mit Gehirn oder Explosion, frech und jung“"
+                  onChange={(e) => setIdea(e.target.value)}
+                />
+                <span className="muted small">
+                  Die KI-Symbole bauen deine Idee ein. Eigene Texte kannst du direkt in die Felder
+                  tippen oder einfügen, sie werden beim Verlassen des Felds gespeichert.
+                </span>
+              </div>
+            )}
             <CopyField
               id={`cs-name-${task.id}`}
               label="Name"
               value={task.display_name}
+              maxLength={120}
+              onSave={canEdit ? saveField("display_name") : undefined}
               ai={aiFor(
                 "name",
                 "Neuen Namen von der KI erstellen",
@@ -333,6 +367,8 @@ function TaskCard({
               id={`cs-handle-${task.id}`}
               label={`Benutzername (${handleHint(task, task.handle)})`}
               value={task.handle}
+              maxLength={40}
+              onSave={canEdit ? saveField("handle") : undefined}
               ai={aiFor(
                 "handle",
                 "Neuen Benutzernamen von der KI erstellen",
@@ -350,6 +386,8 @@ function TaskCard({
               label="Bio"
               value={task.bio}
               multiline
+              maxLength={task.bio_max}
+              onSave={canEdit ? saveField("bio") : undefined}
               ai={aiFor(
                 "bio",
                 "Neue Bio von der KI erstellen",
@@ -431,7 +469,6 @@ function TaskCard({
               </p>
             )}
           </div>
-        )}
       </div>
 
       {(task.name_options.length > 0 || task.research_facts.length > 0) && (
@@ -453,7 +490,6 @@ function TaskCard({
                         disabled={busy}
                         aria-label={`${o.name} übernehmen`}
                         onClick={() => {
-                          setName(o.name);
                           void run(() => api.updateChannelSetup(task.id, { display_name: o.name }));
                         }}
                       >
@@ -498,11 +534,6 @@ function TaskCard({
           <button className="btn btn-primary" disabled={busy} onClick={done}>
             Kanal ist angelegt
           </button>
-          {!editing && (
-            <button className="btn" disabled={busy} onClick={() => setEditing(true)}>
-              Werte ändern
-            </button>
-          )}
           <button
             className="btn btn-ghost"
             disabled={busy}

@@ -513,12 +513,19 @@ ART_SYSTEM = (
 
 
 def _art_subject(
-    session: Session, settings: Settings, project: ContentProject, user_id: int | None
+    session: Session,
+    settings: Settings,
+    project: ContentProject,
+    user_id: int | None,
+    idea: str = "",
 ) -> str:
     """What the pictures show, in English, e.g. "Krasse Fakten" -> "glowing light bulb,
     question marks and a magnifying glass". Falls back to the area's own words."""
     subs = ", ".join(str(t) for t in (project.subtopics or [])[:3])
-    fallback = f"{project.name}{f' ({subs})' if subs else ''}"
+    fallback = idea.strip() or f"{project.name}{f' ({subs})' if subs else ''}"
+    wish = (
+        f"\nOperator's own idea (the motif must follow it): {idea.strip()}" if idea.strip() else ""
+    )
     try:
         result = ai.generate(
             session,
@@ -530,7 +537,7 @@ def _art_subject(
                     ai.AIMessage(
                         "user",
                         f"Topic area: {project.name}\nSub-topics: {subs or '-'}\n"
-                        f"Description: {project.description or '-'}\n"
+                        f"Description: {project.description or '-'}{wish}\n"
                         "Visual subject for the channel's logo and banner:",
                     )
                 ],
@@ -565,6 +572,7 @@ def _paint_art(
     seed: str,
     research: dict[str, Any],
     user_id: int | None,
+    idea: str = "",
 ) -> tuple[Image.Image, Image.Image | None]:
     """Artwork of the current look: reused while the look stays (e.g. after a new
     name), painted anew by the image AI for a new look. Raises ImageAIError."""
@@ -576,9 +584,9 @@ def _paint_art(
         if avatar is not None and (banner is not None or not want_banner):
             return avatar, banner
     if session is not None:
-        subject = _art_subject(session, settings, project, user_id)
+        subject = _art_subject(session, settings, project, user_id, idea)
     else:
-        subject = project.name
+        subject = idea.strip() or project.name
     look = image_ai.design(subject, seed, branding.palette(seed))
     avatar = image_ai.paint(settings, look.avatar_prompt())
     banner = image_ai.paint(settings, look.banner_prompt()) if want_banner else None
@@ -603,6 +611,7 @@ def _images(
     tagline: str,
     session: Session | None = None,
     user_id: int | None = None,
+    idea: str = "",
 ) -> None:
     """Profile picture and banner of one look (same colours, same style).
 
@@ -614,7 +623,9 @@ def _images(
     want_banner = RULES[task.platform].banner
     if image_ai.available(settings):
         try:
-            avatar, banner = _paint_art(session, settings, task, project, seed, research, user_id)
+            avatar, banner = _paint_art(
+                session, settings, task, project, seed, research, user_id, idea
+            )
         except image_ai.ImageAIError as exc:
             log.info("channel pictures drawn locally: %s", exc)
             research["image_source"] = "local"
@@ -866,6 +877,7 @@ def research_again(
     task: ChannelSetupTask,
     user_id: int | None = None,
     part: str = "all",
+    idea: str = "",
 ) -> ChannelSetupTask:
     """AI buttons of the channel assistant: renew one field, both pictures, or everything.
 
@@ -889,7 +901,7 @@ def research_again(
         research = dict(task.research or {})
         research["look"] = f"{project.slug}-{secrets.token_hex(3)}"
         task.research = research
-        _images(settings, task, project, _tagline(task, project), session, user_id)
+        _images(settings, task, project, _tagline(task, project), session, user_id, idea)
         _record_research(session, task, user_id, part, live=bool(research.get("live")))
         session.commit()
         return task
@@ -906,6 +918,12 @@ def research_again(
             f'Keep the channel name "{task.display_name}". Write a different bio than: "{task.bio}"'
         ),
     }[part]
+    idea = " ".join(idea.split())[:300]
+    if idea:
+        note = (
+            f"{note}\nThe operator's own idea, build on it and make it shine (keep its "
+            f"intent, improve the wording): {idea}"
+        ).strip()
     texts = write_texts(
         session, settings, project, task.platform, task.language, user_id, ctx, note
     )

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -303,11 +303,14 @@ def research_again(
     db: DbSession,
     settings: AppSettings,
     part: Literal["all", "name", "handle", "bio", "images"] = "all",
+    idea: Annotated[str, Query(max_length=300)] = "",
 ) -> TaskOut:
-    """AI buttons: renew one field (name, handle, bio), both pictures together, or all."""
+    """AI buttons: renew one field (name, handle, bio), both pictures together, or all.
+
+    ``idea`` is the operator's own idea; the AI builds on it."""
     task = _task(db, task_id)
     try:
-        channel_setup.research_again(db, settings, task, user_id=admin.id, part=part)
+        channel_setup.research_again(db, settings, task, user_id=admin.id, part=part, idea=idea)
     except channel_setup.SetupError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
     return _out(task)

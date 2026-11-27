@@ -128,3 +128,26 @@ def test_channel_texts_come_from_cloudflare(
     )
     texts = channel_setup.write_texts(db, settings, project, PlatformCode.YOUTUBE, Language.DE)
     assert texts.display_name == "Faktenbombe" and texts.source == "cloudflare"
+
+
+def test_own_idea_reaches_the_ai(db: Session, settings: Settings, cf: dict[str, Any]) -> None:
+    seed_base_data(db)
+    project = ContentProject(slug="fakten", name="Krasse Fakten", languages=["de"])
+    db.add(project)
+    db.flush()
+    task = channel_setup.prepare_one(db, settings, project, PlatformCode.YOUTUBE, Language.DE)
+    update_operations(db, None, {"ai_provider": "cloudflare"})
+    db.flush()
+    cf["answer"] = json.dumps(
+        {
+            "display_name": "Hirnexplosion",
+            "alternatives": [],
+            "handles": ["hirnexplosion"],
+            "bio": "Boom.",
+            "tagline": "x",
+        }
+    )
+    channel_setup.research_again(db, settings, task, part="name", idea="was mit Gehirn")
+    prompt = json.loads(cf["requests"][-1].content)["messages"][-1]["content"]
+    assert "was mit Gehirn" in prompt
+    assert task.display_name == "Hirnexplosion"
