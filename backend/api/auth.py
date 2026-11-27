@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -18,6 +18,7 @@ from core.security import (
     DUMMY_HASH,
     SESSION_COOKIE,
     create_session_token,
+    decode_session_token,
     hash_password,
     needs_rehash,
     new_csrf_token,
@@ -43,7 +44,7 @@ def _limiter(settings: Settings, client: Redis) -> LoginRateLimiter:
 
 
 def _set_session_cookies(response: Response, settings: Settings, token: str) -> None:
-    max_age = settings.access_token_expire_minutes * 60
+    max_age = settings.session_minutes * 60
     common = {
         "max_age": max_age,
         "secure": settings.session_cookie_secure,
@@ -52,6 +53,35 @@ def _set_session_cookies(response: Response, settings: Settings, token: str) -> 
     }
     response.set_cookie(SESSION_COOKIE, token, httponly=True, **common)  # type: ignore[arg-type]
     response.set_cookie(CSRF_COOKIE, new_csrf_token(), httponly=False, **common)  # type: ignore[arg-type]
+
+
+def renew_session(request: Request, response: Response, settings: Settings) -> None:
+    """Sliding session: a valid session past half its lifetime is extended.
+
+    The operator works in the studio for hours; without this the session ended
+    30 minutes after the login, in the middle of the work. Idle sessions still
+    expire. The CSRF value stays the same so requests already in flight match."""
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token or response.status_code >= 400:
+        return
+    if any(h.startswith(f"{SESSION_COOKIE}=") for h in response.headers.getlist("set-cookie")):
+        return  # login and logout set the cookies themselves
+    claims = decode_session_token(settings, token)
+    if claims is None:
+        return
+    lifetime = timedelta(minutes=settings.session_minutes)
+    if claims.expires_at - datetime.now(UTC) > lifetime / 2:
+        return
+    common = {
+        "max_age": int(lifetime.total_seconds()),
+        "secure": settings.session_cookie_secure,
+        "samesite": "strict",
+        "path": "/",
+    }
+    fresh = create_session_token(settings, claims.user_id, claims.session_version)
+    response.set_cookie(SESSION_COOKIE, fresh, httponly=True, **common)  # type: ignore[arg-type]
+    csrf = request.cookies.get(CSRF_COOKIE) or new_csrf_token()
+    response.set_cookie(CSRF_COOKIE, csrf, httponly=False, **common)  # type: ignore[arg-type]
 
 
 def _clear_session_cookies(response: Response) -> None:

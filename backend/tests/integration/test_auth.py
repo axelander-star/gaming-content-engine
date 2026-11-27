@@ -156,3 +156,57 @@ def test_role_change_forces_relogin(api: TestClient, make_user: MakeUser, db: Se
     assert r.status_code == 200
     db.refresh(other)
     assert other.session_version == 2
+
+
+def test_expired_session_answers_401_not_csrf(api: TestClient) -> None:
+    # both cookies gone (expired): the dashboard must send the user to the login
+    r = api.post("/api/channel-setup/prepare", json={"project_id": 1})
+    assert r.status_code == 401
+
+
+def test_active_session_is_extended(api: TestClient, make_user: MakeUser) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    import jwt
+
+    from core.config import get_settings
+    from core.security import JWT_ALGORITHM, JWT_AUDIENCE
+
+    user = make_user()
+    login(api, "admin@example.com")
+    settings = get_settings()
+    # a token with only 2 minutes left (default lifetime 30 minutes)
+    now = datetime.now(UTC)
+    payload = {
+        "sub": str(user.id),
+        "sv": user.session_version,
+        "iat": int((now - timedelta(minutes=28)).timestamp()),
+        "exp": int((now + timedelta(minutes=2)).timestamp()),
+        "aud": JWT_AUDIENCE,
+    }
+    old = jwt.encode(payload, settings.secret_key.get_secret_value(), algorithm=JWT_ALGORITHM)
+    api.cookies.delete("gce_session")
+    api.cookies.set("gce_session", old)
+    r = api.get("/api/auth/me")
+    assert r.status_code == 200
+    fresh = next(c for c in r.headers.get_list("set-cookie") if c.startswith("gce_session="))
+    assert old not in fresh
+    api.cookies.delete("gce_session")
+    api.cookies.set("gce_session", fresh.split(";")[0].split("=", 1)[1])
+    # a fresh token is left alone
+    r = api.get("/api/auth/me")
+    assert not any(c.startswith("gce_session=") for c in r.headers.get_list("set-cookie"))
+
+
+def test_private_operation_stays_logged_in() -> None:
+    from core.config import PRIVATE_SESSION_MINUTES, get_settings
+
+    base = get_settings()
+    assert base.model_copy(update={"access_token_expire_minutes": 30}).session_minutes in (
+        30,
+        PRIVATE_SESSION_MINUTES,
+    )
+    private = base.model_copy(update={"single_user_mode": True, "access_guard": "cloudflare"})
+    assert private.session_minutes == PRIVATE_SESSION_MINUTES
+    shared = base.model_copy(update={"single_user_mode": False, "access_guard": "none"})
+    assert shared.session_minutes == shared.access_token_expire_minutes

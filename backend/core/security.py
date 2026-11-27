@@ -69,7 +69,7 @@ class SessionClaims:
 
 def create_session_token(settings: Settings, user_id: int, session_version: int) -> str:
     now = datetime.now(UTC)
-    exp = now + timedelta(minutes=settings.access_token_expire_minutes)
+    exp = now + timedelta(minutes=settings.session_minutes)
     payload = {
         "sub": str(user_id),
         "sv": session_version,
