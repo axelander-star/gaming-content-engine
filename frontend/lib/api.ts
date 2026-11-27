@@ -125,6 +125,8 @@ import type {
   StrategyVersion,
   SystemStatus,
   DeployHookStatus,
+  PlatformAppInput,
+  PlatformAppStatus,
   TrendHistoryPoint,
   TrendItem,
   TrendReport,
@@ -706,6 +708,15 @@ export const api = {
   deleteFixedCost: (id: number) => request<void>(`/costs/fixed/${id}`, { method: "DELETE" }),
   systemStatus: () => request<SystemStatus>("/system/status"),
   deployHookStatus: () => request<DeployHookStatus>("/system/deploy-hook"),
+  platformApp: (provider: string) =>
+    request<PlatformAppStatus>(`/system/platform-apps/${provider}`),
+  savePlatformApp: (provider: string, data: PlatformAppInput) =>
+    request<PlatformAppStatus>(`/system/platform-apps/${provider}`, {
+      method: "PUT",
+      body: json(data),
+    }),
+  clearPlatformApp: (provider: string) =>
+    request<PlatformAppStatus>(`/system/platform-apps/${provider}`, { method: "DELETE" }),
 
   // comments: drafts, replies, review
   comments: (state?: CommentStatus) =>

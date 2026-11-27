@@ -19,7 +19,16 @@ from models.channels import Channel, ChannelCredential, Platform
 from models.production import Variant
 from models.projects import ContentProject
 from models.publishing import Post
-from services import audit, instagram, meta, platform, profile_sync, tiktok, youtube
+from services import (
+    audit,
+    instagram,
+    meta,
+    platform,
+    platform_apps,
+    profile_sync,
+    tiktok,
+    youtube,
+)
 from services.queue import get_redis
 
 log = logging.getLogger(__name__)
@@ -261,6 +270,7 @@ def connect_channel(
 ) -> ConnectOut:
     """Start the OAuth consent at the platform; the browser is sent to ``url``."""
     channel = _get(db, channel_id)
+    settings = platform_apps.apply(db, settings)
     try:
         url = _authorization_url(settings, channel, admin.id)
     except platform.NotConfiguredError as exc:
@@ -288,7 +298,7 @@ def disconnect_channel(
     """Revoke the access at the platform (best effort) and delete the stored tokens."""
     channel = _get(db, channel_id)
     cred = db.scalar(select(ChannelCredential).where(ChannelCredential.channel_id == channel.id))
-    revoked = _revoke(settings, cred) if cred else False
+    revoked = _revoke(platform_apps.apply(db, settings), cred) if cred else False
     if cred is not None:
         db.delete(cred)
     before = channel.auth_status.value
@@ -369,6 +379,7 @@ def oauth_callback(
     channel, user and provider. The dashboard shows the result (``?<provider>=…``)."""
     if provider not in PROVIDERS:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown provider")
+    settings = platform_apps.apply(db, settings)
     target = "/einstellungen"
 
     def back(result: str, reason: str = "") -> RedirectResponse:

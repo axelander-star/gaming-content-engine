@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from redis import Redis
 
-from api.deps import Admin, AppSettings, DbSession, Viewer
-from services import backup, deploy_hook, monitoring
+from api.deps import Admin, AppSettings, DbSession, Viewer, csrf_protect
+from services import backup, deploy_hook, monitoring, platform_apps
 from services.queue import get_redis
 
-router = APIRouter(prefix="/system", tags=["system"])
+router = APIRouter(prefix="/system", tags=["system"], dependencies=[Depends(csrf_protect)])
 
 
 class CheckOut(BaseModel):
@@ -105,3 +105,71 @@ class DeployHookOut(BaseModel):
 @router.get("/deploy-hook", response_model=DeployHookOut)
 def deploy_hook_status(_: Admin, settings: AppSettings) -> DeployHookOut:
     return DeployHookOut(**vars(deploy_hook.status(settings)))
+
+
+# --- platform app keys entered in the dashboard (27.11.2026) ---------------------------
+
+
+class PlatformAppOut(BaseModel):
+    provider: str
+    configured: bool
+    source: str | None
+    client_key: str
+    secret_set: bool
+    redirect_uri: str
+    redirect_uri_ok: bool
+
+
+class PlatformAppIn(BaseModel):
+    client_key: str
+    #: empty keeps the secret saved before
+    client_secret: str | None = None
+    redirect_uri: str = ""
+
+
+def _app_out(s: platform_apps.AppStatus) -> PlatformAppOut:
+    return PlatformAppOut(**vars(s))
+
+
+@router.get("/platform-apps/{provider}", response_model=PlatformAppOut)
+def platform_app_status(
+    provider: str, _: Admin, db: DbSession, settings: AppSettings
+) -> PlatformAppOut:
+    try:
+        return _app_out(platform_apps.status(db, settings, provider))
+    except platform_apps.PlatformAppError as exc:
+        raise HTTPException(404, detail=str(exc)) from exc
+
+
+@router.put("/platform-apps/{provider}", response_model=PlatformAppOut)
+def save_platform_app(
+    provider: str, body: PlatformAppIn, admin: Admin, db: DbSession, settings: AppSettings
+) -> PlatformAppOut:
+    """Save the app keys; the secret is stored encrypted and never returned."""
+    try:
+        result = platform_apps.save(
+            db,
+            settings,
+            provider,
+            client_key=body.client_key,
+            client_secret=body.client_secret,
+            redirect_uri=body.redirect_uri,
+            user_id=admin.id,
+        )
+    except platform_apps.PlatformAppError as exc:
+        db.rollback()
+        raise HTTPException(422, detail=str(exc)) from exc
+    db.commit()
+    return _app_out(result)
+
+
+@router.delete("/platform-apps/{provider}", response_model=PlatformAppOut)
+def clear_platform_app(
+    provider: str, admin: Admin, db: DbSession, settings: AppSettings
+) -> PlatformAppOut:
+    try:
+        result = platform_apps.clear(db, settings, provider, admin.id)
+    except platform_apps.PlatformAppError as exc:
+        raise HTTPException(404, detail=str(exc)) from exc
+    db.commit()
+    return _app_out(result)
