@@ -50,7 +50,7 @@ function AiButton({
   return (
     <button
       type="button"
-      className="btn cs-ai-btn"
+      className="cs-ai-btn"
       aria-label={label}
       aria-busy={thinking}
       title={hint}
@@ -62,9 +62,6 @@ function AiButton({
       ) : (
         <Icon name="wand" />
       )}
-      <span className="cs-ai-tag" aria-hidden="true">
-        KI
-      </span>
     </button>
   );
 }
@@ -146,17 +143,19 @@ function CopyField({
         )}
       </div>
       <div className="cs-copy-row">
-        {multiline ? (
-          <textarea {...common} rows={3} />
-        ) : (
-          <input
-            {...common}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-          />
-        )}
-        {ai}
+        <div className={`cs-field${ai ? " has-ai" : ""}`}>
+          {multiline ? (
+            <textarea {...common} rows={3} />
+          ) : (
+            <input
+              {...common}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+            />
+          )}
+          {ai}
+        </div>
         <button
           type="button"
           className="btn btn-small"
@@ -329,6 +328,16 @@ function TaskCard({
       />
     ) : null;
 
+  const imagesAi = aiFor(
+    "images",
+    task.has_banner
+      ? "Profilbild und Banner von der KI neu gestalten"
+      : "Profilbild von der KI neu gestalten",
+    task.has_banner
+      ? "Die KI gestaltet Profilbild und Banner zusammen neu: neue Farben und neues Muster, beide passend zueinander. Jeder Klick gibt einen neuen Entwurf."
+      : "Die KI gestaltet das Profilbild neu: neue Farben und neues Muster. Jeder Klick gibt einen neuen Entwurf.",
+  );
+
   const img = (kind: "avatar" | "banner") =>
     `${api.channelSetupImage(task.id, kind)}?v=${stamp}`;
 
@@ -369,6 +378,7 @@ function TaskCard({
                     src={img("avatar")}
                     alt={`Profilbild ${task.display_name}`}
                   />
+                  {imagesAi}
                   {canEdit && (
                     <UploadButton
                       label="Eigenes Profilbild hochladen"
@@ -388,16 +398,6 @@ function TaskCard({
                 </figcaption>
               </figure>
             )}
-            {(task.has_avatar || task.has_banner) &&
-              aiFor(
-                "images",
-                task.has_banner
-                  ? "Profilbild und Banner von der KI neu gestalten"
-                  : "Profilbild von der KI neu gestalten",
-                task.has_banner
-                  ? "Die KI gestaltet Profilbild und Banner zusammen neu: neue Farben und neues Muster, beide passend zueinander. Jeder Klick gibt einen neuen Entwurf."
-                  : "Die KI gestaltet das Profilbild neu: neue Farben und neues Muster. Jeder Klick gibt einen neuen Entwurf.",
-              )}
           </div>
           <p className="muted small cs-art-source">
             {task.uploaded.includes("avatar") &&
@@ -420,6 +420,7 @@ function TaskCard({
                   src={img("banner")}
                   alt={`Banner ${task.display_name}`}
                 />
+                {!task.has_avatar && imagesAi}
                 {canEdit && (
                   <UploadButton
                     label="Eigenen Banner hochladen"
