@@ -57,7 +57,11 @@ function AiButton({
       disabled={disabled}
       onClick={onClick}
     >
-      {thinking ? <span className="run-spinner" aria-hidden="true" /> : <Icon name="wand" />}
+      {thinking ? (
+        <span className="run-spinner" aria-hidden="true" />
+      ) : (
+        <Icon name="wand" />
+      )}
       <span className="cs-ai-tag" aria-hidden="true">
         KI
       </span>
@@ -117,7 +121,10 @@ function CopyField({
     maxLength,
     onChange: (e: { target: { value: string } }) => setDraft(e.target.value),
     onBlur: () => void commit(),
-    onFocus: editable ? undefined : (e: { currentTarget: { select: () => void } }) => e.currentTarget.select(),
+    onFocus: editable
+      ? undefined
+      : (e: { currentTarget: { select: () => void } }) =>
+          e.currentTarget.select(),
   };
   return (
     <div className="cs-copy">
@@ -126,7 +133,10 @@ function CopyField({
           {label}
         </label>
         {multiline && maxLength ? (
-          <span className="muted small"> ({draft.length}/{maxLength})</span>
+          <span className="muted small">
+            {" "}
+            ({draft.length}/{maxLength})
+          </span>
         ) : null}
         {saved && (
           <span role="status" className="small cs-saved">
@@ -147,7 +157,11 @@ function CopyField({
           />
         )}
         {ai}
-        <button type="button" className="btn btn-small" onClick={() => void copy()}>
+        <button
+          type="button"
+          className="btn btn-small"
+          onClick={() => void copy()}
+        >
           {copied ? "Kopiert" : "Kopieren"}
         </button>
       </div>
@@ -168,9 +182,12 @@ function UploadButton({
   onFile: (file: File) => void;
 }) {
   return (
-    <label className={`btn btn-small cs-upload${disabled ? " is-disabled" : ""}`} title={hint}>
+    <label
+      className={`cs-upload${disabled ? " is-disabled" : ""}`}
+      title={`${label}: ${hint}`}
+    >
       <Icon name="upload" />
-      {label}
+      <span className="sr-only">{label}</span>
       <input
         type="file"
         accept="image/png,image/jpeg,image/webp"
@@ -205,17 +222,17 @@ function SlotChip({
       {onPrepare &&
         (slot.state === "added" || slot.state === "placeholder") &&
         slot.channel_id !== null && (
-        <button
-          type="button"
-          className="btn btn-small"
-          disabled={busy}
-          aria-label={`${label} vorbereiten`}
-          title="Name, Beschreibung und Bilder für das echte Konto vorbereiten"
-          onClick={() => onPrepare(slot.channel_id as number)}
-        >
-          Vorbereiten
-        </button>
-      )}
+          <button
+            type="button"
+            className="btn btn-small"
+            disabled={busy}
+            aria-label={`${label} vorbereiten`}
+            title="Name, Beschreibung und Bilder für das echte Konto vorbereiten"
+            onClick={() => onPrepare(slot.channel_id as number)}
+          >
+            Vorbereiten
+          </button>
+        )}
     </li>
   );
 }
@@ -224,7 +241,9 @@ function handleHint(task: ChannelSetupTask, handle: string): string {
   const state = task.handle_check[handle];
   if (state === "free") return "frei";
   if (state === "taken") return "vergeben";
-  return task.platform === "youtube" ? "nicht geprüft" : "bei der Anmeldung prüfen";
+  return task.platform === "youtube"
+    ? "nicht geprüft"
+    : "bei der Anmeldung prüfen";
 }
 
 function TaskCard({
@@ -310,20 +329,30 @@ function TaskCard({
       />
     ) : null;
 
-  const img = (kind: "avatar" | "banner") => `${api.channelSetupImage(task.id, kind)}?v=${stamp}`;
+  const img = (kind: "avatar" | "banner") =>
+    `${api.channelSetupImage(task.id, kind)}?v=${stamp}`;
 
   return (
     <article className="card cs-task" aria-label={`Aufgabe ${title}`}>
       <div className="cs-task-head">
         <div className="chip-row">
-          <span className={`chip chip-${task.platform}`}>{task.platform_label}</span>
+          <span className={`chip chip-${task.platform}`}>
+            {task.platform_label}
+          </span>
           <span className="chip">{LANG[task.language]}</span>
           <span className="chip">{task.content_project}</span>
           {task.text_source === "mock" && <Badge tone="info">Testtexte</Badge>}
         </div>
         <div className="row-actions">
-          <a className="btn btn-primary" href={task.signup_url} target="_blank" rel="noreferrer">
-            {task.platform === "youtube" ? "Kanal bei YouTube erstellen" : `Bei ${task.platform_label} registrieren`}
+          <a
+            className="btn btn-primary"
+            href={task.signup_url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {task.platform === "youtube"
+              ? "Kanal bei YouTube erstellen"
+              : `Bei ${task.platform_label} registrieren`}
           </a>
         </div>
       </div>
@@ -334,12 +363,12 @@ function TaskCard({
             {task.has_avatar && (
               <figure>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="cs-avatar" src={img("avatar")} alt={`Profilbild ${task.display_name}`} />
-                <figcaption>
-                  <a href={img("avatar")} download className="small">
-                    Profilbild laden
-                  </a>
-                  {task.uploaded.includes("avatar") && <Badge tone="ok">Eigenes Bild</Badge>}
+                <div className="cs-pic">
+                  <img
+                    className="cs-avatar"
+                    src={img("avatar")}
+                    alt={`Profilbild ${task.display_name}`}
+                  />
                   {canEdit && (
                     <UploadButton
                       label="Eigenes Profilbild hochladen"
@@ -347,6 +376,14 @@ function TaskCard({
                       disabled={busy}
                       onFile={(f) => uploadImage("avatar", f)}
                     />
+                  )}
+                </div>
+                <figcaption>
+                  <a href={img("avatar")} download className="small">
+                    Profilbild laden
+                  </a>
+                  {task.uploaded.includes("avatar") && (
+                    <Badge tone="ok">Eigenes Bild</Badge>
                   )}
                 </figcaption>
               </figure>
@@ -377,12 +414,12 @@ function TaskCard({
           {task.has_banner && (
             <figure>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="cs-banner" src={img("banner")} alt={`Banner ${task.display_name}`} />
-              <figcaption>
-                <a href={img("banner")} download className="small">
-                  Banner laden (2560 × 1440)
-                </a>
-                {task.uploaded.includes("banner") && <Badge tone="ok">Eigenes Bild</Badge>}
+              <div className="cs-pic">
+                <img
+                  className="cs-banner"
+                  src={img("banner")}
+                  alt={`Banner ${task.display_name}`}
+                />
                 {canEdit && (
                   <UploadButton
                     label="Eigenen Banner hochladen"
@@ -391,148 +428,167 @@ function TaskCard({
                     onFile={(f) => uploadImage("banner", f)}
                   />
                 )}
+              </div>
+              <figcaption>
+                <a href={img("banner")} download className="small">
+                  Banner laden (2560 × 1440)
+                </a>
+                {task.uploaded.includes("banner") && (
+                  <Badge tone="ok">Eigenes Bild</Badge>
+                )}
               </figcaption>
             </figure>
           )}
         </div>
 
         <div className="cs-fields">
-            {canEdit && (
-              <div className="cs-copy">
-                <label htmlFor={`cs-idea-${task.id}`} className="muted small">
-                  Deine Idee für die KI (optional)
-                </label>
-                <input
-                  id={`cs-idea-${task.id}`}
-                  value={idea}
-                  maxLength={300}
-                  placeholder="z. B. „Name mit Gehirn oder Explosion, frech und jung“"
-                  onChange={(e) => setIdea(e.target.value)}
-                />
-                <span className="muted small">
-                  Die KI-Symbole bauen deine Idee ein. Eigene Texte kannst du direkt in die Felder
-                  tippen oder einfügen, sie werden beim Verlassen des Felds gespeichert.
-                </span>
-              </div>
-            )}
-            <CopyField
-              id={`cs-name-${task.id}`}
-              label="Name"
-              value={task.display_name}
-              maxLength={120}
-              onSave={canEdit ? saveField("display_name") : undefined}
-              ai={aiFor(
-                "name",
-                "Neuen Namen von der KI erstellen",
-                "Die KI sucht mit aktuellen Trends einen neuen Namen passend zu Themenbereich und Unterthemen. Profilbild und Banner zeigen danach den neuen Namen.",
-              )}
-            />
-            <CopyField
-              id={`cs-handle-${task.id}`}
-              label={`Benutzername (${handleHint(task, task.handle)})`}
-              value={task.handle}
-              maxLength={40}
-              onSave={canEdit ? saveField("handle") : undefined}
-              ai={aiFor(
-                "handle",
-                "Neuen Benutzernamen von der KI erstellen",
-                "Die KI schlägt einen neuen Benutzernamen vor, der zum Namen passt.",
-              )}
-            />
-            {task.alt_handles.length > 0 && (
-              <p className="muted small">
-                Falls vergeben:{" "}
-                {task.alt_handles.map((h) => `${h} (${handleHint(task, h)})`).join(", ")}
-              </p>
-            )}
-            <CopyField
-              id={`cs-bio-${task.id}`}
-              label="Bio"
-              value={task.bio}
-              multiline
-              maxLength={task.bio_max}
-              onSave={canEdit ? saveField("bio") : undefined}
-              ai={aiFor(
-                "bio",
-                "Neue Bio von der KI erstellen",
-                "Die KI schreibt eine neue Bio passend zu Themenbereich und Unterthemen.",
-              )}
-            />
-            {task.email ? (
-              <CopyField
-                id={`cs-mail-${task.id}`}
-                label={
-                  task.email_status === "created"
-                    ? "E-Mail-Adresse (leitet an dein Postfach weiter)"
-                    : "E-Mail-Adresse (noch nicht angelegt)"
-                }
-                value={task.email}
+          {canEdit && (
+            <div className="cs-copy">
+              <label htmlFor={`cs-idea-${task.id}`} className="muted small">
+                Deine Idee für die KI (optional)
+              </label>
+              <input
+                id={`cs-idea-${task.id}`}
+                value={idea}
+                maxLength={300}
+                placeholder="z. B. „Name mit Gehirn oder Explosion, frech und jung“"
+                onChange={(e) => setIdea(e.target.value)}
               />
-            ) : (
-              task.email_status === "not_needed" && (
-                <p className="muted small">Keine eigene E-Mail nötig: Brand-Kanal unter dem Geschäftskonto.</p>
-              )
+              <span className="muted small">
+                Die KI-Symbole bauen deine Idee ein. Eigene Texte kannst du
+                direkt in die Felder tippen oder einfügen, sie werden beim
+                Verlassen des Felds gespeichert.
+              </span>
+            </div>
+          )}
+          <CopyField
+            id={`cs-name-${task.id}`}
+            label="Name"
+            value={task.display_name}
+            maxLength={120}
+            onSave={canEdit ? saveField("display_name") : undefined}
+            ai={aiFor(
+              "name",
+              "Neuen Namen von der KI erstellen",
+              "Die KI sucht mit aktuellen Trends einen neuen Namen passend zu Themenbereich und Unterthemen. Profilbild und Banner zeigen danach den neuen Namen.",
             )}
-            {task.email_status === "mock" && (
-              <p className="small">
-                <Badge tone="warn">Noch nicht angelegt</Badge> Diese Adresse empfängt noch keine
-                Mails. Nicht für die Anmeldung verwenden, solange die Weiterleitung fehlt.
-                {task.email_error ? ` ${task.email_error}` : ""}{" "}
-                {canEdit && mailLive && (
-                  <button
-                    type="button"
-                    className="btn btn-small"
-                    disabled={busy}
-                    onClick={() => void run(() => api.retryChannelSetupEmail(task.id))}
-                  >
-                    Weiterleitung jetzt anlegen
-                  </button>
-                )}
+          />
+          <CopyField
+            id={`cs-handle-${task.id}`}
+            label={`Benutzername (${handleHint(task, task.handle)})`}
+            value={task.handle}
+            maxLength={40}
+            onSave={canEdit ? saveField("handle") : undefined}
+            ai={aiFor(
+              "handle",
+              "Neuen Benutzernamen von der KI erstellen",
+              "Die KI schlägt einen neuen Benutzernamen vor, der zum Namen passt.",
+            )}
+          />
+          {task.alt_handles.length > 0 && (
+            <p className="muted small">
+              Falls vergeben:{" "}
+              {task.alt_handles
+                .map((h) => `${h} (${handleHint(task, h)})`)
+                .join(", ")}
+            </p>
+          )}
+          <CopyField
+            id={`cs-bio-${task.id}`}
+            label="Bio"
+            value={task.bio}
+            multiline
+            maxLength={task.bio_max}
+            onSave={canEdit ? saveField("bio") : undefined}
+            ai={aiFor(
+              "bio",
+              "Neue Bio von der KI erstellen",
+              "Die KI schreibt eine neue Bio passend zu Themenbereich und Unterthemen.",
+            )}
+          />
+          {task.email ? (
+            <CopyField
+              id={`cs-mail-${task.id}`}
+              label={
+                task.email_status === "created"
+                  ? "E-Mail-Adresse (leitet an dein Postfach weiter)"
+                  : "E-Mail-Adresse (noch nicht angelegt)"
+              }
+              value={task.email}
+            />
+          ) : (
+            task.email_status === "not_needed" && (
+              <p className="muted small">
+                Keine eigene E-Mail nötig: Brand-Kanal unter dem Geschäftskonto.
               </p>
-            )}
-            {task.email_status === "created" && canEdit && (
-              <p className="small">
+            )
+          )}
+          {task.email_status === "mock" && (
+            <p className="small">
+              <Badge tone="warn">Noch nicht angelegt</Badge> Diese Adresse
+              empfängt noch keine Mails. Nicht für die Anmeldung verwenden,
+              solange die Weiterleitung fehlt.
+              {task.email_error ? ` ${task.email_error}` : ""}{" "}
+              {canEdit && mailLive && (
                 <button
                   type="button"
                   className="btn btn-small"
                   disabled={busy}
-                  onClick={() => {
-                    setTestMail(null);
-                    api
-                      .sendAliasTestMail(task.id)
-                      .then((r) => setTestMail(r.message))
-                      .catch((e: Error) => setTestMail(e.message));
-                  }}
+                  onClick={() =>
+                    void run(() => api.retryChannelSetupEmail(task.id))
+                  }
                 >
-                  Testmail senden
-                </button>{" "}
-                <span className="muted">
-                  Kommt sie in deinem Postfach an, funktioniert die Adresse.
+                  Weiterleitung jetzt anlegen
+                </button>
+              )}
+            </p>
+          )}
+          {task.email_status === "created" && canEdit && (
+            <p className="small">
+              <button
+                type="button"
+                className="btn btn-small"
+                disabled={busy}
+                onClick={() => {
+                  setTestMail(null);
+                  api
+                    .sendAliasTestMail(task.id)
+                    .then((r) => setTestMail(r.message))
+                    .catch((e: Error) => setTestMail(e.message));
+                }}
+              >
+                Testmail senden
+              </button>{" "}
+              <span className="muted">
+                Kommt sie in deinem Postfach an, funktioniert die Adresse.
+              </span>
+              {testMail && (
+                <span role="status" className="cs-testmail">
+                  {" "}
+                  {testMail}
                 </span>
-                {testMail && (
-                  <span role="status" className="cs-testmail">
-                    {" "}
-                    {testMail}
-                  </span>
-                )}
-              </p>
-            )}
-            {task.email_status === "failed" && (
-              <p className="small">
-                <Badge tone="danger">E-Mail fehlgeschlagen</Badge> {task.email_error}{" "}
-                {canEdit && (
-                  <button
-                    type="button"
-                    className="btn btn-small"
-                    disabled={busy}
-                    onClick={() => void run(() => api.retryChannelSetupEmail(task.id))}
-                  >
-                    Erneut versuchen
-                  </button>
-                )}
-              </p>
-            )}
-          </div>
+              )}
+            </p>
+          )}
+          {task.email_status === "failed" && (
+            <p className="small">
+              <Badge tone="danger">E-Mail fehlgeschlagen</Badge>{" "}
+              {task.email_error}{" "}
+              {canEdit && (
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(() => api.retryChannelSetupEmail(task.id))
+                  }
+                >
+                  Erneut versuchen
+                </button>
+              )}
+            </p>
+          )}
+        </div>
       </div>
 
       {(task.name_options.length > 0 || task.research_facts.length > 0) && (
@@ -545,7 +601,9 @@ function TaskCard({
                   <li key={o.name}>
                     <span>
                       <strong>{o.name}</strong>
-                      {o.reason && <span className="muted small"> – {o.reason}</span>}
+                      {o.reason && (
+                        <span className="muted small"> – {o.reason}</span>
+                      )}
                     </span>
                     {canEdit && (
                       <button
@@ -554,7 +612,11 @@ function TaskCard({
                         disabled={busy}
                         aria-label={`${o.name} übernehmen`}
                         onClick={() => {
-                          void run(() => api.updateChannelSetup(task.id, { display_name: o.name }));
+                          void run(() =>
+                            api.updateChannelSetup(task.id, {
+                              display_name: o.name,
+                            }),
+                          );
                         }}
                       >
                         Übernehmen
@@ -570,7 +632,9 @@ function TaskCard({
               <summary>
                 Datengrundlage{" "}
                 <Badge tone={task.research_live ? "ok" : "info"}>
-                  {task.research_live ? "mit YouTube-Live-Daten" : "ohne YouTube-Live-Daten"}
+                  {task.research_live
+                    ? "mit YouTube-Live-Daten"
+                    : "ohne YouTube-Live-Daten"}
                 </Badge>
               </summary>
               <ul className="small">
@@ -673,7 +737,11 @@ export function ChannelSetupView() {
     setError(null);
     try {
       const made = await api.prepareChannels(projectId);
-      setNotice(made.length ? `${made.length} Kanäle vorbereitet.` : "Es fehlt kein Kanal.");
+      setNotice(
+        made.length
+          ? `${made.length} Kanäle vorbereitet.`
+          : "Es fehlt kein Kanal.",
+      );
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -712,8 +780,9 @@ export function ChannelSetupView() {
       )}
       {mail && mail.mode === "mock" && (
         <p className="muted small">
-          E-Mail-Weiterleitungen laufen im Testmodus{mail.domain ? ` (Domain ${mail.domain})` : ""}. Es
-          wird noch nichts bei Cloudflare angelegt.
+          E-Mail-Weiterleitungen laufen im Testmodus
+          {mail.domain ? ` (Domain ${mail.domain})` : ""}. Es wird noch nichts
+          bei Cloudflare angelegt.
         </p>
       )}
       {mail?.problem && (
@@ -734,7 +803,9 @@ export function ChannelSetupView() {
           {mailCheck && (
             <div role="status">
               <Badge tone={mailCheck.ok ? "ok" : "danger"}>
-                {mailCheck.ok ? "Weiterleitung bereit" : "Weiterleitung nicht bereit"}
+                {mailCheck.ok
+                  ? "Weiterleitung bereit"
+                  : "Weiterleitung nicht bereit"}
               </Badge>
               {mailCheck.rules_used !== null &&
                 ` ${mailCheck.rules_used} von ${mailCheck.rule_limit} Regeln belegt.`}
@@ -768,13 +839,19 @@ export function ChannelSetupView() {
         )}
       </Section>
 
-      <Section title={`Kanäle je Themenbereich${missingTotal ? ` (${missingTotal} fehlen)` : ""}`}>
+      <Section
+        title={`Kanäle je Themenbereich${missingTotal ? ` (${missingTotal} fehlen)` : ""}`}
+      >
         {coverage === null ? (
           <p className="muted">Lädt …</p>
         ) : (
           <div className="cs-coverage">
             {coverage.map((c) => (
-              <article key={c.project_id} className="card" aria-label={`Themenbereich ${c.project}`}>
+              <article
+                key={c.project_id}
+                className="card"
+                aria-label={`Themenbereich ${c.project}`}
+              >
                 <div className="cs-task-head">
                   <h3>{c.project}</h3>
                   {canEdit && c.missing > 0 && (
@@ -783,7 +860,9 @@ export function ChannelSetupView() {
                       disabled={busy !== null}
                       onClick={() => void prepare(c.project_id)}
                     >
-                      {busy === c.project_id ? "Bereite vor …" : `${c.missing} fehlende vorbereiten`}
+                      {busy === c.project_id
+                        ? "Bereite vor …"
+                        : `${c.missing} fehlende vorbereiten`}
                     </button>
                   )}
                 </div>
@@ -793,7 +872,9 @@ export function ChannelSetupView() {
                       key={`${s.platform}-${s.language}`}
                       slot={s}
                       busy={busy !== null}
-                      onPrepare={canEdit ? (id) => void prepareFor(id) : undefined}
+                      onPrepare={
+                        canEdit ? (id) => void prepareFor(id) : undefined
+                      }
                     />
                   ))}
                 </ul>

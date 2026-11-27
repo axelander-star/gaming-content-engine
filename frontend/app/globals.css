@@ -3235,26 +3235,45 @@ td.row-actions {
   gap: 6px 10px;
   margin-top: 6px;
 }
+.cs-pic {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.cs-pic .cs-banner {
+  width: 100%;
+}
+/* own picture upload: small, see-through, clearer on hover */
 .cs-upload {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
   display: inline-flex;
-  flex-direction: row;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0.45;
   cursor: pointer;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent-soft);
-  font-weight: 600;
+  transition: opacity 0.15s ease;
+}
+.cs-pic:hover .cs-upload,
+.cs-upload:hover,
+.cs-upload:focus-within {
+  opacity: 1;
+}
+.cs-upload:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .cs-upload svg {
   width: 14px;
   height: 14px;
 }
 .cs-upload.is-disabled {
-  opacity: 0.6;
+  opacity: 0.25;
   cursor: default;
-}
-.cs-upload:focus-within {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
