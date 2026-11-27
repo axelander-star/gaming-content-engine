@@ -948,6 +948,23 @@ export interface ContentProjectPatch extends Partial<ContentProjectInput> {
   status?: ContentProjectStatus;
 }
 
+export interface ProjectDeletionItem {
+  key: string;
+  label: string;
+  count: number;
+}
+
+/** What deleting a topic area removes; shown before the user confirms. */
+export interface ProjectDeletionPreview {
+  id: number;
+  name: string;
+  can_delete: boolean;
+  blockers: string[];
+  items: ProjectDeletionItem[];
+  kept: ProjectDeletionItem[];
+  published: number;
+}
+
 export interface ChannelInput {
   platform: PlatformCode;
   language: Language;

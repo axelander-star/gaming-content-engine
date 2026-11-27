@@ -30,6 +30,7 @@
   --warn: #f0b544;
   --danger-bg: rgba(255, 99, 107, 0.14);
   --danger: #ff7a80;
+  --danger-contrast: #2a0d0f;
   --info-bg: rgba(77, 160, 255, 0.14);
   --info: #6cb2ff;
   --radius: 12px;
@@ -68,6 +69,7 @@
   --warn: #9a6200;
   --danger-bg: #fde8e8;
   --danger: #c0262d;
+  --danger-contrast: #ffffff;
   --info-bg: #e6f0ff;
   --info: #1f5fbf;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
@@ -450,6 +452,31 @@ label {
   background: transparent;
   border-color: var(--border);
   color: var(--text);
+}
+.btn-danger {
+  color: var(--danger);
+}
+.btn-danger-solid {
+  background: var(--danger);
+  color: var(--danger-contrast);
+  font-weight: 600;
+}
+.delete-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  background: var(--danger-bg);
+}
+.delete-panel p {
+  margin: 0;
+}
+.delete-panel ul {
+  margin: 0;
+  padding-left: 20px;
 }
 .form-grid {
   display: grid;

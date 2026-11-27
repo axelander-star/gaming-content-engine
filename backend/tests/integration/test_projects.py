@@ -397,3 +397,174 @@ def test_empty_default_project_can_be_archived_and_reactivated(
     assert r.json()["status"] == "archived"
     r = api.patch(f"/api/projects/{gaming}", headers=headers, json={"status": "active"})
     assert r.json()["status"] == "active"
+
+
+# --- deleting a topic area -------------------------------------------------------------
+
+
+def _food_chain(db: Session, project: ContentProject) -> dict[str, Any]:
+    """Material, video, job and published post of ``project`` (reuses a rights chain)."""
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from models import Clip, GameplayFile, Idea, Scene
+    from models.sponsors import SponsorInquiry
+
+    base = build_chain(db)
+    channel = channel_for(db, project)
+    gf = GameplayFile(
+        asset_id=base.gameplay_file.asset_id,
+        game_id=base.gameplay_file.game_id,
+        storage_uri="mock://food.mp4",
+        sha256=uuid4().hex * 2,
+        content_project_id=project.id,
+    )
+    db.add(gf)
+    db.flush()
+    scene = Scene(gameplay_file_id=gf.id, start_s=0.0, end_s=10.0)
+    db.add(scene)
+    db.flush()
+    clip = Clip(scene_id=scene.id, start_s=0.0, end_s=10.0)
+    db.add(clip)
+    db.flush()
+    variant = Variant(
+        clip_id=clip.id, channel_id=channel.id, language=Language.DE, variant_label="A"
+    )
+    db.add(variant)
+    db.flush()
+    job = PublishingJob(
+        variant_id=variant.id,
+        channel_id=channel.id,
+        status=PublishingJobStatus.SUCCEEDED,
+        idempotency_key=f"k-food-{uuid4().hex[:6]}",
+    )
+    db.add(job)
+    db.flush()
+    post = Post(
+        publishing_job_id=job.id,
+        variant_id=variant.id,
+        channel_id=channel.id,
+        published_at=datetime.now(UTC),
+    )
+    idea = Idea(
+        content_project_id=project.id,
+        title="Proteinfrühstück",
+        pitch="p",
+        format="short",
+        trend_score=1,
+        fit_score=1,
+        effort_score=1,
+        rights_risk=0,
+        score=1,
+        reasoning="r",
+        provider="mock",
+    )
+    sponsor = SponsorInquiry(
+        content_project_id=project.id,
+        brand="Müsli GmbH",
+        body="Hallo",
+        received_at=datetime.now(UTC),
+        language=Language.DE,
+        category="sponsor",
+    )
+    db.add_all([post, idea, sponsor])
+    db.flush()
+    return {"base": base, "channel": channel, "variant": variant, "sponsor": sponsor}
+
+
+def test_delete_project_removes_its_content_and_spares_other_areas(
+    api: TestClient, make_user: MakeUser, db: Session
+) -> None:
+    from models.sponsors import SponsorInquiry
+
+    make_user()
+    headers = login(api, "admin@example.com")
+    food = nutrition(db)
+    food_id = food.id
+    made = _food_chain(db, food)
+    base_variant_id = made["base"].variant.id
+    sponsor_id = made["sponsor"].id
+    gaming_channels = db.scalar(
+        select(text("count(*)")).select_from(Channel).where(Channel.content_project_id != food_id)
+    )
+    db.commit()
+
+    preview = api.get(f"/api/projects/{food_id}/deletion", headers=headers)
+    assert preview.status_code == 200, preview.text
+    body = preview.json()
+    assert body["can_delete"] is True
+    counts = {i["key"]: i["count"] for i in body["items"]}
+    assert counts["channels"] == 1
+    assert counts["variants"] == 1
+    assert counts["gameplay_files"] == 1
+    assert counts["posts"] == 1
+    assert counts["ideas"] == 1
+    assert body["published"] == 1
+    assert {i["key"]: i["count"] for i in body["kept"]} == {"sponsor_inquiries": 1}
+
+    wrong = api.post(
+        f"/api/projects/{food_id}/delete", headers=headers, json={"confirm_name": "Gaming"}
+    )
+    assert wrong.status_code == 422
+    assert db.get(ContentProject, food_id) is not None
+
+    ok = api.post(
+        f"/api/projects/{food_id}/delete", headers=headers, json={"confirm_name": " ernährung "}
+    )
+    assert ok.status_code == 204, ok.text
+    db.expire_all()
+    assert db.get(ContentProject, food_id) is None
+    assert db.scalar(select(Channel.id).where(Channel.content_project_id == food_id)) is None
+    # the other area keeps everything
+    assert db.get(Variant, base_variant_id) is not None
+    assert db.scalar(select(text("count(*)")).select_from(Channel)) == gaming_channels
+    sponsor = db.get(SponsorInquiry, sponsor_id)
+    assert sponsor is not None and sponsor.content_project_id is None
+    from models.access import AuditLog
+
+    log = db.scalar(select(AuditLog).where(AuditLog.action == "project.delete"))
+    assert log is not None and log.entity_id == food_id
+    assert api.get(f"/api/projects/{food_id}/deletion", headers=headers).status_code == 404
+
+
+def test_default_project_and_running_jobs_block_delete(
+    api: TestClient, make_user: MakeUser, db: Session
+) -> None:
+    make_user()
+    headers = login(api, "admin@example.com")
+    seed_base_data(db, demo_channels=True)
+    gaming = default_project_id(db)
+    food = nutrition(db)
+    made = _food_chain(db, food)
+    job = PublishingJob(
+        variant_id=made["variant"].id,
+        channel_id=made["channel"].id,
+        status=PublishingJobStatus.RUNNING,
+        idempotency_key="k-running",
+    )
+    db.add(job)
+    db.commit()
+
+    preview = api.get(f"/api/projects/{gaming}/deletion", headers=headers).json()
+    assert preview["can_delete"] is False
+    assert "Standardbereich" in preview["blockers"][0]
+    r = api.post(f"/api/projects/{gaming}/delete", headers=headers, json={"confirm_name": "Gaming"})
+    assert r.status_code == 409
+
+    r = api.post(
+        f"/api/projects/{food.id}/delete", headers=headers, json={"confirm_name": "Ernährung"}
+    )
+    assert r.status_code == 409
+    assert "Veröffentlichung" in r.json()["detail"]
+
+
+def test_only_admins_delete_projects(api: TestClient, make_user: MakeUser, db: Session) -> None:
+    make_user(email="op@example.com", role=UserRole.OPERATOR)
+    headers = login(api, "op@example.com")
+    food = nutrition(db)
+    db.commit()
+    assert api.get(f"/api/projects/{food.id}/deletion", headers=headers).status_code == 403
+    r = api.post(
+        f"/api/projects/{food.id}/delete", headers=headers, json={"confirm_name": "Ernährung"}
+    )
+    assert r.status_code == 403

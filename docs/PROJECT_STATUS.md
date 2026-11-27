@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 26.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander; A11 Trend-Alarm und Ideenlabor mit Seiten fertig · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; für echte Trend-Alarme `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` setzen
+**Stand:** 27.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander; A11 Trend-Alarm und Ideenlabor mit Seiten fertig · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; für echte Trend-Alarme `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` setzen
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -23,6 +23,14 @@
 | 13 | TikTok, Instagram, Facebook | ✅ abgeschlossen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
+
+## Themenbereiche löschen (27.11.2026)
+
+- Auf jeder Themenbereich-Karte gibt es neben Bearbeiten/Pausieren/Archivieren jetzt **Löschen**. Vorher zeigt ein Feld, was alles mitgelöscht wird (Kanäle, Material, Videos, Beiträge, Ideen, Redaktionsplan usw. mit Anzahl), was erhalten bleibt (Sponsorenanfragen, KI-Protokoll, dann ohne Themenbereich) und wie viele Videos schon online sind (die bleiben auf den Plattformen). Gelöscht wird erst, wenn der Name des Bereichs eingetippt ist.
+- API: `GET /api/projects/{id}/deletion` (Vorschau) und `POST /api/projects/{id}/delete` mit `{"confirm_name": …}`; nur Admin, im Audit-Log (`project.delete` mit Anzahlen).
+- `services/project_delete.py` sucht die betroffenen Zeilen über die Fremdschlüssel aller Tabellen (CASCADE/RESTRICT = mitlöschen, SET NULL = bleibt). Neue Tabellen sind damit automatisch abgedeckt. Gelöscht wird von den Kind-Tabellen aufwärts in einer Transaktion.
+- Sperren: Der Standardbereich (Gaming) lässt sich nur archivieren; während eine Veröffentlichung des Bereichs läuft, wird nicht gelöscht; würde das Löschen Zeilen eines anderen Themenbereichs erreichen, wird abgebrochen.
+- Dateien auf der Platte werden nicht sofort entfernt; sie sind danach verwaist und werden von `python -m app.housekeeping cleanup --apply` aufgeräumt.
 
 ## Hilfe und Anleitungen im Studio (26.11.2026)
 

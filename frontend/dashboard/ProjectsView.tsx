@@ -14,6 +14,7 @@ import type {
   ContentProjectStatus,
   Language,
   PlatformCode,
+  ProjectDeletionPreview,
   TopicSuggestion,
   TopicSuggestions,
 } from "@/lib/types";
@@ -218,7 +219,17 @@ function ProjectCard({
   onChanged: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState<ProjectDeletionPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function askDelete() {
+    try {
+      setDeleting(await api.projectDeletion(project.id));
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   async function setStatus(status: ContentProjectStatus) {
     try {
@@ -273,7 +284,7 @@ function ProjectCard({
         {project.tone ? ` · Ton: ${project.tone}` : ""}
         {project.audience ? ` · Zielgruppe: ${project.audience}` : ""}
       </p>
-      {isAdmin && !editing && (
+      {isAdmin && !editing && !deleting && (
         <div className="form-actions">
           <button
             type="button"
@@ -310,7 +321,24 @@ function ProjectCard({
                 Archivieren
               </button>
             )}
+          <button
+            type="button"
+            className="btn btn-ghost btn-danger"
+            onClick={() => void askDelete()}
+          >
+            Löschen
+          </button>
         </div>
+      )}
+      {deleting && (
+        <DeleteProjectPanel
+          preview={deleting}
+          onCancel={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            onChanged();
+          }}
+        />
       )}
       {editing && (
         <ProjectForm
@@ -326,6 +354,121 @@ function ProjectCard({
       )}
       <ErrorText error={error} />
     </article>
+  );
+}
+
+/** Safety step before deleting: what goes with it, and the name typed as confirmation. */
+function DeleteProjectPanel({
+  preview,
+  onCancel,
+  onDeleted,
+}: {
+  preview: ProjectDeletionPreview;
+  onCancel: () => void;
+  onDeleted: () => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const matches =
+    typed.trim().replace(/\s+/g, " ").toLocaleLowerCase("de-DE") ===
+    preview.name.toLocaleLowerCase("de-DE");
+
+  async function confirm(e: React.FormEvent) {
+    e.preventDefault();
+    if (!matches) return;
+    setBusy(true);
+    try {
+      await api.deleteProject(preview.id, typed);
+      onDeleted();
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  if (!preview.can_delete) {
+    return (
+      <div className="delete-panel" role="alert">
+        <p>
+          <strong>„{preview.name}“ kann gerade nicht gelöscht werden.</strong>
+        </p>
+        {preview.blockers.map((b) => (
+          <p key={b}>{b}</p>
+        ))}
+        <div className="form-actions">
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
+            Schließen
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="delete-panel"
+      aria-label={`${preview.name} löschen`}
+      onSubmit={(e) => void confirm(e)}
+    >
+      <p>
+        <strong>„{preview.name}“ endgültig löschen?</strong> Das lässt sich
+        nicht rückgängig machen. Wenn du den Bereich nur ruhen lassen willst,
+        nimm lieber „Pausieren“ oder „Archivieren“.
+      </p>
+      {preview.items.length > 0 ? (
+        <>
+          <p>Das wird mit gelöscht:</p>
+          <ul className="small">
+            {preview.items.map((i) => (
+              <li key={i.key}>
+                {i.count} × {i.label}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="muted">
+          Der Bereich ist leer. Es wird nur der Themenbereich selbst gelöscht.
+        </p>
+      )}
+      {preview.published > 0 && (
+        <p className="small">
+          {preview.published === 1
+            ? "1 Video ist bereits veröffentlicht. Es bleibt"
+            : `${preview.published} Videos sind bereits veröffentlicht. Sie bleiben`}{" "}
+          auf YouTube, TikTok usw. online; nur die Einträge im Studio
+          verschwinden.
+        </p>
+      )}
+      {preview.kept.length > 0 && (
+        <p className="small muted">
+          Bleibt erhalten (dann ohne Themenbereich):{" "}
+          {preview.kept.map((k) => `${k.count} × ${k.label}`).join(", ")}
+        </p>
+      )}
+      <label>
+        Zum Bestätigen den Namen „{preview.name}“ eintippen
+        <input
+          autoComplete="off"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+        />
+      </label>
+      <div className="form-actions">
+        <button
+          type="submit"
+          className="btn btn-danger-solid"
+          disabled={!matches || busy}
+        >
+          {busy ? "Wird gelöscht …" : "Endgültig löschen"}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>
+          Abbrechen
+        </button>
+      </div>
+      <ErrorText error={error} />
+    </form>
   );
 }
 

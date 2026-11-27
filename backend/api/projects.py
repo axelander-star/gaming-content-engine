@@ -1,4 +1,4 @@
-"""Content projects (topic areas): list, create, edit, pause/archive.
+"""Content projects (topic areas): list, create, edit, pause/archive, delete.
 
 Every channel and every piece of content belongs to exactly one project; see
 ``services/projects.py`` for the guard that keeps content on its project's
@@ -20,7 +20,7 @@ from models.channels import Channel
 from models.production import GameplayFile, Variant
 from models.projects import DEFAULT_PROJECT_SLUG, ContentProject
 from models.publishing import Post
-from services import audit, projects, topic_suggest
+from services import audit, project_delete, projects, topic_suggest
 from services.queue import get_redis
 
 router = APIRouter(prefix="/projects", tags=["projects"], dependencies=[Depends(csrf_protect)])
@@ -268,6 +268,78 @@ def update_project(project_id: int, body: ProjectPatch, admin: Admin, db: DbSess
     )
     db.commit()
     return _out(db, project)
+
+
+class DeletionItem(BaseModel):
+    key: str
+    label: str
+    count: int
+
+
+class DeletionPreviewOut(BaseModel):
+    id: int
+    name: str
+    can_delete: bool
+    blockers: list[str]
+    #: everything that is deleted together with the topic area
+    items: list[DeletionItem]
+    #: rows that stay but no longer belong to a topic area
+    kept: list[DeletionItem]
+    #: posts that are online on a platform; they stay there
+    published: int
+
+
+class DeleteIn(BaseModel):
+    #: the project's name, typed by the user as confirmation
+    confirm_name: str = Field(min_length=1, max_length=120)
+
+
+def _plan(db: DbSession, project_id: int) -> project_delete.DeletionPlan:
+    try:
+        return project_delete.plan(db, project_id)
+    except LookupError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Content project not found") from exc
+
+
+def _preview(plan: project_delete.DeletionPlan) -> DeletionPreviewOut:
+    return DeletionPreviewOut(
+        id=plan.project_id,
+        name=plan.project_name,
+        can_delete=not plan.blockers,
+        blockers=plan.blockers,
+        items=[DeletionItem(key=k, label=lbl, count=n) for k, lbl, n in plan.summary()],
+        kept=[DeletionItem(key=k, label=lbl, count=n) for k, lbl, n in plan.kept_summary()],
+        published=plan.published,
+    )
+
+
+@router.get("/{project_id}/deletion", response_model=DeletionPreviewOut)
+def deletion_preview(project_id: int, _: Admin, db: DbSession) -> DeletionPreviewOut:
+    """What deleting the topic area would remove, shown before the user confirms."""
+    return _preview(_plan(db, project_id))
+
+
+@router.post("/{project_id}/delete", status_code=204)
+def delete_project(project_id: int, body: DeleteIn, admin: Admin, db: DbSession) -> None:
+    """Delete the topic area and everything in it; the name must be typed as confirmation."""
+    plan = _plan(db, project_id)
+    if " ".join(body.confirm_name.split()).casefold() != plan.project_name.casefold():
+        raise HTTPException(422, detail="Der eingegebene Name stimmt nicht überein.")
+    if plan.blockers:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=plan.blockers[0])
+    project = _get(db, project_id)
+    before = _snapshot(project)
+    project_delete.execute(db, plan)
+    audit.record(
+        db,
+        "project.delete",
+        user_id=admin.id,
+        entity_type="content_projects",
+        entity_id=project_id,
+        before=before,
+        after={"deleted": {k: n for k, _, n in plan.summary()}, "kept": dict(plan.kept)},
+    )
+    db.commit()
 
 
 class TopicSuggestionOut(BaseModel):
