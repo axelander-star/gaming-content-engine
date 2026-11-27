@@ -233,7 +233,7 @@ def test_api_research_again(
     r = api.post(f"/api/channel-setup/tasks/{task['id']}/research", headers=headers)
     assert r.status_code == 200, r.text
     assert r.json()["researched_at"]
-    # "Von der KI neu erstellen" again: another name and another look each time
+    # all at once again: another name and another look each time
     first = r.json()["display_name"]
     first_avatar = api.get(f"/api/channel-setup/tasks/{task['id']}/avatar.png", headers=headers)
     r = api.post(f"/api/channel-setup/tasks/{task['id']}/research", headers=headers)
@@ -244,3 +244,75 @@ def test_api_research_again(
     r = api.post(f"/api/channel-setup/tasks/{task['id']}/dismiss", headers=headers)
     r = api.post(f"/api/channel-setup/tasks/{task['id']}/research", headers=headers)
     assert r.status_code == 422
+
+
+def test_api_research_single_fields(
+    api: TestClient, db: Session, settings: Settings, make_user: object
+) -> None:
+    """Each AI symbol renews only its own field; pictures change together."""
+    project = watches(db)
+    project.subtopics = ["Automatik", "Taucheruhren"]
+    db.commit()
+    api.app.dependency_overrides[get_settings] = lambda: settings  # type: ignore[attr-defined]
+    make_user()  # type: ignore[operator]
+    headers = login(api, "admin@example.com")
+    r = api.post("/api/channel-setup/prepare", json={"project_id": project.id}, headers=headers)
+    task = next(t for t in r.json() if t["platform"] == "youtube")
+    url = f"/api/channel-setup/tasks/{task['id']}/research"
+
+    def pics() -> tuple[bytes, bytes]:
+        base = f"/api/channel-setup/tasks/{task['id']}"
+        return (
+            api.get(f"{base}/avatar.png", headers=headers).content,
+            api.get(f"{base}/banner.png", headers=headers).content,
+        )
+
+    before, pics_before = task, pics()
+
+    # name: only the name changes; the pictures show the new name
+    r = api.post(f"{url}?part=name", headers=headers)
+    assert r.status_code == 200, r.text
+    after = r.json()
+    assert after["display_name"] != before["display_name"]
+    assert (after["handle"], after["bio"]) == (before["handle"], before["bio"])
+    assert pics() != pics_before
+
+    # handle: matches the current name, nothing else changes
+    r = api.post(f"{url}?part=handle", headers=headers)
+    assert r.status_code == 200, r.text
+    h = r.json()
+    assert h["handle"] != after["handle"]
+    assert (h["display_name"], h["bio"]) == (after["display_name"], after["bio"])
+    name_key = channel_setup.normalize_handle(h["display_name"], PlatformCode.YOUTUBE)
+    assert h["handle"].startswith(name_key)
+    r = api.post(f"{url}?part=handle", headers=headers)
+    assert r.json()["handle"] != h["handle"]  # every click a new one
+
+    # bio: a different bio each click, name and handle stay
+    bios = {after["bio"]}
+    for _ in range(3):
+        r = api.post(f"{url}?part=bio", headers=headers)
+        assert r.status_code == 200, r.text
+        b = r.json()
+        assert b["bio"] not in bios
+        assert b["display_name"] == h["display_name"]
+        bios.add(b["bio"])
+
+    # images: avatar and banner both new, texts unchanged
+    texts = (b["display_name"], b["handle"], b["bio"])
+    p1 = pics()
+    r = api.post(f"{url}?part=images", headers=headers)
+    assert r.status_code == 200, r.text
+    p2 = pics()
+    assert p2[0] != p1[0] and p2[1] != p1[1]
+    assert (r.json()["display_name"], r.json()["handle"], r.json()["bio"]) == texts
+
+    assert api.post(f"{url}?part=email", headers=headers).status_code == 422
+
+
+def test_next_after_rotates() -> None:
+    assert channel_setup._next_after("b", ["a", "b", "c"]) == "c"
+    assert channel_setup._next_after("c", ["a", "b", "c"]) == "a"
+    assert channel_setup._next_after("x", ["a", "b"]) == "a"
+    assert channel_setup._next_after("a", ["a", "a"]) is None
+    assert channel_setup._next_after("A", ["a", "b"], key=str.lower) == "b"

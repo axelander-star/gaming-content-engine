@@ -81,6 +81,7 @@ Alexander hat am 16.11. einen größeren Ausbau freigegeben. Plan und Reihenfolg
 | N6 | Themenbereich-Formular: „Von der KI ausfüllen“ füllt Unterthemen, Zielgruppe, Tonalität und Beschreibung aus aktuellen YouTube-Trends; erneuter Klick gibt einen neuen Vorschlag | ✅ abgeschlossen |
 | N7 | Kanal-Assistent: Knopf „Von der KI neu erstellen“ (Name, Benutzername, Bio, Profilbild, Banner auf einen Klick, jeder Klick ein neuer Vorschlag mit neuen Farben und Muster); Vorlagentexte nutzen Unterthemen des Themenbereichs | ✅ abgeschlossen |
 | N8 | Anmeldung im Studio bleibt bestehen: im Privatbetrieb (ein Benutzer hinter Cloudflare Access) ein Jahr, sonst gleitend verlängert; abgelaufene Anmeldung führt zur Login-Seite statt „CSRF check failed“ | ✅ abgeschlossen |
+| N9 | Kanal-Assistent: statt des großen Knopfs ein KI-Symbol je Feld. Name, Benutzername (passend zum Namen) und Bio einzeln neu erstellen; ein gemeinsames KI-Symbol gestaltet Profilbild und Banner zusammen neu (gleiche Farben und gleiches Muster). Jeder Klick gibt einen neuen Vorschlag (`POST /channel-setup/tasks/{id}/research?part=…`) | ✅ abgeschlossen |
 
 **N2 Kanalnamen aus Marktdaten (25.11.2026)** (`services/name_research.py`, `services/channel_setup.py`, `api/channel_setup.py`, Spalten `channel_setup_tasks.name_options` und `.research`, Migration `5a8fd8799082`):
 - Wunsch von Alexander: Die KI soll Kontonamen aus echten Daten, Fakten und Zahlen ableiten und mit den Trends gehen.

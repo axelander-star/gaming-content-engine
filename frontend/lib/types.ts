@@ -1707,6 +1707,9 @@ export interface ProjectCoverage {
   missing: number;
 }
 
+/** What one AI button in the channel assistant renews. */
+export type ChannelSetupAiPart = "all" | "name" | "handle" | "bio" | "images";
+
 export interface ChannelSetupTask {
   id: number;
   content_project_id: number;

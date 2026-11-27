@@ -226,7 +226,7 @@ export const HELP_GUIDES: HelpGuide[] = [
       "Beim Verbinden mit dem richtigen Konto anmelden und den Zugriff erlauben.",
     ],
     tips: [
-      "Gefällt dir etwas nicht, drück „Von der KI neu erstellen“: Name, Benutzername, Bio, Profilbild und Banner kommen neu. Jeder Klick gibt einen neuen Vorschlag. Einzelnes änderst du mit „Werte ändern“.",
+      "Gefällt dir etwas nicht, drück das KI-Symbol (Zauberstab) daneben: Es erstellt nur dieses Feld neu, also Name, Benutzername oder Bio. Das KI-Symbol neben dem Profilbild gestaltet Profilbild und Banner zusammen neu, passend zueinander. Jeder Klick gibt einen neuen Vorschlag. Selbst ändern geht mit „Werte ändern“.",
     ],
   },
   {

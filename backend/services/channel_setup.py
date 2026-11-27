@@ -27,6 +27,7 @@ import logging
 import re
 import secrets
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -328,6 +329,7 @@ def _prompt(
     platform: PlatformCode,
     language: Language,
     ctx: MarketContext | None = None,
+    note: str = "",
 ) -> str:
     rules = RULES[platform]
     lang = "German" if language == Language.DE else "English"
@@ -344,7 +346,7 @@ def _prompt(
         f"the data it is based on), handles "
         f"(list of 3 handles, {rules.handle_min}-{rules.handle_max} chars, only a-z 0-9 and "
         f"'{rules.handle_chars}'), bio (max {rules.bio_max} chars, max 2 sentences), "
-        f"tagline (max 45 chars, for the banner)."
+        f"tagline (max 45 chars, for the banner)." + (f"\n{note}" if note else "")
     )
 
 
@@ -367,8 +369,11 @@ def write_texts(
     language: Language,
     user_id: int | None = None,
     ctx: MarketContext | None = None,
+    note: str = "",
 ) -> Texts:
-    """Name, handles and bio from the AI (mock in test mode); template if that fails."""
+    """Name, handles and bio from the AI (mock in test mode); template if that fails.
+
+    ``note`` is an extra instruction, e.g. which values to replace with new ones."""
     fallback = _drop_taken(template_texts(project, platform, language, ctx), ctx)
     mock = json.dumps(
         {
@@ -387,7 +392,7 @@ def write_texts(
             ai.AIRequest(
                 purpose="channel_setup",
                 tier="text",
-                messages=[ai.AIMessage("user", _prompt(project, platform, language, ctx))],
+                messages=[ai.AIMessage("user", _prompt(project, platform, language, ctx, note))],
                 system=SYSTEM,
                 max_tokens=900,
                 mock=lambda _req: mock,
@@ -548,7 +553,7 @@ def prepare_one(
         name_options=[
             {"name": _clip(o["name"], rules.name_max), "reason": o["reason"]} for o in texts.options
         ],
-        research=ctx.to_json(),
+        research={**ctx.to_json(), "tagline": texts.tagline},
         # set for an existing, not connected channel (e.g. a seed placeholder): finishing
         # the task turns that channel into the real one instead of adding a second one
         channel_id=channel_id,
@@ -657,42 +662,180 @@ def prepare_for_channel(
     return task
 
 
-def research_again(
-    session: Session, settings: Settings, task: ChannelSetupTask, user_id: int | None = None
-) -> ChannelSetupTask:
-    """ "Von der KI neu erstellen": fresh market data, new name, handles, bio and pictures.
+#: what a single AI button renews: everything, or one field / both pictures together
+PARTS = ("all", "name", "handle", "bio", "images")
 
-    Every click gives another proposal: a name equal to the current one is swapped
-    for the next idea, and the pictures get a new colour pair and pattern. The
-    e-mail address stays."""
+
+def _tagline(task: ChannelSetupTask, project: ContentProject) -> str:
+    """The banner's second line: the one the AI wrote last, else the template's."""
+    stored = (task.research or {}).get("tagline")
+    if stored:
+        return str(stored)
+    return template_texts(project, task.platform, task.language).tagline
+
+
+def _next_after(
+    current: str, candidates: list[str], key: Callable[[str], str] | None = None
+) -> str | None:
+    """The candidate after ``current`` in the list (wrapping), never ``current`` itself.
+
+    Each click on an AI button moves one step further, so repeated clicks show
+    different proposals even when the AI (or the template) answers the same."""
+
+    def k(v: str) -> str:
+        return key(v) if key else v
+
+    seen: list[str] = []
+    for c in candidates:
+        if c and k(c) not in [k(x) for x in seen]:
+            seen.append(c)
+    keys = [k(c) for c in seen]
+    if not seen:
+        return None
+    if k(current) not in keys:
+        return seen[0]
+    if len(seen) == 1:
+        return None
+    return seen[(keys.index(k(current)) + 1) % len(seen)]
+
+
+def _bio_variants(project: ContentProject, language: Language) -> list[str]:
+    """Hand-written bio patterns as a fallback when the AI repeats itself or is off."""
+    topic = project.name.strip()
+    subs = [str(t).strip() for t in project.subtopics or [] if str(t).strip()]
+    words = ", ".join(subs[:3]) if subs else topic
+    if language == Language.DE:
+        return [
+            f"{words}: kurz, verblüffend und ehrlich. Jeden Tag neue Shorts.",
+            f"Hier lernst du in unter einer Minute etwas Neues über {topic}. Jeden Tag ein Short.",
+            f"{topic} ohne Umwege: {words}. Folge für deinen täglichen Aha-Moment.",
+            f"Kurze Videos über {words}. Geprüft, verständlich und nie langweilig.",
+        ]
+    return [
+        f"{words}: short, surprising and honest. New shorts every day.",
+        f"Learn something new about {topic} in under a minute. A new short every day.",
+        f"{topic} without the fluff: {words}. Follow for your daily aha moment.",
+        f"Short videos about {words}. Checked, clear and never boring.",
+    ]
+
+
+def _handles_for_name(name: str, platform: PlatformCode, language: Language) -> list[str]:
+    """User names that match the channel name, e.g. "Krasse Fakten" -> "krassefakten"."""
+    base = normalize_handle(name, platform)
+    if not base:
+        return []
+    suffix = ["kompakt", "kurz", "_de"] if language == Language.DE else ["daily", "shorts", "_en"]
+    out = [base] + [normalize_handle(f"{base}{s}", platform) for s in suffix]
+    return [h for h in out if h]
+
+
+def research_again(
+    session: Session,
+    settings: Settings,
+    task: ChannelSetupTask,
+    user_id: int | None = None,
+    part: str = "all",
+) -> ChannelSetupTask:
+    """AI buttons of the channel assistant: renew one field, both pictures, or everything.
+
+    * ``name``: fresh market data and a new name; the pictures keep their colours
+      but show the new name.
+    * ``handle``: new user names that match the current name.
+    * ``bio``: a new bio.
+    * ``images``: a new colour pair and pattern for profile picture and banner
+      together, so both still match each other.
+    * ``all``: everything at once (name, user names, bio and pictures).
+
+    Every click gives another proposal. The e-mail address always stays."""
+    if part not in PARTS:
+        raise SetupError("Unbekanntes Feld.")
     if task.status != ChannelSetupStatus.OPEN:
         raise SetupError("Die Aufgabe ist schon abgeschlossen.")
     project = task.content_project
-    ctx = market_context(session, settings, project, task.language)
-    texts = write_texts(session, settings, project, task.platform, task.language, user_id, ctx)
-    previous = norm_name(task.display_name)
-    if norm_name(texts.display_name) == previous:
-        fresh = [o for o in texts.options if norm_name(o["name"]) != previous]
-        if fresh:
-            old = {"name": texts.display_name, "reason": "bisheriger Vorschlag"}
-            texts.display_name = fresh[0]["name"]
-            texts.options = [*fresh[1:], old]
     rules = RULES[task.platform]
-    handles = _unique_handles(texts, task.platform)
-    task.display_name = _clip(texts.display_name, rules.name_max)
-    task.handle, task.alt_handles = handles[0], handles[1:]
-    task.handle_check = check_handles(settings, task.platform, handles)
-    free = [h for h in handles if task.handle_check.get(h) == "free"]
-    if task.handle_check.get(task.handle) == "taken" and free:
-        task.handle = free[0]
-        task.alt_handles = [h for h in handles if h != free[0]]
-    task.bio = _clip(texts.bio, rules.bio_max)
+
+    if part == "images":
+        research = dict(task.research or {})
+        research["look"] = f"{project.slug}-{secrets.token_hex(3)}"
+        task.research = research
+        _images(settings, task, project, _tagline(task, project))
+        _record_research(session, task, user_id, part, live=bool(research.get("live")))
+        session.commit()
+        return task
+
+    ctx = market_context(session, settings, project, task.language)
+    note = {
+        "all": "",
+        "name": f'The operator wants a different display_name than "{task.display_name}".',
+        "handle": (
+            f'Keep the channel name "{task.display_name}". The handles must match this name '
+            f'and differ from "{task.handle}".'
+        ),
+        "bio": (
+            f'Keep the channel name "{task.display_name}". Write a different bio than: "{task.bio}"'
+        ),
+    }[part]
+    texts = write_texts(
+        session, settings, project, task.platform, task.language, user_id, ctx, note
+    )
+    research = {**(task.research or {}), **ctx.to_json(), "tagline": texts.tagline}
+
+    if part in ("all", "name"):
+        previous = norm_name(task.display_name)
+        if norm_name(texts.display_name) == previous:
+            fresh = [o for o in texts.options if norm_name(o["name"]) != previous]
+            if fresh:
+                old = {"name": texts.display_name, "reason": "bisheriger Vorschlag"}
+                texts.display_name = fresh[0]["name"]
+                texts.options = [*fresh[1:], old]
+        task.display_name = _clip(texts.display_name, rules.name_max)
+        task.name_options = [
+            {"name": _clip(o["name"], rules.name_max), "reason": o["reason"]} for o in texts.options
+        ]
+
+    if part in ("all", "handle"):
+        if part == "all":
+            handles = _unique_handles(texts, task.platform)
+        else:
+            # only user names that fit the current name: the AI's ideas that contain
+            # it, plus simple variants of the name itself
+            own = _handles_for_name(task.display_name, task.platform, task.language)
+            ai_handles = _unique_handles(texts, task.platform)
+            key = own[0].replace(".", "").replace("_", "") if own else ""
+            fitting = [h for h in ai_handles if key and key in h.replace(".", "").replace("_", "")]
+            pool = [*fitting, *own] or ai_handles
+            pick = _next_after(task.handle, pool) or task.handle
+            rest = [h for h in dict.fromkeys(pool) if h != pick]
+            handles = [pick, *rest][:4]
+        task.handle, task.alt_handles = handles[0], handles[1:]
+        task.handle_check = check_handles(settings, task.platform, handles)
+        free = [h for h in handles if task.handle_check.get(h) == "free"]
+        if task.handle_check.get(task.handle) == "taken" and free:
+            task.handle = free[0]
+            task.alt_handles = [h for h in handles if h != free[0]]
+
+    if part in ("all", "bio"):
+        bio = _clip(texts.bio, rules.bio_max)
+        if part == "bio":
+            pool = [bio, *(_clip(b, rules.bio_max) for b in _bio_variants(project, task.language))]
+            bio = _next_after(task.bio, pool, key=lambda b: " ".join(b.split()).casefold()) or bio
+        task.bio = bio
+
     task.text_source = texts.source
-    task.name_options = [
-        {"name": _clip(o["name"], rules.name_max), "reason": o["reason"]} for o in texts.options
-    ]
-    task.research = {**ctx.to_json(), "look": f"{project.slug}-{secrets.token_hex(3)}"}
-    _images(settings, task, project, texts.tagline)
+    if part == "all":
+        research["look"] = f"{project.slug}-{secrets.token_hex(3)}"
+    task.research = research
+    if part in ("all", "name"):
+        # "all" gets a new look; a new name keeps the colours and only changes the lettering
+        _images(settings, task, project, texts.tagline)
+    _record_research(session, task, user_id, part, live=ctx.live)
+    session.commit()
+    return task
+
+
+def _record_research(
+    session: Session, task: ChannelSetupTask, user_id: int | None, part: str, live: bool
+) -> None:
     audit.record(
         session,
         "channel_setup.research",
@@ -700,10 +843,8 @@ def research_again(
         agent=None if user_id else "channel_assistant",
         entity_type="channel_setup_tasks",
         entity_id=task.id,
-        after={"display_name": task.display_name, "live": ctx.live},
+        after={"part": part, "display_name": task.display_name, "live": live},
     )
-    session.commit()
-    return task
 
 
 def update(
@@ -726,8 +867,7 @@ def update(
         if name != task.display_name:
             task.display_name = name
             project = task.content_project
-            tagline = template_texts(project, task.platform, task.language).tagline
-            _images(settings, task, project, tagline)
+            _images(settings, task, project, _tagline(task, project))
     if handle is not None:
         new = normalize_handle(handle, task.platform)
         if new != task.handle:

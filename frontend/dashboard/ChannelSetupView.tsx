@@ -6,7 +6,7 @@
 // and connects the account afterwards.
 
 import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { Icon } from "@/components/icons";
@@ -15,6 +15,7 @@ import { api } from "@/lib/api";
 import { PLATFORM_LABELS } from "@/lib/labels";
 import { hasRole } from "@/lib/roles";
 import type {
+  ChannelSetupAiPart,
   ChannelSetupTask,
   CoverageSlot,
   MailRoutingCheck,
@@ -32,16 +33,50 @@ const SLOT: Record<SlotState, [string, "ok" | "warn" | "info" | "danger"]> = {
   missing: ["Fehlt", "danger"],
 };
 
+/** Small AI symbol: renews only the value next to it. */
+function AiButton({
+  label,
+  hint,
+  thinking,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  hint: string;
+  thinking: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="btn cs-ai-btn"
+      aria-label={label}
+      aria-busy={thinking}
+      title={hint}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {thinking ? <span className="run-spinner" aria-hidden="true" /> : <Icon name="wand" />}
+      <span className="cs-ai-tag" aria-hidden="true">
+        KI
+      </span>
+    </button>
+  );
+}
+
 function CopyField({
   label,
   value,
   id,
   multiline = false,
+  ai,
 }: {
   label: string;
   value: string;
   id: string;
   multiline?: boolean;
+  ai?: ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
@@ -64,6 +99,7 @@ function CopyField({
         ) : (
           <input id={id} readOnly value={value} onFocus={(e) => e.currentTarget.select()} />
         )}
+        {ai}
         <button type="button" className="btn btn-small" onClick={() => void copy()}>
           {copied ? "Kopiert" : "Kopieren"}
         </button>
@@ -129,7 +165,7 @@ function TaskCard({
   const [handle, setHandle] = useState(task.handle);
   const [bio, setBio] = useState(task.bio);
   const [busy, setBusy] = useState(false);
-  const [thinking, setThinking] = useState(false);
+  const [thinking, setThinking] = useState<ChannelSetupAiPart | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stamp, setStamp] = useState(0);
   const title = `${task.platform_label} ${LANG[task.language]}: ${task.content_project}`;
@@ -172,16 +208,27 @@ function TaskCard({
     );
   }
 
-  // one click: fresh market data, new name, user name, bio, profile picture and banner
-  function aiRedo() {
-    setThinking(true);
+  // one AI symbol per field: only that value is created anew (pictures together)
+  function aiRedo(part: ChannelSetupAiPart) {
+    setThinking(part);
     void run(async () => {
-      const fresh = await api.researchChannelSetup(task.id);
+      const fresh = await api.researchChannelSetup(task.id, part);
       setName(fresh.display_name);
       setHandle(fresh.handle);
       setBio(fresh.bio);
-    }).finally(() => setThinking(false));
+    }).finally(() => setThinking(null));
   }
+
+  const aiFor = (part: ChannelSetupAiPart, label: string, hint: string) =>
+    canEdit && !editing ? (
+      <AiButton
+        label={label}
+        hint={hint}
+        thinking={thinking === part}
+        disabled={busy}
+        onClick={() => aiRedo(part)}
+      />
+    ) : null;
 
   const img = (kind: "avatar" | "banner") => `${api.channelSetupImage(task.id, kind)}?v=${stamp}`;
 
@@ -195,19 +242,6 @@ function TaskCard({
           {task.text_source === "mock" && <Badge tone="info">Testtexte</Badge>}
         </div>
         <div className="row-actions">
-          {canEdit && !editing && (
-            <button
-              type="button"
-              className="btn ai-fill-btn"
-              disabled={busy}
-              aria-busy={thinking}
-              title="Die KI wertet Trends und Konkurrenz aus und erstellt Name, Benutzername, Bio, Profilbild und Banner neu. Jeder Klick gibt einen neuen Vorschlag."
-              onClick={aiRedo}
-            >
-              {thinking ? <span className="run-spinner" aria-hidden="true" /> : <Icon name="wand" />}
-              {thinking ? "KI erstellt …" : "Von der KI neu erstellen"}
-            </button>
-          )}
           <a className="btn btn-primary" href={task.signup_url} target="_blank" rel="noreferrer">
             {task.platform === "youtube" ? "Kanal bei YouTube erstellen" : `Bei ${task.platform_label} registrieren`}
           </a>
@@ -216,17 +250,29 @@ function TaskCard({
 
       <div className="cs-task-body">
         <div className="cs-images">
-          {task.has_avatar && (
-            <figure>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="cs-avatar" src={img("avatar")} alt={`Profilbild ${task.display_name}`} />
-              <figcaption>
-                <a href={img("avatar")} download className="small">
-                  Profilbild laden
-                </a>
-              </figcaption>
-            </figure>
-          )}
+          <div className="cs-avatar-row">
+            {task.has_avatar && (
+              <figure>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="cs-avatar" src={img("avatar")} alt={`Profilbild ${task.display_name}`} />
+                <figcaption>
+                  <a href={img("avatar")} download className="small">
+                    Profilbild laden
+                  </a>
+                </figcaption>
+              </figure>
+            )}
+            {(task.has_avatar || task.has_banner) &&
+              aiFor(
+                "images",
+                task.has_banner
+                  ? "Profilbild und Banner von der KI neu gestalten"
+                  : "Profilbild von der KI neu gestalten",
+                task.has_banner
+                  ? "Die KI gestaltet Profilbild und Banner zusammen neu: neue Farben und neues Muster, beide passend zueinander. Jeder Klick gibt einen neuen Entwurf."
+                  : "Die KI gestaltet das Profilbild neu: neue Farben und neues Muster. Jeder Klick gibt einen neuen Entwurf.",
+              )}
+          </div>
           {task.has_banner && (
             <figure>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -265,11 +311,25 @@ function TaskCard({
           </form>
         ) : (
           <div className="cs-fields">
-            <CopyField id={`cs-name-${task.id}`} label="Name" value={task.display_name} />
+            <CopyField
+              id={`cs-name-${task.id}`}
+              label="Name"
+              value={task.display_name}
+              ai={aiFor(
+                "name",
+                "Neuen Namen von der KI erstellen",
+                "Die KI sucht mit aktuellen Trends einen neuen Namen passend zu Themenbereich und Unterthemen. Profilbild und Banner zeigen danach den neuen Namen.",
+              )}
+            />
             <CopyField
               id={`cs-handle-${task.id}`}
               label={`Benutzername (${handleHint(task, task.handle)})`}
               value={task.handle}
+              ai={aiFor(
+                "handle",
+                "Neuen Benutzernamen von der KI erstellen",
+                "Die KI schlägt einen neuen Benutzernamen vor, der zum Namen passt.",
+              )}
             />
             {task.alt_handles.length > 0 && (
               <p className="muted small">
@@ -277,7 +337,17 @@ function TaskCard({
                 {task.alt_handles.map((h) => `${h} (${handleHint(task, h)})`).join(", ")}
               </p>
             )}
-            <CopyField id={`cs-bio-${task.id}`} label="Bio" value={task.bio} multiline />
+            <CopyField
+              id={`cs-bio-${task.id}`}
+              label="Bio"
+              value={task.bio}
+              multiline
+              ai={aiFor(
+                "bio",
+                "Neue Bio von der KI erstellen",
+                "Die KI schreibt eine neue Bio passend zu Themenbereich und Unterthemen.",
+              )}
+            />
             {task.email ? (
               <CopyField
                 id={`cs-mail-${task.id}`}
