@@ -171,7 +171,11 @@ def connect(
         },
     )
     if not tokens.get("refresh_token"):
-        raise YouTubeError("Google hat keinen Refresh-Token geliefert; bitte erneut verbinden")
+        raise YouTubeError(
+            "Google hat keinen Refresh-Token geliefert; bitte erneut verbinden",
+            None,
+            "no_refresh_token",
+        )
     now = datetime.now(UTC)
     cred = session.scalar(
         select(ChannelCredential).where(ChannelCredential.channel_id == channel.id)
@@ -194,11 +198,34 @@ def own_channel(access_token: str) -> dict[str, Any]:
             headers={"Authorization": f"Bearer {access_token}"},
         )
     if res.status_code >= 400:
-        raise YouTubeError(f"Kanal nicht lesbar ({res.status_code})", res.status_code)
+        reason = api_error_reason(_json(res))
+        if reason == "youtubeSignupRequired":
+            raise YouTubeError(
+                "Zu diesem Google-Konto gibt es keinen YouTube-Kanal", res.status_code, "no_channel"
+            )
+        raise YouTubeError(
+            f"Kanal nicht lesbar ({res.status_code}, {reason})", res.status_code, reason
+        )
     items = _json(res).get("items") or []
     if not items:
-        raise YouTubeError("Zu diesem Google-Konto gibt es keinen YouTube-Kanal")
+        raise YouTubeError(
+            "Zu diesem Google-Konto gibt es keinen YouTube-Kanal", None, "no_channel"
+        )
     return dict(items[0])
+
+
+def api_error_reason(payload: dict[str, Any]) -> str:
+    """Google's machine readable reason, e.g. ``accessNotConfigured`` or ``SERVICE_DISABLED``."""
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return str(error or "")
+    for key in ("errors", "details"):
+        items = error.get(key)
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, dict) and item.get("reason"):
+                    return str(item["reason"])
+    return str(error.get("status") or "")
 
 
 def access_token(session: Session, settings: Settings, cred: ChannelCredential) -> str:

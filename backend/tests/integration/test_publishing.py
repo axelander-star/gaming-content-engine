@@ -553,3 +553,51 @@ def test_connect_needs_a_configured_client(
     h = login(api, "admin@example.com")
     res = api.post(f"/api/channels/{chain.channel.id}/connect", headers=h)
     assert res.status_code in (409, 400)
+
+
+def test_connect_failure_names_the_reason(
+    db: Session,
+    settings: Settings,
+    google: FakeGoogle,
+    api: TestClient,
+    make_user: Callable[..., User],
+) -> None:
+    """A failed connection tells the dashboard why (no channel, API off, wrong client)."""
+    api.app.dependency_overrides[get_settings] = lambda: settings  # type: ignore[attr-defined]
+    build_chain(db)
+    channel = db.scalar(select(Channel).where(Channel.platform.has(code=PlatformCode.YOUTUBE)))
+    assert channel is not None
+    make_user("admin@example.com", UserRole.ADMIN)
+    db.commit()
+    h = login(api, "admin@example.com")
+
+    def attempt() -> str:
+        res = api.post(f"/api/channels/{channel.id}/connect", headers=h)
+        state = parse_qs(urlparse(res.json()["url"]).query)["state"][0]
+        cb = api.get("/api/oauth/youtube/callback", params={"state": state, "code": "4/abc"},
+                     follow_redirects=False)  # fmt: skip
+        assert cb.status_code == 303
+        return str(cb.headers["location"])
+
+    google.on("POST", youtube.TOKEN_URL, token_response())
+    google.on("GET", f"{youtube.API}/channels", httpx.Response(200, json={"items": []}))
+    assert attempt().endswith("youtube=failed&reason=no_channel")
+
+    disabled = {
+        "error": {
+            "code": 403,
+            "message": "YouTube Data API v3 has not been used in project 1 or it is disabled.",
+            "errors": [{"reason": "accessNotConfigured"}],
+            "status": "PERMISSION_DENIED",
+        }
+    }
+    google.routes.clear()
+    google.on("POST", youtube.TOKEN_URL, token_response())
+    google.on("GET", f"{youtube.API}/channels", httpx.Response(403, json=disabled))
+    assert attempt().endswith("youtube=failed&reason=api_disabled")
+
+    google.routes.clear()
+    google.on("POST", youtube.TOKEN_URL, httpx.Response(401, json={"error": "invalid_client"}))
+    assert attempt().endswith("youtube=failed&reason=client")
+    db.refresh(channel)
+    assert channel.auth_status == ChannelAuthStatus.NOT_CONNECTED
