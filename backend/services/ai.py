@@ -11,6 +11,11 @@ Two providers:
 
 * ``mock``   – default. No network, no cost; the caller may pass ``mock`` to get
                useful domain data back, otherwise a short placeholder text.
+* ``cloudflare`` – a free open model on Cloudflare Workers AI (official REST API,
+               ``CLOUDFLARE_TEXT_MODEL``, default Llama 3.3 70B). Uses the account and
+               token of the image AI. The Workers Free plan has a daily free allowance
+               and answers with an error when it is used up, so nothing is charged and
+               nothing is booked; no paid-call switch or budget is needed.
 * ``claude`` – the Claude API through the official ``anthropic`` SDK. Used only if
                *all* of these hold: the operator selected ``claude`` in the
                settings, ``ANTHROPIC_API_KEY`` is set on the server,
@@ -37,6 +42,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Literal
 
+import httpx
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
@@ -50,7 +56,8 @@ from services.controls import effective_controls, get_operations
 Tier = Literal["text", "reasoning"]
 MOCK = "mock"
 CLAUDE = "claude"
-PROVIDERS = (MOCK, CLAUDE)
+CLOUDFLARE = "cloudflare"
+PROVIDERS = (MOCK, CLAUDE, CLOUDFLARE)
 
 #: Advisory lock key that serialises the cap check of live calls.
 _CAP_LOCK = 0x41_49_43_41_50  # "AICAP"
@@ -286,7 +293,19 @@ def selected_provider(session: Session) -> str:
 
 def _live_problem(session: Session, settings: Settings) -> tuple[str, str] | None:
     """Why a live call cannot happen right now (code, German reason) – or ``None``."""
-    if selected_provider(session) != CLAUDE:
+    provider = selected_provider(session)
+    if provider == CLOUDFLARE:
+        if not (
+            settings.cloudflare_ai_account_id and settings.cloudflare_ai_token.get_secret_value()
+        ):
+            return (
+                "no_key",
+                "Cloudflare-Zugang fehlt (CLOUDFLARE_AI_ACCOUNT_ID und CLOUDFLARE_AI_TOKEN)",
+            )
+        if effective_controls(session, settings).emergency_stop:
+            return ("emergency_stop", "Not-Aus ist aktiv")
+        return None
+    if provider != CLAUDE:
         return ("mock", "KI-Anbieter ist auf Test (Mock) gestellt")
     if not settings.anthropic_api_key.get_secret_value():
         return ("no_key", "Kein Claude-API-Schlüssel auf dem Server hinterlegt")
@@ -313,9 +332,15 @@ def status(session: Session, settings: Settings) -> AIStatus:
         spent_usd=_q(spent),
         reserved_usd=_q(reserved),
         remaining_usd=_q(max(Decimal(0), cap - spent - reserved)),
-        model_text=settings.ai_model_text,
-        model_reasoning=settings.ai_model_reasoning,
+        model_text=_model(session, settings, "text"),
+        model_reasoning=_model(session, settings, "reasoning"),
     )
+
+
+def _model(session: Session, settings: Settings, tier: Tier) -> str:
+    if selected_provider(session) == CLOUDFLARE:
+        return settings.cloudflare_text_model
+    return model_for(settings, tier)
 
 
 # --- providers --------------------------------------------------------------------
@@ -430,6 +455,124 @@ class _RefusalError(Exception):
         self.reply = reply
 
 
+CLOUDFLARE_API = "https://api.cloudflare.com/client/v4"
+
+
+def _default_http(settings: Settings) -> httpx.Client:
+    return httpx.Client(timeout=settings.ai_request_timeout_s)
+
+
+#: Replaced in tests so no request ever leaves the machine.
+http_client_factory: Callable[[Settings], httpx.Client] = _default_http
+
+
+def _plain(content: str | list[dict[str, Any]]) -> str:
+    if isinstance(content, str):
+        return content
+    parts = []
+    for block in content:
+        if block.get("type") == "text":
+            parts.append(str(block.get("text", "")))
+        elif block.get("type") == "tool_result":
+            inner = block.get("content")
+            parts.append(inner if isinstance(inner, str) else json.dumps(inner))
+    return "\n".join(p for p in parts if p)
+
+
+def _cloudflare_reply(settings: Settings, req: AIRequest) -> _Reply:
+    """One chat completion on Cloudflare Workers AI (text only, no tools)."""
+    model = settings.cloudflare_text_model
+    messages = [{"role": "system", "content": req.system}] if req.system else []
+    messages += [{"role": m.role, "content": _plain(m.content)} for m in req.messages]
+    url = f"{CLOUDFLARE_API}/accounts/{settings.cloudflare_ai_account_id}/ai/run/{model}"
+    client = http_client_factory(settings)
+    try:
+        res = client.post(
+            url,
+            json={"messages": messages, "max_tokens": req.max_tokens},
+            headers={"Authorization": f"Bearer {settings.cloudflare_ai_token.get_secret_value()}"},
+        )
+    except httpx.HTTPError as exc:
+        raise AIFailedError("Cloudflare-KI nicht erreichbar") from exc
+    finally:
+        client.close()
+    try:
+        data = res.json()
+    except ValueError:
+        data = {}
+    if res.status_code >= 400 or not isinstance(data, dict) or data.get("success") is False:
+        errors = data.get("errors") if isinstance(data, dict) else None
+        msg = str(errors[0].get("message", "")) if isinstance(errors, list) and errors else ""
+        if res.status_code == 429 or "neuron" in msg.casefold():
+            raise AIFailedError("Das kostenlose Tageskontingent der Cloudflare-KI ist aufgebraucht")
+        raise AIFailedError(f"Cloudflare-KI-Fehler {res.status_code}: {msg[:200]}".rstrip(": "))
+    result = data.get("result") or {}
+    answer = result.get("response") if isinstance(result, dict) else None
+    if isinstance(answer, (dict, list)):
+        answer = json.dumps(answer, ensure_ascii=False)
+    if not isinstance(answer, str) or not answer.strip():
+        raise AIFailedError("Cloudflare-KI hat keine Antwort geliefert")
+    usage = result.get("usage") if isinstance(result, dict) else None
+    usage = usage if isinstance(usage, dict) else {}
+    return _Reply(
+        text=answer.strip(),
+        model=model,
+        input_tokens=int(usage.get("prompt_tokens") or estimate_input_tokens(req)),
+        output_tokens=int(usage.get("completion_tokens") or len(answer) // _CHARS_PER_TOKEN),
+        content=({"type": "text", "text": answer.strip()},),
+    )
+
+
+def _generate_cloudflare(session: Session, settings: Settings, req: AIRequest) -> AIResult:
+    """Free provider: no reservation, no booking (the free plan cannot charge)."""
+    model = settings.cloudflare_text_model
+    problem = _live_problem(session, settings)
+    if problem is not None:
+        raise _record_blocked(session, req, CLOUDFLARE, model, *problem)
+    started = time.monotonic()
+    call = AICall(
+        purpose=req.purpose,
+        tier=req.tier,
+        provider=CLOUDFLARE,
+        model=model[:64],
+        status=AICallStatus.RESERVED,
+        estimated_usd=Decimal(0),
+        content_project_id=req.content_project_id,
+        agent_run_id=req.agent_run_id,
+        user_id=req.user_id,
+    )
+    session.add(call)
+    session.commit()
+    try:
+        reply = _cloudflare_reply(settings, req)
+    except AIFailedError as exc:
+        call.status = AICallStatus.FAILED
+        call.cost_usd = Decimal(0)
+        call.error = str(exc)[:2000]
+        call.finished_at = datetime.now(UTC)
+        call.duration_ms = int((time.monotonic() - started) * 1000)
+        session.commit()
+        raise
+    call.status = AICallStatus.SUCCEEDED
+    call.input_tokens = reply.input_tokens
+    call.output_tokens = reply.output_tokens
+    call.cost_usd = Decimal(0)
+    call.finished_at = datetime.now(UTC)
+    call.duration_ms = int((time.monotonic() - started) * 1000)
+    session.commit()
+    return AIResult(
+        reply.text,
+        CLOUDFLARE,
+        model,
+        call.id,
+        reply.input_tokens,
+        reply.output_tokens,
+        Decimal(0),
+        list(reply.content),
+        reply.stop_reason,
+    )
+
+
 # --- entry point ------------------------------------------------------------------
 
 
@@ -503,6 +646,9 @@ def generate(session: Session, settings: Settings, req: AIRequest) -> AIResult:
             list(reply.content),
             reply.stop_reason,
         )
+
+    if provider == CLOUDFLARE:
+        return _generate_cloudflare(session, settings, req)
 
     problem = _live_problem(session, settings)
     if problem is not None:
@@ -614,6 +760,7 @@ def _book(
 
 __all__ = [
     "CLAUDE",
+    "CLOUDFLARE",
     "MOCK",
     "PRICES_USD_PER_MTOK",
     "AIBlockedError",

@@ -365,6 +365,8 @@ class Settings(BaseSettings):
     #: API token with "Workers AI - Read" and "Workers AI - Edit" (own token, not the mail one).
     cloudflare_ai_token: SecretStr = SecretStr("")
     image_ai_model: str = "@cf/black-forest-labs/flux-1-schnell"
+    #: Text model for the free AI provider ``cloudflare`` (same account and token).
+    cloudflare_text_model: str = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
     #: Diffusion steps (flux-1-schnell allows 1-8; more = finer details, more neurons).
     image_ai_steps: int = Field(default=8, ge=1, le=8)
     image_ai_timeout_s: float = Field(default=60.0, ge=5, le=300)
