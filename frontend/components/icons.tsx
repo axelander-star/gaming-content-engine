@@ -29,6 +29,7 @@ export type IconName =
   | "calendar"
   | "image"
   | "wand"
+  | "reverse"
   | "userPlus"
   | "paperclip"
   | "mic"
@@ -196,6 +197,7 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="m21 16-5-5-9 9" />
     </>
   ),
+  reverse: <path d="M17 3l4 4-4 4M21 7H10a6 6 0 0 0-6 6M7 21l-4-4 4-4M3 17h11a6 6 0 0 0 6-6" />,
   wand: <path d="M4 20 15 9M14 4v2M19 9h2M17.5 5.5 19 4M17 4l-1.5 1.5M18 12l1.5 1.5M9 3l.8 1.6L11.5 5l-1.7.4L9 7l-.8-1.6L6.5 5l1.7-.4Z" />,
   bulb: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3Z" />,
 };

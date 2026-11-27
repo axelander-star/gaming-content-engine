@@ -403,6 +403,7 @@ def write_texts(
                 system=SYSTEM,
                 max_tokens=900,
                 mock=lambda _req: mock,
+                prefer_free=True,
                 content_project_id=project.id,
                 user_id=user_id,
             ),
@@ -500,6 +501,26 @@ def _unique_handles(texts: Texts, platform: PlatformCode) -> list[str]:
     return seen[:4]
 
 
+def _idea_colours(research: dict[str, Any]) -> tuple[tuple[int, int, int], ...]:
+    """Colours taken from pictures the operator added to the idea chat."""
+    raw = research.get("idea_colours")
+    out: list[tuple[int, int, int]] = []
+    for c in raw if isinstance(raw, list) else []:
+        if isinstance(c, list | tuple) and len(c) == 3:
+            out.append((int(c[0]), int(c[1]), int(c[2])))
+    return tuple(out[:3])
+
+
+def chat_idea(task: ChannelSetupTask) -> str:
+    """Everything the operator wrote or attached in the idea chat, newest last."""
+    parts: list[str] = []
+    for entry in (task.research or {}).get("chat") or []:
+        if isinstance(entry, dict) and entry.get("role") == "user":
+            parts.extend(str(entry.get(k) or "") for k in ("text", "context"))
+    text = " ".join(" ".join(parts).split())
+    return text[-IDEA_MAX:]
+
+
 def _look(task: ChannelSetupTask, project: ContentProject) -> str:
     """Seed of the pictures: the area's name, or the one a fresh AI run picked."""
     look = (task.research or {}).get("look")
@@ -519,6 +540,7 @@ def _art_subject(
     project: ContentProject,
     user_id: int | None,
     idea: str = "",
+    name: str = "",
 ) -> str:
     """What the pictures show, in English, e.g. "Krasse Fakten" -> "glowing light bulb,
     question marks and a magnifying glass". Falls back to the area's own words."""
@@ -538,6 +560,7 @@ def _art_subject(
                     ai.AIMessage(
                         "user",
                         f"Topic area: {project.name}\nSub-topics: {subs or '-'}\n"
+                        f"Channel name (show its meaning, not the letters): {name or '-'}\n"
                         f"Description: {project.description or '-'}{wish}\n"
                         "Visual subject for the channel's logo and banner:",
                     )
@@ -545,6 +568,7 @@ def _art_subject(
                 system=ART_SYSTEM,
                 max_tokens=80,
                 mock=lambda _req: fallback,
+                prefer_free=True,
                 content_project_id=project.id,
                 user_id=user_id,
             ),
@@ -585,10 +609,10 @@ def _paint_art(
         if avatar is not None and (banner is not None or not want_banner):
             return avatar, banner
     if session is not None:
-        subject = _art_subject(session, settings, project, user_id, idea)
+        subject = _art_subject(session, settings, project, user_id, idea, task.display_name)
     else:
         subject = idea.strip() or project.name
-    look = image_ai.design(subject, seed, branding.palette(seed))
+    look = image_ai.design(subject, seed, _idea_colours(research) or branding.palette(seed))
     avatar = image_ai.paint(settings, look.avatar_prompt())
     banner = image_ai.paint(settings, look.banner_prompt()) if want_banner else None
     research["art"] = {
@@ -829,6 +853,8 @@ def prepare_for_channel(
 
 #: what a single AI button renews: everything, or one field / both pictures together
 PARTS = ("all", "name", "handle", "bio", "images")
+#: Longest idea text that goes to the AI (chat history, newest part wins).
+IDEA_MAX = 1200
 
 
 def _tagline(task: ChannelSetupTask, project: ContentProject) -> str:
@@ -950,7 +976,7 @@ def research_again(
             f'Keep the channel name "{task.display_name}". Write a different bio than: "{task.bio}"'
         ),
     }[part]
-    idea = " ".join(idea.split())[:300]
+    idea = " ".join(idea.split())[-IDEA_MAX:]
     if idea:
         note = (
             f"{note}\nThe operator's own idea, build on it and make it shine (keep its "
@@ -985,6 +1011,8 @@ def research_again(
             key = own[0].replace(".", "").replace("_", "") if own else ""
             fitting = [h for h in ai_handles if key and key in h.replace(".", "").replace("_", "")]
             pool = [*fitting, *own] or ai_handles
+            if idea:
+                pool = [*fitting, *ai_handles, *own]
             pick = _next_after(task.handle, pool) or task.handle
             rest = [h for h in dict.fromkeys(pool) if h != pick]
             handles = [pick, *rest][:4]
@@ -997,17 +1025,17 @@ def research_again(
 
     if part in ("all", "bio"):
         bio = _clip(texts.bio, rules.bio_max)
-        if part == "bio":
+        if part == "bio" and not idea:
             pool = [bio, *(_clip(b, rules.bio_max) for b in _bio_variants(project, task.language))]
             bio = _next_after(task.bio, pool, key=lambda b: " ".join(b.split()).casefold()) or bio
         task.bio = bio
 
     task.text_source = texts.source
-    if part == "all":
+    if part in ("all", "name"):
+        # a new name gets new pictures that fit it (own uploads stay unless "all")
         research["look"] = f"{project.slug}-{secrets.token_hex(3)}"
     task.research = research
     if part in ("all", "name"):
-        # "all" gets a new look; a new name keeps the colours and only changes the lettering
         _images(
             settings,
             task,
@@ -1015,9 +1043,142 @@ def research_again(
             texts.tagline,
             session,
             user_id,
+            idea,
             replace_uploads=part == "all",
         )
     _record_research(session, task, user_id, part, live=ctx.live)
+    session.commit()
+    return task
+
+
+#: Files the idea chat accepts as inspiration.
+CHAT_FILE_MAX = 15 * 1024 * 1024
+CHAT_FILES_MAX = 5
+CHAT_TEXT_MAX = 2000
+CHAT_ENTRIES_MAX = 40
+
+
+@dataclass
+class ChatFile:
+    name: str
+    data: bytes
+
+
+def _file_hint(f: ChatFile) -> tuple[str, list[tuple[int, int, int]]]:
+    """What a file adds to the idea: text (txt, md, pdf) or the colours of a picture."""
+    name = f.name.rsplit("/", 1)[-1][:80] or "Datei"
+    if len(f.data) > CHAT_FILE_MAX:
+        raise SetupError(f"„{name}“ ist größer als 15 MB.")
+    if not f.data:
+        raise SetupError(f"„{name}“ ist leer.")
+    lower = name.casefold()
+    if f.data[:5] == b"%PDF-":
+        from services import chat_media
+
+        try:
+            text, _pages = chat_media.pdf_text(f.data)
+        except chat_media.ChatMediaError as exc:
+            raise SetupError(f"„{name}“: {exc}") from exc
+        return f"From the PDF {name}: {' '.join(text.split())[:800]}", []
+    try:
+        img = Image.open(io.BytesIO(f.data))
+        img.load()
+    except (OSError, Image.DecompressionBombError):
+        img = None
+    if img is not None:
+        small = img.convert("RGB")
+        small.thumbnail((96, 96))
+        quant = small.quantize(colors=4)
+        pal = quant.getpalette() or []
+        counts = sorted(quant.getcolors() or [], key=lambda c: int(c[0]), reverse=True)
+        colours: list[tuple[int, int, int]] = []
+        for _n, index in counts:
+            i = int(index) * 3  # type: ignore[call-overload]
+            if len(pal) >= i + 3:
+                colours.append((int(pal[i]), int(pal[i + 1]), int(pal[i + 2])))
+        names = list(dict.fromkeys(image_ai.hue_name(c) for c in colours))
+        return (
+            f"Reference picture {name}: use its colour mood ({', '.join(names)})",
+            colours[:3],
+        )
+    if lower.endswith((".txt", ".md", ".csv")) or b"\x00" not in f.data[:2048]:
+        text = f.data.decode("utf-8", errors="ignore")
+        if text.strip():
+            return f"From the file {name}: {' '.join(text.split())[:800]}", []
+    raise SetupError(f"„{name}“ kann ich nicht lesen (Bild, PDF oder Text).")
+
+
+def chat(
+    session: Session,
+    settings: Settings,
+    task: ChannelSetupTask,
+    text: str,
+    files: list[ChatFile] | None = None,
+    user_id: int | None = None,
+) -> ChannelSetupTask:
+    """Idea chat: the operator describes the channel (text, dictation, files) and the
+    AI builds name, user name, bio, profile picture and banner on that idea."""
+    if task.status != ChannelSetupStatus.OPEN:
+        raise SetupError("Die Aufgabe ist schon abgeschlossen.")
+    files = files or []
+    if len(files) > CHAT_FILES_MAX:
+        raise SetupError(f"Höchstens {CHAT_FILES_MAX} Dateien auf einmal.")
+    text = text.strip()[:CHAT_TEXT_MAX]
+    hints: list[str] = []
+    colours: list[tuple[int, int, int]] = []
+    for f in files:
+        hint, cols = _file_hint(f)
+        hints.append(hint)
+        colours.extend(cols)
+    if not text and not hints:
+        raise SetupError("Schreib deine Idee oder häng eine Datei an.")
+    research = dict(task.research or {})
+    history = [e for e in research.get("chat") or [] if isinstance(e, dict)]
+    history.append(
+        {
+            "role": "user",
+            "text": text,
+            "files": [f.name.rsplit("/", 1)[-1][:80] for f in files],
+            "context": " ".join(hints),
+            "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        }
+    )
+    research["chat"] = history[-CHAT_ENTRIES_MAX:]
+    if colours:
+        research["idea_colours"] = [list(c) for c in colours[:3]]
+    task.research = research
+    research_again(session, settings, task, user_id, "all", chat_idea(task))
+    research = dict(task.research or {})
+    note = research.get("image_note")
+    answer = (
+        f"Neuer Entwurf nach deiner Idee: „{task.display_name}“, @{task.handle}. "
+        "Profilbild, Banner und Bio passen dazu."
+    )
+    if task.text_source == "mock":
+        answer += (
+            " Hinweis: Die Text-KI läuft im Testmodus (Cloudflare-KI nicht eingerichtet), "
+            "deshalb sind Name und Bio nur Vorlagen."
+        )
+    if note:
+        answer += f" {note}"
+    research["chat"] = [
+        *(research.get("chat") or []),
+        {
+            "role": "assistant",
+            "text": answer,
+            "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        },
+    ][-CHAT_ENTRIES_MAX:]
+    task.research = research
+    session.commit()
+    return task
+
+
+def clear_chat(session: Session, task: ChannelSetupTask) -> ChannelSetupTask:
+    research = dict(task.research or {})
+    research.pop("chat", None)
+    research.pop("idea_colours", None)
+    task.research = research
     session.commit()
     return task
 
@@ -1122,7 +1283,10 @@ def update(
         if name != task.display_name:
             task.display_name = name
             project = task.content_project
-            _images(settings, task, project, _tagline(task, project), session)
+            research = dict(task.research or {})
+            research["look"] = f"{project.slug}-{secrets.token_hex(3)}"
+            task.research = research
+            _images(settings, task, project, _tagline(task, project), session, idea=chat_idea(task))
     if handle is not None:
         new = normalize_handle(handle, task.platform)
         if new != task.handle:

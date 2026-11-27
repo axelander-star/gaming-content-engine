@@ -77,7 +77,7 @@ class Design:
         )
 
 
-def _hue_name(rgb: tuple[int, int, int]) -> str:
+def hue_name(rgb: tuple[int, int, int]) -> str:
     h, light, s = colorsys.rgb_to_hls(*(c / 255 for c in rgb))
     if s < 0.15:
         return "graphite grey"
@@ -102,7 +102,7 @@ def _hue_name(rgb: tuple[int, int, int]) -> str:
 def design(subject: str, seed: str, colours: tuple[tuple[int, int, int], ...]) -> Design:
     """Style and colours for one look; same seed -> same design."""
     idx = int(hashlib.sha256(f"style:{seed.casefold()}".encode()).hexdigest()[:6], 16)
-    names = list(dict.fromkeys(_hue_name(c) for c in colours))
+    names = list(dict.fromkeys(hue_name(c) for c in colours))
     return Design(
         subject=subject.strip() or "short videos",
         style=STYLES[idx % len(STYLES)],

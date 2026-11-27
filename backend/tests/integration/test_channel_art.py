@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -13,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
 from models import ContentProject
-from services import image_ai
+from services import ai, image_ai
 from services.seed import seed_base_data
 from tests.conftest import login
 
@@ -31,6 +32,22 @@ def settings(tmp_path: Path) -> Settings:
             "cloudflare_ai_token": SecretStr("tok"),
         }
     )
+
+
+@pytest.fixture(autouse=True)
+def text_ai(monkeypatch: pytest.MonkeyPatch) -> list[httpx.Request]:
+    """Cloudflare text model (used by the assistant once Cloudflare is set up): mocked;
+    it is down here, so texts and motif come from the templates."""
+    seen: list[httpx.Request] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req)
+        return httpx.Response(503, json={"success": False, "errors": [{"message": "down"}]})
+
+    monkeypatch.setattr(
+        ai, "http_client_factory", lambda _s: httpx.Client(transport=httpx.MockTransport(handler))
+    )
+    return seen
 
 
 def test_pictures_from_image_ai(
@@ -73,12 +90,13 @@ def test_pictures_from_image_ai(
     assert banner.status_code == 200
     assert Image.open(__import__("io").BytesIO(banner.content)).size == (2560, 1440)
 
-    # a new name keeps the painting (no new AI call) and only changes the lettering
+    # a new name gets new pictures that fit it (motif and lettering)
     painted = len(prompts)
     r = api.post(f"{base}/research?part=name", headers=headers)
     assert r.status_code == 200, r.text
-    assert len(prompts) == painted
+    assert len(prompts) == painted + 2
     assert api.get(f"{base}/banner.png", headers=headers).content != banner.content
+    painted = len(prompts)
 
     # the pictures symbol paints both anew
     r = api.post(f"{base}/research?part=images", headers=headers)
@@ -166,3 +184,75 @@ def test_own_pictures_upload(
         headers=headers,
     )
     assert r.status_code == 422
+
+
+def test_idea_chat_builds_everything_on_the_idea(
+    api: TestClient,
+    db: Session,
+    settings: Settings,
+    make_user: object,
+    monkeypatch: pytest.MonkeyPatch,
+    text_ai: list[httpx.Request],
+) -> None:
+    seed_base_data(db)
+    project = ContentProject(slug="schock", name="Unterhaltung", languages=["de"])
+    db.add(project)
+    db.commit()
+    prompts: list[str] = []
+
+    def fake_paint(_settings: Settings, prompt: str, client: object = None) -> Image.Image:
+        prompts.append(prompt)
+        return Image.new("RGB", (1024, 1024), (40, 40, 40))
+
+    monkeypatch.setattr(image_ai, "paint", fake_paint)
+    api.app.dependency_overrides[get_settings] = lambda: settings  # type: ignore[attr-defined]
+    make_user()  # type: ignore[operator]
+    headers = login(api, "admin@example.com")
+    tasks = api.post(
+        "/api/channel-setup/prepare", json={"project_id": project.id}, headers=headers
+    ).json()
+    yt = next(t for t in tasks if t["platform"] == "youtube")
+    base = f"/api/channel-setup/tasks/{yt['id']}"
+    assert yt["chat"] == []
+
+    # text plus a red picture and a text file as inspiration
+    painted = len(prompts)
+    r = api.post(
+        f"{base}/chat",
+        data={"text": "Schockierte Gesichter, frech und laut"},
+        files=[
+            ("files", ("mood.png", _png_bytes((64, 64), (230, 20, 20)), "image/png")),
+            ("files", ("notizen.txt", b"Name mit Blitz", "text/plain")),
+        ],
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+    task = r.json()
+    assert [e["role"] for e in task["chat"]] == ["user", "assistant"]
+    assert task["chat"][0]["files"] == ["mood.png", "notizen.txt"]
+    assert task["display_name"] in task["chat"][1]["text"]
+    assert len(prompts) == painted + 2
+    assert "red" in prompts[-1]  # colour mood of the picture
+    # the free text model got the idea, including the text file
+    sent = [req.content.decode() for req in text_ai]
+    assert any("Schockierte Gesichter" in c and "Name mit Blitz" in c for c in sent)
+
+    # "other variant" symbol: same idea, new bio; the plain AI symbol leaves it out
+    before = len(text_ai)
+    r = api.post(f"{base}/research?part=bio&use_chat=true", headers=headers)
+    assert r.status_code == 200, r.text
+    assert "Schockierte Gesichter" in text_ai[before].content.decode()
+    before = len(text_ai)
+    api.post(f"{base}/research?part=bio", headers=headers)
+    assert "Schockierte Gesichter" not in text_ai[before].content.decode()
+
+    # empty message and unreadable file are refused, clearing works
+    assert api.post(f"{base}/chat", data={"text": " "}, headers=headers).status_code == 422
+    r = api.post(
+        f"{base}/chat",
+        files=[("files", ("x.bin", bytes(range(256)) * 8, "application/octet-stream"))],
+        headers=headers,
+    )
+    assert r.status_code == 422
+    r = api.delete(f"{base}/chat", headers=headers)
+    assert r.status_code == 200 and r.json()["chat"] == []

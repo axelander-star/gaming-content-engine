@@ -2176,7 +2176,7 @@ details summary {
 }
 .cs-task-body {
   display: grid;
-  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
   gap: 20px;
   margin-top: 14px;
 }
@@ -3210,12 +3210,16 @@ td.row-actions {
 }
 .cs-field.has-ai input,
 .cs-field.has-ai textarea {
-  padding-right: 36px;
+  padding-right: 64px;
 }
-.cs-ai-btn {
+.cs-ai-group {
   position: absolute;
   top: 6px;
   right: 6px;
+  display: inline-flex;
+  gap: 4px;
+}
+.cs-ai-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3316,4 +3320,115 @@ td.row-actions {
 .cs-upload.is-disabled {
   opacity: 0.25;
   cursor: default;
+}
+
+/* --- channel assistant: idea chat under the pictures --- */
+.cs-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2, transparent);
+}
+.cs-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cs-chat-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.cs-chat-msg {
+  max-width: 92%;
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 0.88em;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cs-chat-msg.is-user {
+  align-self: flex-end;
+  background: var(--accent-soft);
+}
+.cs-chat-msg.is-assistant {
+  align-self: flex-start;
+  background: var(--surface-3, var(--surface));
+  border: 1px solid var(--border);
+}
+.cs-chat textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+}
+.cs-chat-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cs-chip-x {
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.cs-chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cs-chat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.cs-chat-icon:hover,
+.cs-chat-icon:focus-within,
+.cs-chat-icon:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.cs-chat-icon.is-live {
+  color: #fff;
+  background: #dc2626;
+  border-color: #dc2626;
+}
+.cs-chat-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.cs-chat-send {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cs-chat-send svg {
+  width: 14px;
+  height: 14px;
+}
+.cs-chat-live {
+  color: #dc2626;
 }

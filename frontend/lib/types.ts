@@ -1727,6 +1727,13 @@ export interface ProjectCoverage {
 /** What one AI button in the channel assistant renews. */
 export type ChannelSetupAiPart = "all" | "name" | "handle" | "bio" | "images";
 
+export interface ChannelSetupChatEntry {
+  role: "user" | "assistant";
+  text: string;
+  files: string[];
+  at: string | null;
+}
+
 export interface ChannelSetupTask {
   id: number;
   content_project_id: number;
@@ -1751,6 +1758,8 @@ export interface ChannelSetupTask {
   image_note: string | null;
   /** pictures the operator uploaded from the PC */
   uploaded: ("avatar" | "banner")[];
+  /** idea chat: the operator's ideas and the AI's answers, oldest first */
+  chat: ChannelSetupChatEntry[];
   signup_url: string;
   steps: string[];
   text_source: string;
