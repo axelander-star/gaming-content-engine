@@ -3,6 +3,7 @@
 // CSRF token from the readable `gce_csrf` cookie as `X-CSRF-Token` header.
 
 import type {
+  AreaProfile,
   Agent,
   CommentStats,
   CommentStatus,
@@ -504,6 +505,8 @@ export const api = {
   projects: () => request<ContentProject[]>("/projects"),
   createProject: (body: ContentProjectInput) =>
     request<ContentProject>("/projects", { method: "POST", body: json(body) }),
+  suggestAreaProfile: (body: { name: string; description: string; subtopics: string[] }) =>
+    request<AreaProfile>("/projects/profile-suggestion", { method: "POST", body: json(body) }),
   suggestTopics: () => request<TopicSuggestions>("/projects/suggestions", { method: "POST" }),
   updateProject: (id: number, changes: ContentProjectPatch) =>
     request<ContentProject>(`/projects/${id}`, { method: "PATCH", body: json(changes) }),

@@ -921,6 +921,20 @@ export interface TopicSuggestion {
   score: number;
 }
 
+export interface AreaProfile {
+  description: string;
+  audience: string;
+  tone: string;
+  subtopics: string[];
+  /** Trend numbers the profile is based on. */
+  facts: string[];
+  live: boolean;
+  sample: boolean;
+  provider: string;
+  hint: string | null;
+  errors: string[];
+}
+
 export interface TopicSuggestions {
   live: boolean;
   /** Invented example numbers (development without live data). */

@@ -584,6 +584,11 @@ try {
     await idea.getByText(/Aufrufe pro Stunde/).first().waitFor();
     await idea.getByRole("button", { name: "Übernehmen" }).click();
     assert.equal(await page.getByLabel("Name", { exact: true }).inputValue(), ideaName);
+    // the AI fills the rest of the form; a second click asks again
+    await page.getByRole("button", { name: "Von der KI ausfüllen" }).click();
+    await page.getByRole("button", { name: "Neu von der KI ausfüllen" }).waitFor();
+    assert.ok((await page.getByLabel("Zielgruppe").inputValue()).length > 10);
+    assert.ok((await page.getByLabel("Tonalität").inputValue()).length > 2);
     await page.getByRole("button", { name: "Abbrechen" }).click();
     await page.getByRole("button", { name: "Neuer Themenbereich" }).click();
     const form = page.locator("form.project-form");

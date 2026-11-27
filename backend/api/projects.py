@@ -300,3 +300,40 @@ def suggest_topics(admin: Admin, db: DbSession, settings: AppSettings) -> TopicS
     result = topic_suggest.suggest(db, settings, get_redis(), user_id=admin.id)
     db.commit()  # AI call log
     return TopicSuggestionsOut.model_validate(result.as_dict())
+
+
+class AreaProfileIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=2000)
+    subtopics: list[str] = Field(default_factory=list, max_length=30)
+
+
+class AreaProfileOut(BaseModel):
+    description: str
+    audience: str
+    tone: str
+    subtopics: list[str]
+    facts: list[str]
+    live: bool
+    sample: bool
+    provider: str
+    hint: str | None
+    errors: list[str]
+
+
+@router.post("/profile-suggestion", response_model=AreaProfileOut)
+def suggest_profile(
+    body: AreaProfileIn, admin: Admin, db: DbSession, settings: AppSettings
+) -> AreaProfileOut:
+    """Fill description, audience, tone and sub-topics of one area from current trends."""
+    result = topic_suggest.profile_for(
+        db,
+        settings,
+        get_redis(),
+        name=body.name,
+        description=body.description,
+        subtopics=body.subtopics,
+        user_id=admin.id,
+    )
+    db.commit()  # AI call log
+    return AreaProfileOut.model_validate(result.as_dict())

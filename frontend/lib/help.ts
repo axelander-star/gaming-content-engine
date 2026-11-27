@@ -175,7 +175,9 @@ export const HELP_GUIDES: HelpGuide[] = [
     title: "Themenbereiche",
     what: "Deine Themen, jedes mit eigenen Kanälen und Einstellungen. Es gibt nur, was du selbst anlegst.",
     steps: [
-      "„Neuer Themenbereich“ drücken, Name, Sprachen und Unterthemen eintragen und speichern.",
+      "Keine Idee? „Themen vorschlagen“ zeigt, was gerade in Deutschland läuft. Bei einem Vorschlag „Übernehmen“ drücken.",
+      "Oder „Neuer Themenbereich“ drücken und nur den Namen eintragen. „Von der KI ausfüllen“ ergänzt Unterthemen, Zielgruppe, Tonalität und Beschreibung nach aktuellen Trends. Noch mal drücken gibt einen neuen Vorschlag.",
+      "Prüfen und speichern.",
       "Unter „Kanäle nach Themenbereich“ mit „Kanal anlegen“ die Kanäle hinzufügen, oder das dem Kanal-Assistenten überlassen.",
       "Mit „Pausieren“ stoppst du einen Themenbereich, ohne etwas zu löschen.",
     ],

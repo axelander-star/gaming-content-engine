@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { Icon } from "@/components/icons";
 import { Badge, ErrorText, PageHeader, Section } from "@/components/ui";
 import { api } from "@/lib/api";
 import { PLATFORM_LABELS } from "@/lib/labels";
 import { hasRole } from "@/lib/roles";
 import type {
+  AreaProfile,
   Channel,
   ContentProject,
   ContentProjectInput,
@@ -101,6 +103,39 @@ function ProjectForm({
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
+  const [filling, setFilling] = useState(false);
+  const [profile, setProfile] = useState<AreaProfile | null>(null);
+
+  // the AI fills description, audience, tone and sub-topics from current trends;
+  // nothing is saved until "Speichern"/"Anlegen"
+  async function fillWithAi() {
+    if (!draft.name.trim()) {
+      setError("Erst einen Namen eintragen, dann füllt die KI den Rest.");
+      return;
+    }
+    setFilling(true);
+    setError(null);
+    try {
+      const p = await api.suggestAreaProfile({
+        name: draft.name.trim(),
+        description: draft.description,
+        subtopics: fromDraft(draft).subtopics ?? [],
+      });
+      setDraft((d) => ({
+        ...d,
+        description: p.description || d.description,
+        audience: p.audience || d.audience,
+        tone: p.tone || d.tone,
+        subtopics: p.subtopics.length ? p.subtopics.join(", ") : d.subtopics,
+      }));
+      setProfile(p);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setFilling(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (draft.languages.length === 0) {
@@ -120,6 +155,38 @@ function ProjectForm({
 
   return (
     <form className="project-form" onSubmit={(e) => void submit(e)}>
+      <div className="ai-fill">
+        <button
+          type="button"
+          className="btn btn-ghost btn-small ai-fill-btn"
+          onClick={() => void fillWithAi()}
+          disabled={filling}
+          aria-busy={filling}
+          title="Die KI füllt Unterthemen, Zielgruppe, Tonalität und Beschreibung nach aktuellen Trenddaten aus. Erneut klicken für einen neuen Vorschlag."
+        >
+          {filling ? <span className="run-spinner" aria-hidden="true" /> : <Icon name="wand" />}
+          {filling ? "KI analysiert Trends …" : profile ? "Neu von der KI ausfüllen" : "Von der KI ausfüllen"}
+        </button>
+        {profile && !filling && (
+          <span className="muted small" role="status">
+            {profile.sample
+              ? "Ausgefüllt mit Beispieldaten."
+              : profile.live
+                ? "Ausgefüllt nach aktuellen YouTube-Trends. Prüfen, dann speichern."
+                : (profile.hint ?? "Ausgefüllt.")}
+          </span>
+        )}
+      </div>
+      {profile && profile.facts.length > 0 && (
+        <details className="ai-fill-facts">
+          <summary>Daten dahinter</summary>
+          <ul>
+            {profile.facts.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </details>
+      )}
       <div className="form-grid">
         <label>
           Name
