@@ -22,20 +22,20 @@ const FAILURE_REASONS: Record<string, string> = {
   api_disabled:
     "Im Google-Cloud-Projekt ist die „YouTube Data API v3“ nicht eingeschaltet. In der Google Cloud Console unter „APIs & Dienste → Bibliothek“ die YouTube Data API v3 aktivieren und nach ein paar Minuten erneut verbinden.",
   client:
-    "Die Plattform kennt die App-Zugangsdaten nicht (Client-ID oder Client-Geheimnis in der .env auf dem Server falsch). Werte in der Entwickler-Konsole prüfen und in der .env korrigieren.",
+    "Die Plattform kennt die App-Zugangsdaten nicht (Client-ID oder Client-Geheimnis falsch). Werte in der Entwickler-Konsole prüfen und im Studio unter System korrigieren.",
   redirect:
-    "Die Rücksprung-Adresse passt nicht. Sie muss in der Entwickler-Konsole und in der .env auf dem Server genau gleich sein.",
+    "Die Rücksprung-Adresse passt nicht. Sie muss in der Entwickler-Konsole und im Studio unter System genau gleich sein.",
   no_refresh:
     "Die Plattform hat keinen dauerhaften Zugriff erteilt. Bitte noch einmal verbinden und alle Berechtigungen bestätigen.",
   scopes:
     "Beim Anmelden wurden nicht alle Berechtigungen bestätigt. Bitte noch einmal verbinden und alle Häkchen setzen.",
   not_configured:
-    "Die App-Zugangsdaten für diese Plattform fehlen in der .env auf dem Server.",
+    "Die App-Zugangsdaten für diese Plattform fehlen. Im Studio unter System eintragen.",
   temporary:
     "Die Plattform war gerade nicht erreichbar. Bitte in ein paar Minuten noch einmal verbinden.",
 };
 
-function connectMessage(provider: string, result: string, reason = ""): string {
+function connectMessage(provider: string, result: string, reason = "", detail = ""): string {
   const name = PROVIDER_NAMES[provider] ?? provider;
   if (result === "failed" && FAILURE_REASONS[reason]) {
     return `${name}: Die Verbindung ist fehlgeschlagen. ${FAILURE_REASONS[reason]}`;
@@ -52,7 +52,9 @@ function connectMessage(provider: string, result: string, reason = ""): string {
     case "invalid":
       return `${name}: Der Anmeldevorgang war ungültig oder abgelaufen. Bitte erneut verbinden.`;
     default:
-      return `${name}: Die Verbindung ist fehlgeschlagen. Den Grund zeigt das Server-Protokoll: docker compose logs backend | grep "connect failed"`;
+      return detail
+        ? `${name}: Die Verbindung ist fehlgeschlagen. Meldung der Plattform: ${detail}`
+        : `${name}: Die Verbindung ist fehlgeschlagen. Den Grund zeigt das Server-Protokoll: docker compose logs backend | grep "connect failed"`;
   }
 }
 
@@ -126,6 +128,7 @@ export function ChannelsTable({ role }: { role: UserRole }) {
     provider: string;
     value: string;
     reason: string;
+    detail: string;
   } | null>(null);
   const isAdmin = hasRole(role, "admin");
   const isOperator = hasRole(role, "operator");
@@ -142,6 +145,7 @@ export function ChannelsTable({ role }: { role: UserRole }) {
         provider,
         value: params.get(provider) ?? "",
         reason: params.get("reason") ?? "",
+        detail: params.get("detail") ?? "",
       });
   }, []);
 
@@ -192,7 +196,7 @@ export function ChannelsTable({ role }: { role: UserRole }) {
           role="status"
           className={result.value === "connected" ? "muted" : "error"}
         >
-          {connectMessage(result.provider, result.value, result.reason)}
+          {connectMessage(result.provider, result.value, result.reason, result.detail)}
         </p>
       )}
       <p className="muted small">

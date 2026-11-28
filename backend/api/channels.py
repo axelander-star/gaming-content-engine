@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -362,6 +363,12 @@ def connect_failure_reason(exc: Exception) -> str:
     return ""
 
 
+def failure_detail(message: str) -> str:
+    """Short, printable form of a platform error for the dashboard."""
+    text = " ".join("".join(c if c.isprintable() else " " for c in message).split())
+    return text[:300]
+
+
 oauth_router = APIRouter(prefix="/oauth", tags=["oauth"])
 PROVIDERS = ("youtube", "tiktok", "meta", "instagram")
 
@@ -382,8 +389,10 @@ def oauth_callback(
     settings = platform_apps.apply(db, settings)
     target = "/einstellungen"
 
-    def back(result: str, reason: str = "") -> RedirectResponse:
+    def back(result: str, reason: str = "", detail: str = "") -> RedirectResponse:
         extra = f"&reason={reason}" if reason else ""
+        if detail:
+            extra += "&" + urlencode({"detail": failure_detail(detail)})
         return RedirectResponse(f"{target}?{provider}={result}{extra}", status_code=303)
 
     try:
@@ -416,7 +425,9 @@ def oauth_callback(
             reason or "unknown",
             extra={"provider": provider, "channel": channel_id, "error": str(exc)},
         )
-        return back("failed", reason)
+        # the platform's own message (built in services/*, never contains a token) so
+        # the operator sees the cause in the dashboard instead of the server log
+        return back("failed", reason, "" if reason else str(exc))
     # One real account belongs to exactly one channel: otherwise two topic areas
     # (e.g. Gaming and Ernährung) would post to the same YouTube channel.
     if cred.external_account_id and db.scalar(

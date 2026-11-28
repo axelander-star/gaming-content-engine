@@ -217,3 +217,45 @@ def test_meta_app_from_the_studio_connects_instagram_via_facebook_login(
     platform_apps.save(db, st, "instagram", client_key="111", client_secret="ig",
                        redirect_uri="", user_id=None)  # fmt: skip
     assert platform_apps.apply(db, st).instagram_login == "instagram"
+
+
+def test_unknown_meta_failure_shows_metas_message(
+    db: Session,
+    api: TestClient,
+    make_user: Callable[..., User],
+    base: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failure without a known reason carries Meta's own message to the dashboard."""
+    import httpx
+
+    from services import meta
+
+    def fake(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={"error": {"code": 100, "message": "Invalid config_id\nfor this app"}},
+        )
+
+    monkeypatch.setattr(platform, "TRANSPORT", httpx.MockTransport(fake))
+    st = base.model_copy(update={"instagram_app_id": "", "instagram_app_secret": SecretStr("")})
+    api.app.dependency_overrides[get_settings] = lambda: st  # type: ignore[attr-defined]
+    build_chain(db)
+    channel = db.scalar(select(Channel).where(Channel.platform.has(code=PlatformCode.INSTAGRAM)))
+    assert channel is not None
+    make_user("admin@example.com", UserRole.ADMIN)
+    db.commit()
+    h = login(api, "admin@example.com")
+    body = {"client_key": "555", "client_secret": "meta-s",
+            "redirect_uri": "https://studio.example/api/oauth/meta/callback"}  # fmt: skip
+    assert api.put("/api/system/platform-apps/meta", json=body, headers=h).status_code == 200
+    res = api.post(f"/api/channels/{channel.id}/connect", headers=h)
+    state = parse_qs(urlparse(res.json()["url"]).query)["state"][0]
+    cb = api.get("/api/oauth/meta/callback", params={"state": state, "code": "c"},
+                 follow_redirects=False)  # fmt: skip
+    assert cb.status_code == 303
+    q = parse_qs(urlparse(cb.headers["location"]).query)
+    assert q["meta"] == ["failed"]
+    assert q["detail"] == ["Anmeldung: Meta 400 Invalid config_id for this app"]
+    assert "meta-s" not in cb.headers["location"]
+    assert meta.PROVIDER == "meta"
