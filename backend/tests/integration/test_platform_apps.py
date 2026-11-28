@@ -134,3 +134,35 @@ def test_api_saves_keys_and_connect_uses_them(
 
     res = api.delete("/api/system/platform-apps/tiktok", headers=h)
     assert res.status_code == 200 and not res.json()["configured"]
+
+
+def test_instagram_keys_from_the_studio(
+    db: Session, api: TestClient, make_user: Callable[..., User], base: Settings
+) -> None:
+    ig = base.model_copy(
+        update={
+            "instagram_login": "instagram",
+            "instagram_app_id": "",
+            "instagram_app_secret": SecretStr(""),
+        }
+    )
+    api.app.dependency_overrides[get_settings] = lambda: ig  # type: ignore[attr-defined]
+    build_chain(db)
+    channel = db.scalar(select(Channel).where(Channel.platform.has(code=PlatformCode.INSTAGRAM)))
+    assert channel is not None
+    make_user("admin@example.com", UserRole.ADMIN)
+    db.commit()
+    h = login(api, "admin@example.com")
+
+    res = api.post(f"/api/channels/{channel.id}/connect", headers=h)
+    assert res.status_code == 409 and "Instagram-App" in res.json()["detail"]
+
+    redirect = "https://studio.example/api/oauth/instagram/callback"
+    body = {"client_key": "1234567890", "client_secret": "ig-secret", "redirect_uri": redirect}
+    res = api.put("/api/system/platform-apps/instagram", json=body, headers=h)
+    assert res.status_code == 200 and res.json()["configured"] and "ig-secret" not in res.text
+
+    res = api.post(f"/api/channels/{channel.id}/connect", headers=h)
+    assert res.status_code == 200, res.text
+    q = parse_qs(urlparse(res.json()["url"]).query)
+    assert q["client_id"] == ["1234567890"] and q["redirect_uri"] == [redirect]

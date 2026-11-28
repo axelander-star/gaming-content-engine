@@ -172,7 +172,7 @@ Geprüft am 15.11.2026 gegen die offizielle Dokumentation. Wo eine Seite für au
 
 **Code:** `services/approval.py`, `api/approval.py` (`/api/approval…`), `services/instagram.py`, `services/r2.py`, Erweiterungen in `services/tiktok.py`, `services/youtube.py`, `services/publishers.py`; Rückleitung `GET /api/oauth/instagram/callback`.
 
-**Einrichtung Instagram-Login (erst bei Freigabe eines echten Tests):** In der Meta-App das Produkt „Instagram“ → „API setup with Instagram login“ hinzufügen, Weiterleitungs-URI `https://<Dashboard-Domain>/api/oauth/instagram/callback`, `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_OAUTH_REDIRECT_URI` setzen; zusätzlich R2 (`R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) mit einem Schlüssel, der nur diesen Bucket schreiben darf.
+**Einrichtung Instagram-Login (erst bei Freigabe eines echten Tests):** In der Meta-App das Produkt „Instagram“ → „API setup with Instagram login“ hinzufügen, Weiterleitungs-URI `https://<Dashboard-Domain>/api/oauth/instagram/callback`, Instagram-App-ID, App-Geheimcode und Weiterleitungs-URI im Studio unter **System → Instagram-App** eintragen (seit 28.11.2026, verschlüsselt in `system_settings`, Vorrang vor `.env`) oder wie bisher `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_OAUTH_REDIRECT_URI` setzen; zusätzlich R2 (`R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) mit einem Schlüssel, der nur diesen Bucket schreiben darf.
 
 ## Kennzahlen je Plattform (Phase 14)
 
