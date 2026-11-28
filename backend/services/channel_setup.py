@@ -128,7 +128,7 @@ RULES: dict[PlatformCode, PlatformRules] = {
         name_max=30,
         bio_max=150,
         needs_email=True,
-        banner=False,
+        banner=True,  # cover photo of the Facebook Page behind the account
         signup_url="https://www.instagram.com/accounts/emailsignup/",
         steps=(
             "In einem privaten Browserfenster öffnen, damit kein anderes Instagram-Konto "
@@ -607,6 +607,18 @@ def _paint_art(
         avatar = _stored_art(settings, art.get("avatar"))
         banner = _stored_art(settings, art.get("banner"))
         if avatar is not None and (banner is not None or not want_banner):
+            return avatar, banner
+        if avatar is not None and art.get("subject"):
+            # only the banner is missing (e.g. Instagram before it had one): paint it
+            # in the same look and keep the profile picture
+            look = image_ai.design(
+                str(art["subject"]), seed, _idea_colours(research) or branding.palette(seed)
+            )
+            banner = image_ai.paint(settings, look.banner_prompt())
+            research["art"] = {
+                **art,
+                "banner": branding.store_png(settings, branding.art_png(banner), "channel-art"),
+            }
             return avatar, banner
     if session is not None:
         subject = _art_subject(session, settings, project, user_id, idea, task.display_name)

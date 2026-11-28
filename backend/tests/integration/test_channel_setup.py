@@ -510,11 +510,11 @@ def test_api_flow_prepare_edit_complete(
     ig = next(t for t in tasks if t["platform"] == "instagram")
     assert ig["signup_url"].startswith("https://www.instagram.com/")
     assert any("professionell" in s for s in ig["steps"])
-    assert ig["has_avatar"] and not ig["has_banner"]
+    assert ig["has_avatar"] and ig["has_banner"]  # cover photo of the Facebook Page
 
     r = client.get(f"/api/channel-setup/tasks/{ig['id']}/avatar.png")
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
-    assert client.get(f"/api/channel-setup/tasks/{ig['id']}/banner.png").status_code == 404
+    assert client.get(f"/api/channel-setup/tasks/{ig['id']}/banner.png").status_code == 200
 
     r = client.patch(
         f"/api/channel-setup/tasks/{ig['id']}",

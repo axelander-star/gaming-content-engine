@@ -628,7 +628,11 @@ function TaskCard({
                 {!task.has_avatar && imagesAi}
                 {canEdit && (
                   <UploadButton
-                    label="Eigenen Banner hochladen"
+                    label={
+                    task.platform === "instagram"
+                      ? "Eigenes Titelbild hochladen"
+                      : "Eigenen Banner hochladen"
+                  }
                     hint="PNG, JPG oder WebP, ideal 2560 × 1440 Pixel (16:9). Schrift und Logo in die Mitte (1546 × 423), dieser Bereich ist auf jedem Gerät sichtbar."
                     disabled={busy}
                     onFile={(f) => uploadImage("banner", f)}
@@ -637,7 +641,9 @@ function TaskCard({
               </div>
               <figcaption>
                 <a href={img("banner")} download className="small">
-                  Banner laden (2560 × 1440)
+                  {task.platform === "instagram"
+                    ? "Titelbild laden (für die Facebook-Seite, setzt die Engine selbst)"
+                    : "Banner laden (2560 × 1440)"}
                 </a>
                 {task.uploaded.includes("banner") && (
                   <Badge tone="ok">Eigenes Bild</Badge>

@@ -290,6 +290,8 @@ class ProfileResult:
     error: str | None = None
     at: str = ""
     attempts: int = 1
+    #: :func:`source_key` of the assistant values this run used
+    source: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -320,31 +322,69 @@ def _setup_task(session: Session, facebook: Channel) -> ChannelSetupTask | None:
     return None
 
 
-def cover_png(session: Session, settings: Settings, task: ChannelSetupTask) -> bytes:
-    """The cover photo: the area's banner (same look as YouTube) if there is one,
-    else a banner in the colours of the Instagram profile, drawn locally."""
-    banner_uri = task.banner_uri or session.scalar(
-        select(ChannelSetupTask.banner_uri)
+def ensure_banner(session: Session, settings: Settings, task: ChannelSetupTask) -> str:
+    """The Instagram task's own banner (it becomes the Page's cover photo).
+
+    Made once if missing and kept on the task, so the channel assistant shows it and
+    the operator can change or replace it there. It always carries the Instagram
+    name: banners of other platforms are never borrowed, they may show another
+    name. Artwork without text from the area (same look) is reused if there is one."""
+    if task.banner_uri:
+        return task.banner_uri
+    project = session.get(ContentProject, task.content_project_id)
+    tagline = channel_setup.banner_tagline(task, project) if project is not None else ""
+    art = _art_for_banner(session, settings, task)
+    if art is not None:
+        png = branding.banner_from_art(art, task.display_name, tagline)
+    else:
+        seed = str((task.research or {}).get("look") or (project.slug if project else task.handle))
+        png = branding.banner_png(task.display_name, tagline, seed)
+    task.banner_uri = branding.store_png(settings, png)
+    session.flush()
+    return task.banner_uri
+
+
+def _art_for_banner(
+    session: Session, settings: Settings, task: ChannelSetupTask
+) -> Image.Image | None:
+    """Painted artwork without lettering: the task's own, else a sibling's banner art."""
+    own = (task.research or {}).get("art") or {}
+    candidates: list[object] = [own.get("banner") if isinstance(own, dict) else None]
+    for research in session.scalars(
+        select(ChannelSetupTask.research)
         .where(
             ChannelSetupTask.content_project_id == task.content_project_id,
             ChannelSetupTask.language == task.language,
-            ChannelSetupTask.banner_uri.is_not(None),
+            ChannelSetupTask.id != task.id,
         )
         .order_by(ChannelSetupTask.id.desc())
-        .limit(1)
-    )
-    if banner_uri:
+    ):
+        art = (research or {}).get("art")
+        if isinstance(art, dict):
+            candidates.append(art.get("banner"))
+    for uri in candidates:
+        if not isinstance(uri, str) or not uri:
+            continue
         try:
-            with Image.open(io.BytesIO(storage.resolve(settings, banner_uri).read_bytes())) as img:
-                return branding.png_cover(img.convert("RGB"), COVER_SIZE)
+            with Image.open(io.BytesIO(storage.resolve(settings, uri).read_bytes())) as img:
+                return img.convert("RGB")
         except (storage.StorageError, OSError):
-            log.info("banner not readable, drawing the cover", extra={"task": task.id})
-    project = session.get(ContentProject, task.content_project_id)
-    seed = str((task.research or {}).get("look") or (project.slug if project else task.handle))
-    tagline = channel_setup.banner_tagline(task, project) if project is not None else ""
-    drawn = branding.banner_png(task.display_name, tagline, seed)
-    with Image.open(io.BytesIO(drawn)) as img:
+            continue
+    return None
+
+
+def cover_png(session: Session, settings: Settings, task: ChannelSetupTask) -> bytes:
+    """The cover photo: the Instagram task's banner, cut to 1640 x 924."""
+    uri = ensure_banner(session, settings, task)
+    with Image.open(io.BytesIO(storage.resolve(settings, uri).read_bytes())) as img:
         return branding.png_cover(img.convert("RGB"), COVER_SIZE)
+
+
+def source_key(task: ChannelSetupTask | None) -> str:
+    """What the profile was made from; a change in the assistant means: send again."""
+    if task is None:
+        return ""
+    return "|".join((task.bio or "", task.avatar_uri or "", task.banner_uri or ""))
 
 
 def _upload_photo(token: str, page_id: str, png: bytes, name: str) -> str:
@@ -388,6 +428,8 @@ def sync_profile(
         result.error = _short(exc)
     except storage.StorageError:
         result.error = "Bilddatei aus dem Kanal-Assistenten nicht gefunden"
+    task = _setup_task(session, facebook)
+    result.source = source_key(task)
     if result.applied and not result.manual:
         result.ok = True
         result.error = None
@@ -456,12 +498,17 @@ def _sync(session: Session, settings: Settings, facebook: Channel, result: Profi
         raise PageError("Im Kanal-Assistenten ist noch nichts vorbereitet")
 
 
-def sync_due(facebook: Channel, now: datetime) -> bool:
-    """Whether the agent should (re)try the profile now."""
+def sync_due(facebook: Channel, now: datetime, source: str | None = None) -> bool:
+    """Whether the agent should (re)try the profile now.
+
+    With ``source`` (see :func:`source_key`) a profile that was sent from other
+    values is due again, e.g. after a new name, bio or picture in the assistant."""
     if not (facebook.strategy or {}).get("auto_created"):
         return False
     previous = (facebook.strategy or {}).get("profile_sync")
     if not previous:
+        return True
+    if source is not None and source != previous.get("source"):
         return True
     if previous.get("ok") or int(previous.get("attempts") or 0) >= SYNC_ATTEMPTS:
         return False
@@ -663,8 +710,13 @@ def run(session: Session, settings: Settings, now: datetime | None = None) -> Ru
     ).all():
         if source_of(session, fb) is None:
             continue
-        if fb.auth_status != ChannelAuthStatus.EXPIRED and sync_due(fb, now):
-            sync_profile(session, settings, fb)
+        task = _setup_task(session, fb)
+        if task is not None and not task.banner_uri:
+            ensure_banner(session, settings, task)
+        source = source_key(task) if task is not None else None
+        if fb.auth_status != ChannelAuthStatus.EXPIRED and sync_due(fb, now, source):
+            previous = (fb.strategy or {}).get("profile_sync") or {}
+            sync_profile(session, settings, fb, force=previous.get("source") != source)
             out.synced.append(fb.id)
         problems = check(session, settings, fb, now)
         if problems:
