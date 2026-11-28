@@ -170,6 +170,29 @@ class Target:
     page_token: str
 
 
+def _explain(pages: list[dict[str, Any]], platform_code: PlatformCode) -> str:
+    """What Meta returned, so the operator knows which link or right is missing."""
+    if not pages:
+        return (
+            "Meta hat keine einzige Seite freigegeben: beim Verbinden die Seite anhaken "
+            "(und in der Login-Konfiguration „Seiten“ als Asset erlauben)."
+        )
+    parts = []
+    for page in pages[:5]:
+        name = str(page.get("name") or page.get("id") or "?")
+        gaps = []
+        if not page.get("access_token"):
+            gaps.append("kein Seiten-Schlüssel")
+        if "CREATE_CONTENT" not in (page.get("tasks") or []):
+            gaps.append("kein Recht zum Veröffentlichen")
+        if platform_code == PlatformCode.INSTAGRAM and not (
+            page.get("instagram_business_account") or {}
+        ).get("id"):
+            gaps.append("kein verknüpftes Instagram-Profikonto")
+        parts.append(f"{name}: {', '.join(gaps) or 'ok'}")
+    return "Gefundene Seiten: " + "; ".join(parts) + "."
+
+
 def pick_target(pages: list[dict[str, Any]], platform_code: PlatformCode) -> Target:
     """Exactly one granted Page (with ``CREATE_CONTENT``; for Instagram with a linked
     professional account) must fit, so a channel can never post to the wrong account."""
@@ -194,7 +217,7 @@ def pick_target(pages: list[dict[str, Any]], platform_code: PlatformCode) -> Tar
             if platform_code == PlatformCode.INSTAGRAM
             else "Facebook-Seite mit Veröffentlichungsrecht"
         )
-        raise PlatformError(f"Keine {what} freigegeben")
+        raise PlatformError(f"Keine {what} freigegeben. {_explain(pages, platform_code)}")
     if len(fitting) > 1:
         raise PlatformError(
             "Mehrere Seiten freigegeben; bitte beim Verbinden nur die Seite dieses Kanals auswählen"
