@@ -877,6 +877,8 @@ export interface PlatformAppStatus {
   secret_set: boolean;
   redirect_uri: string;
   redirect_uri_ok: boolean;
+  /** Meta only: configuration id of Facebook Login for Business */
+  config_id: string;
 }
 
 export interface PlatformAppInput {
@@ -884,6 +886,7 @@ export interface PlatformAppInput {
   /** empty keeps the saved secret */
   client_secret: string;
   redirect_uri: string;
+  config_id?: string;
 }
 
 export interface DeployHookStatus {

@@ -118,6 +118,7 @@ class PlatformAppOut(BaseModel):
     secret_set: bool
     redirect_uri: str
     redirect_uri_ok: bool
+    config_id: str
 
 
 class PlatformAppIn(BaseModel):
@@ -125,6 +126,8 @@ class PlatformAppIn(BaseModel):
     #: empty keeps the secret saved before
     client_secret: str | None = None
     redirect_uri: str = ""
+    #: Meta only: configuration id of Facebook Login for Business
+    config_id: str = ""
 
 
 def _app_out(s: platform_apps.AppStatus) -> PlatformAppOut:
@@ -155,6 +158,7 @@ def save_platform_app(
             client_secret=body.client_secret,
             redirect_uri=body.redirect_uri,
             user_id=admin.id,
+            config_id=body.config_id,
         )
     except platform_apps.PlatformAppError as exc:
         db.rollback()

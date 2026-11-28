@@ -34,7 +34,10 @@ KEY_PREFIX = "platform_app."
 FIELDS: dict[str, tuple[str, str, str]] = {
     "tiktok": ("tiktok_client_key", "tiktok_client_secret", "tiktok_oauth_redirect_uri"),
     "instagram": ("instagram_app_id", "instagram_app_secret", "instagram_oauth_redirect_uri"),
+    "meta": ("meta_app_id", "meta_app_secret", "meta_oauth_redirect_uri"),
 }
+#: provider → settings field of the optional login configuration id
+CONFIG_FIELDS: dict[str, str] = {"meta": "meta_login_config_id"}
 CALLBACK_PATH = "/api/oauth/{provider}/callback"
 MAX_LEN = 512
 
@@ -52,6 +55,7 @@ class AppStatus:
     secret_set: bool
     redirect_uri: str
     redirect_uri_ok: bool
+    config_id: str = ""
 
 
 def _row(session: Session, provider: str) -> SystemSetting | None:
@@ -81,7 +85,16 @@ def apply(session: Session, settings: Settings) -> Settings:
                 update[secret_f] = SecretStr(crypto.decrypt(settings, stored["client_secret_enc"]))
         if stored.get("redirect_uri"):
             update[redirect_f] = stored["redirect_uri"]
-    return settings.model_copy(update=update) if update else settings
+        if provider in CONFIG_FIELDS and stored.get("config_id"):
+            update[CONFIG_FIELDS[provider]] = stored["config_id"]
+    eff = settings.model_copy(update=update) if update else settings
+    # New Meta apps only offer the Facebook login ("Unified login", 11/2026): a Meta app
+    # saved in the dashboard without an Instagram Login app connects Instagram through it.
+    meta_saved = bool(_stored(session, "meta").get("client_key"))
+    instagram_app = eff.instagram_app_id and eff.instagram_app_secret.get_secret_value()
+    if meta_saved and not instagram_app and eff.instagram_login != "facebook":
+        eff = eff.model_copy(update={"instagram_login": "facebook"})
+    return eff
 
 
 def status(session: Session, settings: Settings, provider: str) -> AppStatus:
@@ -107,6 +120,9 @@ def status(session: Session, settings: Settings, provider: str) -> AppStatus:
         secret_set=bool(secret),
         redirect_uri=redirect,
         redirect_uri_ok=_redirect_ok(redirect),
+        config_id=str(getattr(eff, CONFIG_FIELDS[provider]) or "")
+        if provider in CONFIG_FIELDS
+        else "",
     )
 
 
@@ -128,6 +144,7 @@ def save(
     client_secret: str | None,
     redirect_uri: str,
     user_id: int | None,
+    config_id: str = "",
 ) -> AppStatus:
     """Store the keys. ``client_secret`` None or empty keeps the saved secret."""
     if provider not in FIELDS:
@@ -135,6 +152,9 @@ def save(
     key = _clean(client_key, "Client Key")
     secret = _clean(client_secret, "Client Secret")
     redirect = _clean(redirect_uri, "Weiterleitungs-URI")
+    config = _clean(config_id, "Konfigurations-ID") if provider in CONFIG_FIELDS else ""
+    if config and not config.isdigit():
+        raise PlatformAppError("Konfigurations-ID besteht nur aus Ziffern")
     if not key:
         raise PlatformAppError("Client Key fehlt")
     if redirect and not _redirect_ok(redirect):
@@ -152,6 +172,8 @@ def save(
     if not secret and not old.get("client_secret_enc") and not env_secret:
         raise PlatformAppError("Client Secret fehlt")
     value: dict[str, Any] = {"client_key": key, "redirect_uri": redirect}
+    if config:
+        value["config_id"] = config
     if secret:
         value["client_secret_enc"] = crypto.encrypt(settings, secret)
     elif old.get("client_secret_enc"):

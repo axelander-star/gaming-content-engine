@@ -100,6 +100,7 @@ export function SystemView() {
         </div>
       </Section>
       <PlatformAppPanel provider="tiktok" />
+      <PlatformAppPanel provider="meta" />
       <PlatformAppPanel provider="instagram" />
       <InstantUpdatePanel />
       <Section title="Datensicherung">
