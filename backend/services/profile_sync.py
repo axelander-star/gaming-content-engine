@@ -80,6 +80,10 @@ def _task(session: Session, channel: Channel) -> ChannelSetupTask | None:
     )
 
 
+#: Public name for other services (Facebook Page, services/facebook_page.py).
+setup_task = _task
+
+
 def keywords(channel: Channel, project: ContentProject | None) -> str:
     """Space separated, multi-word terms quoted, at most 500 characters."""
     words: list[str] = []

@@ -97,14 +97,14 @@ try {
     }
   });
 
-  await step("Agentenseite zeigt alle 26 Agenten", async () => {
+  await step("Agentenseite zeigt alle 27 Agenten", async () => {
     await page.getByRole("link", { name: "Agenten", exact: true }).click();
     await page.getByRole("heading", { name: "Agenten", level: 1 }).waitFor();
     await page.getByRole("button", { name: "Master Orchestrator", exact: true }).waitFor();
     const rows = page.locator("table").first().locator("tbody tr");
     await rows.nth(25).waitFor();
-    assert.equal(await rows.count(), 26);
-    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 26 agents are built
+    assert.equal(await rows.count(), 27);
+    assert.equal(await page.getByText(/Folgt in Phase/).count(), 0); // all 27 agents are built
   });
 
   await step("Agent pausieren und fortsetzen", async () => {

@@ -222,7 +222,9 @@ export function ChannelsTable({ role }: { role: UserRole }) {
             {channels.map((c) => (
               <tr key={c.id}>
                 <td>{c.name}</td>
-                <td>{PLATFORM_LABELS[c.platform]}</td>
+                <td>
+                  {c.platform === "facebook" ? "Facebook-Seite" : PLATFORM_LABELS[c.platform]}
+                </td>
                 <td>{c.content_project}</td>
                 <td>{c.language.toUpperCase()}</td>
                 <td>
@@ -264,6 +266,17 @@ export function ChannelsTable({ role }: { role: UserRole }) {
                         onSync={isAdmin ? () => void syncProfile(c) : null}
                       />
                     )}
+                  {c.platform === "facebook" && c.mirror_of !== null && (
+                    <FacebookPageLine
+                      channel={c}
+                      source={channels.find((x) => x.id === c.mirror_of) ?? null}
+                      onSync={
+                        isAdmin && c.auth_status !== "expired"
+                          ? () => void syncProfile(c)
+                          : null
+                      }
+                    />
+                  )}
                 </td>
                 <td>
                   <button
@@ -315,6 +328,39 @@ function ProfileSyncLine({
         : sync.ok
           ? `Profil übertragen: ${sync.applied.join(", ")}. Selbst hochladen: ${sync.manual.join(", ")}. `
           : `Profil nicht übertragen: ${sync.error ?? "unbekannter Fehler"}. `}
+      {onSync && (
+        <button type="button" className="btn btn-ghost small" onClick={onSync}>
+          {sync === null ? "Profil übertragen" : "Erneut übertragen"}
+        </button>
+      )}
+    </p>
+  );
+}
+
+/** The Facebook Page the engine runs for an Instagram channel (Agent 27). */
+function FacebookPageLine({
+  channel,
+  source,
+  onSync,
+}: {
+  channel: Channel;
+  source: Channel | null;
+  onSync: (() => void) | null;
+}) {
+  const sync = channel.profile_sync;
+  return (
+    <p className="small muted" aria-label={`Facebook-Seite ${channel.name}`}>
+      {`Läuft automatisch mit ${source ? source.name : "dem Instagram-Kanal"}: jedes Instagram-Video kommt auch hierher. `}
+      {channel.missing_permissions.length > 0 && (
+        <span className="error">
+          {`Es fehlen Rechte für: ${channel.missing_permissions.join(", ")}. Anleitung über das Fragezeichen oben. `}
+        </span>
+      )}
+      {sync === null
+        ? "Profil wird gleich übertragen. "
+        : sync.ok
+          ? `Profil übertragen: ${sync.applied.join(", ")}. `
+          : `Profil nicht vollständig: ${sync.error ?? "unbekannter Fehler"}. `}
       {onSync && (
         <button type="button" className="btn btn-ghost small" onClick={onSync}>
           {sync === null ? "Profil übertragen" : "Erneut übertragen"}

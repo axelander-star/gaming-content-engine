@@ -60,6 +60,10 @@ export interface Channel {
   connected_account: string | null;
   /** Last transfer of the prepared profile to YouTube (description, keywords, banner). */
   profile_sync: ProfileSync | null;
+  /** Facebook Page run by the engine: id of the Instagram channel it mirrors. */
+  mirror_of: number | null;
+  /** Permissions the Meta login lacks for the Facebook Page (plain German). */
+  missing_permissions: string[];
 }
 
 export interface ProfileSync {

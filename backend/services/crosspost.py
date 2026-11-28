@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from core.config import Settings
 from core.enums import PlatformCode, VideoStatus
 from models.channels import Channel
+from models.library import LibraryItem
 from models.production import Clip, QualityCheck, Variant
 from services import affiliate, approval, campaigns, quality, workflow
 
@@ -118,7 +119,8 @@ def copy_to(session: Session, variant: Variant, channel: Channel) -> Variant | s
     """The copy for ``channel``, or the reason it cannot go there."""
     code = channel.platform.code
     clip = session.get(Clip, variant.clip_id) if variant.clip_id else None
-    duration = (clip.duration_s if clip else None) or 0.0
+    item = session.get(LibraryItem, variant.library_item_id) if variant.library_item_id else None
+    duration = (clip.duration_s if clip else item.duration_s if item else None) or 0.0
     limit = quality.PLATFORM_RULES[code].max_duration_s
     if duration > limit:
         return f"{channel.platform.name}: Video {duration:.0f} s, erlaubt {limit:.0f} s"
@@ -127,6 +129,7 @@ def copy_to(session: Session, variant: Variant, channel: Channel) -> Variant | s
         return "Titel fehlt"
     copy = Variant(
         clip_id=variant.clip_id,
+        library_item_id=variant.library_item_id,
         channel_id=channel.id,
         content_project_id=variant.content_project_id,
         language=variant.language,

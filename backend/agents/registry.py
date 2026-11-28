@@ -187,6 +187,12 @@ def _winner_recycling() -> Agent:
     return WinnerRecyclingAgent()
 
 
+def _facebook_page() -> Agent:
+    from agents.facebook_page import FacebookPageAgent
+
+    return FacebookPageAgent()
+
+
 def _publishing() -> Agent:
     from agents.publishing import PublishingAgent
 
@@ -280,6 +286,11 @@ _SPECS: tuple[AgentSpec, ...] = (
               "Erkennt Themen, die gerade abheben (YouTube-Trends, Konkurrenz-Radar), erstellt "
               "mehrere eigene Video-Entwürfe und schickt einen Alarm mit Zahlen aufs Handy.",
               16, CostKind.PAID, factory=_trend_alarm),
+    AgentSpec("facebook_page", 27, "Facebook Page",
+              "Übernimmt die Facebook-Seite hinter jedem Instagram-Konto als eigenen Kanal, "
+              "füllt Beschreibung, Profil- und Titelbild, spiegelt Instagram-Videos auf "
+              "Facebook und überwacht die Verbindung.", 16, CostKind.FREE_API,
+              factory=_facebook_page),
 )  # fmt: skip
 
 _registry: dict[str, AgentSpec] = {s.name: s for s in _SPECS}
