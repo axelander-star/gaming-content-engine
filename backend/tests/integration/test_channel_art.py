@@ -173,7 +173,7 @@ def test_own_pictures_upload(
     r = api.post(f"{base}/research?part=images", headers=headers)
     assert r.json()["uploaded"] == []
 
-    # not an image, and no banner on Instagram
+    # not an image; Instagram takes a banner (cover photo of its Facebook Page)
     r = api.post(
         f"{base}/upload/avatar", files={"file": ("x.png", b"hello", "image/png")}, headers=headers
     )
@@ -183,7 +183,7 @@ def test_own_pictures_upload(
         files={"file": ("b.png", _png_bytes((2560, 1440), (0, 0, 0)), "image/png")},
         headers=headers,
     )
-    assert r.status_code == 422
+    assert r.status_code == 200, r.text
 
 
 def test_idea_chat_builds_everything_on_the_idea(
