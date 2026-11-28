@@ -51,6 +51,8 @@ FACEBOOK_SCOPES = (
     "pages_manage_posts",
     "read_insights",  # statistics (Phase 14)
     "pages_manage_engagement",  # required by video_insights (Phase 14)
+    "pages_manage_metadata",  # Page description and profile picture
+    "business_management",  # Page cover photo
 )
 INSTAGRAM_SCOPES = (
     "instagram_basic",
@@ -59,6 +61,11 @@ INSTAGRAM_SCOPES = (
     "instagram_manage_comments",  # read and answer comments (A3)
     "pages_show_list",
     "pages_read_engagement",
+    # the Facebook Page behind the Instagram account runs as its own channel
+    # (services/facebook_page.py): Reels, description, profile picture, cover photo
+    "pages_manage_posts",
+    "pages_manage_metadata",
+    "business_management",
 )
 PUBLISH_SCOPE = {
     PlatformCode.FACEBOOK: "pages_manage_posts",

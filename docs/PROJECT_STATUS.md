@@ -1,6 +1,6 @@
 # Projektstatus
 
-**Stand:** 27.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander; A11 Trend-Alarm und Ideenlabor mit Seiten fertig · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; für echte Trend-Alarme `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` setzen
+**Stand:** 28.11.2026 · **Aktuelle Phase:** Inbetriebnahme mit Alexander; Facebook-Seite hinter Instagram als eigener Kanal (Agent 27) · **Nächster Schritt:** eigenen Themenbereich anlegen, ersten YouTube-Kanal über den Kanal-Assistenten anlegen und verbinden; für echte Trend-Alarme `YOUTUBE_API_KEY` und `TREND_SOURCES_MODE=live` setzen
 
 **Repository:** [axelander-star/gaming-content-engine](https://github.com/axelander-star/gaming-content-engine) (privat). Phasen werden ohne Zwischenfreigabe nacheinander umgesetzt; Phasen-PRs werden nach grüner CI gemergt (Anweisungen des Betreibers vom 14.11.2026).
 
@@ -23,6 +23,18 @@
 | 13 | TikTok, Instagram, Facebook | ✅ abgeschlossen |
 | 14 | Analytics, Learning Agent, Budgetkontrolle | ✅ abgeschlossen |
 | 15 | Monitoring, Sicherheit, Backups, Skalierung | ✅ abgeschlossen |
+
+## Facebook-Seite hinter Instagram als eigener Kanal (28.11.2026, Agent 27)
+
+- Jedes Instagram-Profikonto gehört zu einer Facebook-Seite (Instagram legt sie beim Einrichten an). Wird ein Instagram-Kanal über den Facebook-Login verbunden, übernimmt die Engine diese Seite automatisch als Kanal **Facebook-Seite** im selben Themenbereich und in derselben Sprache (`services/facebook_page.py`). Kein zweiter Login: Der Seiten-Token des Instagram-Kanals ist der Token genau dieser Seite (`GET /me` mit dem Seiten-Token).
+- Der neue Kanal übernimmt Pause, Ober- und Untergrenzen vom Instagram-Kanal. Ein noch nicht verbundener Facebook-Kanal desselben Bereichs und derselben Sprache wird wiederverwendet statt doppelt angelegt.
+- **Profil:** Beschreibung (`about`, max. 100 Zeichen, aus der Bio des Kanal-Assistenten), Profilbild (unveröffentlichtes Foto → `POST /{page}/picture photo=…`) und Titelbild (Banner des Bereichs bzw. lokal gezeichnet, 1640×924, unveröffentlichtes Foto → `POST /{page} cover=…`). Jeder Teil einzeln; Fehler werden angezeigt und höchstens 5-mal, einmal am Tag, wiederholt. Seiten, deren Instagram-Kanal nicht aus dem Kanal-Assistenten stammt, werden nie überschrieben.
+- **Spiegeln:** Jedes Instagram-Video in `READY_TO_PUBLISH`, `SCHEDULED` oder `PUBLISHED` (letzte 7 Tage) bekommt eine Kopie für die Facebook-Seite (gleiche Datei, Texte für Facebook gekürzt, `crosspost.copy_to`, jetzt auch für Mediathek-Videos). Wann sie erscheint, entscheidet wie immer der Publishing Strategy Agent; echt veröffentlicht wird nur mit `PUBLISHING_MODE=live`. Kampagnenclips werden nicht gespiegelt, pausierte Seiten bekommen nichts.
+- **Überwachung (Agent 27 „Facebook Page“, alle 15 Min., `FACEBOOK_PAGE_SECONDS`):** übernimmt neu verbundene Seiten, aktualisiert den Token nach jedem neuen Instagram-Login, überträgt das Profil, spiegelt Videos, prüft alle 6 h den Seiten-Token (abgelaufen → Status „Abgelaufen“, Warnung über die Glocke) und meldet fehlende Rechte.
+- **Neue Rechte** im Meta-Login: `pages_manage_posts`, `pages_manage_metadata`, `business_management` (Instagram und Facebook). Mit Konfigurations-ID entscheidet die Login-Konfiguration bei Meta, dort müssen sie angehakt werden.
+- Dashboard: Einstellungen → Kanäle zeigt die Seite als „Facebook-Seite“ mit Hinweis „läuft automatisch mit …“, fehlenden Rechten, Profilstand und „Erneut übertragen“ (`POST /api/channels/{id}/profile-sync` gilt jetzt auch für Facebook).
+- Nicht per API möglich: Seite anlegen (nicht nötig), Website-Feld (in der Referenz nicht als änderbar bestätigt).
+- **Betreiber:** Rechte in der Login-Konfiguration ergänzen, Instagram neu verbinden, in der Instagram-App „Automatisch auf Facebook teilen“ ausschalten (sonst doppelte Videos).
 
 ## Themenbereiche löschen (27.11.2026)
 
@@ -1415,6 +1427,7 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 27.11.2026 | TikTok-App-Schlüssel im Studio unter System → TikTok-App eintragbar (verschlüsselt in `system_settings`), Vorrang vor `.env` | Der Betreiber hat keinen bequemen SSH-Weg; ein Entwicklerkonto (Kanalfabrik-Gmail) reicht für alle TikTok-Kanäle |
 | 28.11.2026 | Dasselbe für Instagram (Instagram-Login): System → Instagram-App | Gleicher Weg ohne SSH; eine Meta-App für alle Instagram-Kanäle |
 | 28.11.2026 | System → Meta-App mit Konfigurations-ID; gespeicherte Meta-App übernimmt Instagram, wenn keine Instagram-Login-App da ist | Meta bietet neuen Apps nur noch den Facebook-Login („Unified login“) an |
+| 28.11.2026 | Facebook-Seite hinter Instagram läuft als eigener Kanal mit dem Seiten-Token des Instagram-Kanals; die Engine veröffentlicht selbst auf Facebook statt Instagrams „Automatisch teilen“ zu nutzen | Ein Login genügt; eigene Veröffentlichung hat Fehlerbehandlung, Statistiken, Tageslimit und Überwachung, Instagrams Automatik nicht |
 
 ## Offene Punkte
 

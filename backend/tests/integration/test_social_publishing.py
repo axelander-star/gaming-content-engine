@@ -268,7 +268,8 @@ def test_meta_authorization_url_asks_per_platform(settings: Settings) -> None:
     assert fb.netloc == "www.facebook.com" and fb.path == "/v25.0/dialog/oauth"
     assert "instagram_content_publish" in ig["scope"][0]
     assert parse_qs(fb.query)["scope"] == [
-        "pages_show_list,pages_read_engagement,pages_manage_posts,read_insights,pages_manage_engagement"
+        "pages_show_list,pages_read_engagement,pages_manage_posts,read_insights,"
+        "pages_manage_engagement,pages_manage_metadata,business_management"
     ]
 
 
@@ -686,6 +687,13 @@ def test_tiktok_connect_when_audited_and_meta_connect(
     assert crypto.decrypt(audited, cred.access_token_enc or "") == "page-token"
     channel = db.get(Channel, ig.id)
     assert channel is not None and channel.auth_status == ChannelAuthStatus.AUTHORIZED
+    # the Facebook Page behind the Instagram account became a channel of its own
+    page = db.scalar(
+        select(Channel).where(
+            Channel.platform.has(code=PlatformCode.FACEBOOK), Channel.external_channel_id == "u1"
+        )
+    )
+    assert page is not None and page.strategy["mirror_of"] == ig.id
     exchange = parse_qs(urlparse(str(fake.sent("GET", f"{G}/oauth/access_token")[1].url)).query)
     assert exchange["grant_type"] == ["fb_exchange_token"] and exchange["fb_exchange_token"] == [
         "short"

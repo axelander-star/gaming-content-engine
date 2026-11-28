@@ -342,9 +342,12 @@ export const HELP_GUIDES: HelpGuide[] = [
       "Unter „Kanäle und Sicherheitsgrenzen“ jeden Kanal mit „Mit YouTube verbinden“ (oder TikTok, Instagram) verbinden.",
       "Der Not-Aus stoppt sofort alle Helfer und Veröffentlichungen.",
       "Budget und Obergrenzen je Kanal festlegen.",
+      "Die Facebook-Seite hinter deinem Instagram-Konto musst du nicht extra verbinden: Sobald Instagram verbunden ist, erscheint sie hier als eigener Kanal „Facebook-Seite“. Die Engine setzt Beschreibung, Profilbild und Titelbild und stellt jedes Instagram-Video auch auf Facebook.",
     ],
     yourPart: [
       "Beim Verbinden meldest du dich auf der Plattform selbst an und wählst das richtige Konto, zum Beispiel den passenden Brand-Kanal.",
+      "Einmalig für die Facebook-Seite: In der Meta-Entwicklerkonsole (deine App → Facebook Login for Business → Konfigurationen → „Kanalfabrik Studio Nutzer“ → Bearbeiten) bei den Berechtigungen zusätzlich pages_manage_posts, pages_manage_metadata und business_management anhaken, speichern und danach Instagram hier einmal neu verbinden. Beim Anmelden die Seite anhaken.",
+      "In der Instagram-App „Automatisch auf Facebook teilen“ ausschalten (Einstellungen → Kontenübersicht → Teilen über Profile hinweg). Sonst erscheint jedes Video zweimal auf Facebook.",
     ],
     tips: ["Obergrenzen sind nur ein Schutz nach oben. Wie viel wirklich erscheint, entscheidet die Engine."],
   },

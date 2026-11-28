@@ -865,6 +865,10 @@ def _tagline(task: ChannelSetupTask, project: ContentProject) -> str:
     return template_texts(project, task.platform, task.language).tagline
 
 
+#: Public name for other services (Facebook cover photo, services/facebook_page.py).
+banner_tagline = _tagline
+
+
 def _next_after(
     current: str, candidates: list[str], key: Callable[[str], str] | None = None
 ) -> str | None:

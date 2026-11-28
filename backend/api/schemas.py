@@ -40,3 +40,7 @@ class ChannelOut(BaseModel):
     connected_account: str | None = None
     #: Last transfer of the prepared profile (description, keywords, banner) to YouTube.
     profile_sync: dict[str, Any] | None = None
+    #: Facebook Page run by the engine: id of the Instagram channel it mirrors.
+    mirror_of: int | None = None
+    #: Permissions the Meta login lacks for the Facebook Page (plain German).
+    missing_permissions: list[str] = []

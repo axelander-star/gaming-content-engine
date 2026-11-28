@@ -63,6 +63,7 @@ class Schedule:
                 "competitor_radar": settings.competitor_seconds,
                 "winner_recycling": settings.winner_seconds,
                 "trend_alarm": settings.trend_alarm_seconds,
+                "facebook_page": settings.facebook_page_seconds,
             }
         )
 

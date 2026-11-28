@@ -312,6 +312,8 @@ class Settings(BaseSettings):
     trend_autopilot_enabled: bool = False
     #: The autopilot only acts from this score on.
     trend_autopilot_min_score: int = Field(default=85, ge=1, le=100)
+    #: Agent 27: run the Facebook Page behind each Instagram channel every 15 min.
+    facebook_page_seconds: int = Field(default=15 * 60, ge=300)
     #: A6: copy approved clips to the other platforms of the topic area and language.
     crosspost_enabled: bool = True
     #: Push to the phone via ntfy (Ausbau A4). mock = recorded only, nothing leaves the server.

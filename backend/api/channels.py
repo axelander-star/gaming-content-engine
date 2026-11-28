@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -22,6 +23,7 @@ from models.projects import ContentProject
 from models.publishing import Post
 from services import (
     audit,
+    facebook_page,
     instagram,
     meta,
     platform,
@@ -66,7 +68,15 @@ def _out(channel: Channel, account: str | None = None) -> ChannelOut:
         min_interval_minutes=channel.min_interval_minutes,
         connected_account=account,
         profile_sync=(channel.strategy or {}).get("profile_sync"),
+        mirror_of=_int_or_none((channel.strategy or {}).get("mirror_of")),
+        missing_permissions=[
+            str(m) for m in (channel.strategy or {}).get("missing_permissions") or []
+        ],
     )
+
+
+def _int_or_none(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 def _get(db: DbSession, channel_id: int) -> Channel:
@@ -465,17 +475,55 @@ def oauth_callback(
         # a failure is shown in the dashboard and never undoes the connection
         profile_sync.sync_youtube(db, settings, get_redis(), channel)
         db.commit()
+    if provider == "meta":
+        _take_over_page(db, settings, channel, user_id)
     return back(
         "connected" if channel.auth_status == ChannelAuthStatus.AUTHORIZED else "restricted"
     )
 
 
+def _take_over_page(db: DbSession, settings: Settings, channel: Channel, user_id: int) -> None:
+    """After a Meta login: run the Facebook Page as a channel and fill its profile.
+
+    For Instagram the Page behind the account becomes its own channel. A failure
+    is logged and retried by the Facebook Page agent; it never undoes the login."""
+    try:
+        if channel.platform.code == PlatformCode.INSTAGRAM:
+            page = facebook_page.link_from_instagram(db, settings, channel, user_id)
+        elif channel.platform.code == PlatformCode.FACEBOOK:
+            page = channel
+        else:
+            return
+        db.commit()
+        if facebook_page.sync_due(page, datetime.now(UTC)) or (
+            channel.platform.code == PlatformCode.FACEBOOK
+            and (page.strategy or {}).get("profile_sync") is None
+        ):
+            facebook_page.sync_profile(db, settings, page)
+            db.commit()
+    except (facebook_page.PageError, platform.PlatformError) as exc:
+        db.rollback()
+        log.warning("facebook page not taken over: %s", exc, extra={"channel": channel.id})
+
+
 @router.post("/{channel_id}/profile-sync", response_model=ChannelOut)
 def sync_profile(channel_id: int, admin: Admin, db: DbSession, settings: AppSettings) -> ChannelOut:
-    """Write the prepared profile to the connected YouTube channel again."""
+    """Write the prepared profile to the connected YouTube channel or Facebook Page again."""
     channel = _get(db, channel_id)
+    if channel.platform.code == PlatformCode.FACEBOOK:
+        fb = facebook_page.sync_profile(db, settings, channel, force=True)
+        audit.record(
+            db,
+            "channel.profile_sync",
+            user_id=admin.id,
+            entity_type="channels",
+            entity_id=channel.id,
+            after=fb.as_dict(),
+        )
+        db.commit()
+        return _out(channel)
     if channel.platform.code != PlatformCode.YOUTUBE:
-        raise HTTPException(422, detail="Only YouTube profiles can be written via API")
+        raise HTTPException(422, detail="Only YouTube and Facebook profiles can be written via API")
     result = profile_sync.sync_youtube(db, settings, get_redis(), channel)
     audit.record(
         db,
