@@ -15,7 +15,7 @@ from core.config import Settings, get_settings
 from core.enums import PlatformCode, UserRole
 from models import Channel, User
 from models.access import SystemSetting
-from services import platform_apps, tiktok
+from services import platform, platform_apps, tiktok
 from tests.conftest import login
 from tests.factories import build_chain
 
@@ -166,3 +166,54 @@ def test_instagram_keys_from_the_studio(
     assert res.status_code == 200, res.text
     q = parse_qs(urlparse(res.json()["url"]).query)
     assert q["client_id"] == ["1234567890"] and q["redirect_uri"] == [redirect]
+
+
+def test_meta_app_from_the_studio_connects_instagram_via_facebook_login(
+    db: Session, api: TestClient, make_user: Callable[..., User], base: Settings
+) -> None:
+    """New Meta apps only offer the Facebook login: a saved Meta app takes over Instagram."""
+    st = base.model_copy(
+        update={
+            "instagram_login": "instagram",
+            "instagram_app_id": "",
+            "instagram_app_secret": SecretStr(""),
+            "meta_app_id": "",
+            "meta_app_secret": SecretStr(""),
+        }
+    )
+    api.app.dependency_overrides[get_settings] = lambda: st  # type: ignore[attr-defined]
+    build_chain(db)
+    channel = db.scalar(select(Channel).where(Channel.platform.has(code=PlatformCode.INSTAGRAM)))
+    assert channel is not None
+    make_user("admin@example.com", UserRole.ADMIN)
+    db.commit()
+    h = login(api, "admin@example.com")
+
+    redirect = "https://studio.example/api/oauth/meta/callback"
+    bad = {"client_key": "555", "client_secret": "s", "redirect_uri": redirect, "config_id": "x1"}
+    res = api.put("/api/system/platform-apps/meta", json=bad, headers=h)
+    assert res.status_code == 422 and "Ziffern" in res.json()["detail"]
+
+    body = {"client_key": "555", "client_secret": "meta-s", "redirect_uri": redirect,
+            "config_id": "98765"}  # fmt: skip
+    res = api.put("/api/system/platform-apps/meta", json=body, headers=h)
+    assert res.status_code == 200, res.text
+    assert res.json()["config_id"] == "98765" and "meta-s" not in res.text
+
+    eff = platform_apps.apply(db, st)
+    assert eff.instagram_login == "facebook" and eff.meta_login_config_id == "98765"
+
+    res = api.post(f"/api/channels/{channel.id}/connect", headers=h)
+    assert res.status_code == 200, res.text
+    url = urlparse(res.json()["url"])
+    q = parse_qs(url.query)
+    assert url.netloc == "www.facebook.com"
+    assert q["client_id"] == ["555"] and q["redirect_uri"] == [redirect]
+    assert q["config_id"] == ["98765"] and "scope" not in q
+    state = q["state"][0]
+    assert platform.read_state(eff, "meta", state)[0] == channel.id
+
+    # an Instagram Login app, if present, keeps priority
+    platform_apps.save(db, st, "instagram", client_key="111", client_secret="ig",
+                       redirect_uri="", user_id=None)  # fmt: skip
+    assert platform_apps.apply(db, st).instagram_login == "instagram"

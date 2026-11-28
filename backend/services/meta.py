@@ -36,7 +36,7 @@ from core import crypto
 from core.config import Settings
 from core.enums import PlatformCode
 from models.channels import Channel, ChannelCredential
-from services import platform
+from services import platform, platform_apps
 from services.platform import AuthExpiredError, PlatformError, TransientError
 
 VERSION = "v25.0"
@@ -75,7 +75,10 @@ def scopes_for(platform_code: PlatformCode) -> tuple[str, ...]:
 
 def _app(settings: Settings) -> tuple[str, str]:
     if not settings.meta_app_id or not settings.meta_app_secret.get_secret_value():
-        raise platform.NotConfiguredError("Meta-App ist nicht eingerichtet")
+        raise platform.NotConfiguredError(
+            "Meta-App ist nicht eingerichtet: App-ID und App-Geheimcode im Studio unter "
+            "System → Meta-App eintragen"
+        )
     return settings.meta_app_id, settings.meta_app_secret.get_secret_value()
 
 
@@ -121,8 +124,12 @@ def authorization_url(settings: Settings, state: str, platform_code: PlatformCod
         "redirect_uri": settings.meta_oauth_redirect_uri,
         "state": state,
         "response_type": "code",
-        "scope": ",".join(scopes_for(platform_code)),
     }
+    if settings.meta_login_config_id:
+        # Facebook Login for Business: the configuration names the permissions
+        params["config_id"] = settings.meta_login_config_id
+    else:
+        params["scope"] = ",".join(scopes_for(platform_code))
     return f"{DIALOG_URL}?{urlencode(params)}"
 
 
@@ -199,6 +206,7 @@ def connect(
     session: Session, settings: Settings, channel: Channel, code: str, user_id: int
 ) -> ChannelCredential:
     """Code → long-lived user token → the one fitting Page token; stored encrypted."""
+    settings = platform_apps.apply(session, settings)
     platform_code = PlatformCode(channel.platform.code)
     user_token = _user_token(settings, code)
     me = _get("me", {"fields": "id", "access_token": user_token}, "Konto")

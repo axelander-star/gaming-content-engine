@@ -6,7 +6,7 @@ import { Badge, ErrorText, Section } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import type { PlatformAppStatus } from "@/lib/types";
 
-type Provider = "tiktok" | "instagram";
+type Provider = "tiktok" | "instagram" | "meta";
 
 const TEXT: Record<
   Provider,
@@ -20,12 +20,20 @@ const TEXT: Record<
     platform: "TikTok-Kanäle",
   },
   instagram: {
-    title: "Instagram-App",
+    title: "Instagram-App (älterer Instagram-Login)",
     key: "Instagram-App-ID",
     secret: "Instagram-App-Geheimcode",
     where:
       "Die Werte stehen bei developers.facebook.com in deiner App unter Instagram → API-Einrichtung mit Instagram-Login.",
     platform: "Instagram-Kanäle",
+  },
+  meta: {
+    title: "Meta-App (Instagram und Facebook)",
+    key: "App-ID",
+    secret: "App-Geheimcode",
+    where:
+      "Für neue Meta-Apps: App-ID und App-Geheimcode stehen bei developers.facebook.com unter App-Einstellungen → Allgemeines, die Konfigurations-ID unter Facebook Login for Business → Konfigurationen. Instagram verbindet sich dann über die verknüpfte Facebook-Seite.",
+    platform: "Instagram- und Facebook-Kanäle",
   },
 };
 
@@ -42,6 +50,7 @@ export function PlatformAppPanel({ provider }: { provider: Provider }) {
   const [key, setKey] = useState("");
   const [secret, setSecret] = useState("");
   const [redirect, setRedirect] = useState("");
+  const [configId, setConfigId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,6 +61,7 @@ export function PlatformAppPanel({ provider }: { provider: Provider }) {
       .then((d) => {
         setData(d);
         setKey(d.client_key);
+        setConfigId(d.config_id ?? "");
         setRedirect(d.redirect_uri_ok ? d.redirect_uri : suggestedRedirect(provider));
       })
       .catch(() => setData(null)); // not an admin, or older backend: no panel
@@ -68,6 +78,7 @@ export function PlatformAppPanel({ provider }: { provider: Provider }) {
         client_key: key.trim(),
         client_secret: secret.trim(),
         redirect_uri: redirect.trim(),
+        config_id: configId.trim(),
       });
       setData(d);
       setSecret("");
@@ -124,6 +135,17 @@ export function PlatformAppPanel({ provider }: { provider: Provider }) {
             required
           />
         </label>
+        {provider === "meta" && (
+          <label>
+            Konfigurations-ID (Facebook Login for Business)
+            <input
+              value={configId}
+              onChange={(e) => setConfigId(e.target.value)}
+              inputMode="numeric"
+              spellCheck={false}
+            />
+          </label>
+        )}
         <button className="btn btn-primary" disabled={busy}>
           {busy ? "Speichert …" : "Speichern"}
         </button>

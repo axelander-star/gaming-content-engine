@@ -100,6 +100,8 @@ class Settings(BaseSettings):
     meta_app_id: str = ""
     meta_app_secret: SecretStr = SecretStr("")
     meta_oauth_redirect_uri: str = "http://localhost:3000/api/oauth/meta/callback"
+    #: Facebook Login for Business: configuration id; replaces ``scope`` in the dialog.
+    meta_login_config_id: str = ""
     #: Instagram: 50 API posts per 24 h (content_publishing_limit); Facebook Pages: 30 Reels.
     instagram_daily_post_limit: int = Field(default=50, ge=0, le=50)
     facebook_daily_reels_limit: int = Field(default=30, ge=0, le=30)
