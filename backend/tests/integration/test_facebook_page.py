@@ -324,3 +324,40 @@ def test_profile_sync_endpoint_for_facebook(
     body = res.json()
     assert body["profile_sync"]["ok"] is True and body["mirror_of"] == ig.id
     assert body["missing_permissions"] == []
+
+
+def test_cover_carries_the_instagram_name_and_follows_changes(
+    db: Session, settings: Settings, fake: FakeGoogle
+) -> None:
+    """Regression 28.11.2026: the cover showed the YouTube banner with another name."""
+    ig, _ = instagram(db, settings)
+    youtube_banner = branding.store_png(settings, branding.banner_png("DailySchock", "x", "y"))
+    db.add(
+        ChannelSetupTask(
+            content_project_id=ig.content_project_id,
+            platform="youtube",
+            language=Language.DE,
+            status=ChannelSetupStatus.DONE,
+            display_name="DailySchock",
+            handle="dailyschock",
+            bio="YouTube",
+            text_source="template",
+            banner_uri=youtube_banner,
+        )
+    )
+    page_found(fake)
+    fb = facebook_page.link_from_instagram(db, settings, ig)
+    _profile_routes(fake)
+
+    res = facebook_page.run(db, settings)
+
+    task = db.get(ChannelSetupTask, ig.strategy["setup_task_id"])
+    assert task is not None and task.banner_uri and task.banner_uri != youtube_banner
+    assert res.synced == [fb.id] and fb.strategy["profile_sync"]["ok"] is True
+    assert facebook_page.run(db, settings).synced == []
+
+    # a new bio in the channel assistant goes to the Page by itself
+    task.bio = "Neue Beschreibung"
+    _profile_routes(fake)
+    assert facebook_page.run(db, settings).synced == [fb.id]
+    assert fake.sent("POST", f"{G}/{PAGE_ID}?")[-2].url.params["about"] == "Neue Beschreibung"

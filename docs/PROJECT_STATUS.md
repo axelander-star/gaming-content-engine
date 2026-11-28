@@ -33,6 +33,7 @@
 - **Überwachung (Agent 27 „Facebook Page“, alle 15 Min., `FACEBOOK_PAGE_SECONDS`):** übernimmt neu verbundene Seiten, aktualisiert den Token nach jedem neuen Instagram-Login, überträgt das Profil, spiegelt Videos, prüft alle 6 h den Seiten-Token (abgelaufen → Status „Abgelaufen“, Warnung über die Glocke) und meldet fehlende Rechte.
 - **Neue Rechte** im Meta-Login: `pages_manage_posts`, `pages_manage_metadata`, `business_management` (Instagram und Facebook). Mit Konfigurations-ID entscheidet die Login-Konfiguration bei Meta, dort müssen sie angehakt werden.
 - Dashboard: Einstellungen → Kanäle zeigt die Seite als „Facebook-Seite“ mit Hinweis „läuft automatisch mit …“, fehlenden Rechten, Profilstand und „Erneut übertragen“ (`POST /api/channels/{id}/profile-sync` gilt jetzt auch für Facebook).
+- **Korrektur 28.11. abends:** Das Titelbild kam aus dem YouTube-Banner und zeigte den YouTube-Namen. Jetzt hat die Instagram-Aufgabe im Kanal-Assistenten einen eigenen Banner (= Titelbild der Facebook-Seite) mit dem Instagram-Namen; bestehende Aufgaben bekommen ihn automatisch (Kunstwerk des Bereichs ohne Schrift, sonst lokal gezeichnet). Ändern sich Bio, Profilbild oder Titelbild im Assistenten, überträgt der Agent das Profil von selbst neu.
 - Nicht per API möglich: Seite anlegen (nicht nötig), Website-Feld (in der Referenz nicht als änderbar bestätigt).
 - **Betreiber:** Rechte in der Login-Konfiguration ergänzen, Instagram neu verbinden, in der Instagram-App „Automatisch auf Facebook teilen“ ausschalten (sonst doppelte Videos).
 
