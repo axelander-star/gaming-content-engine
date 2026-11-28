@@ -1,8 +1,8 @@
 """Platform app keys entered in the dashboard (27.11.2026).
 
-Until now the TikTok app (client key, client secret, redirect URI) could only be
+Until now the TikTok and Instagram apps (key, secret, redirect URI) could only be
 set as environment variables in the server's ``.env``, which needs SSH. The
-operator can now enter them in the dashboard (System → "Plattform-Apps"). They
+operator can now enter them in the dashboard (System → "TikTok-App" / "Instagram-App"). They
 are stored in ``system_settings`` under ``platform_app.<provider>``; the secret is
 encrypted with :mod:`core.crypto` and never returned by the API.
 
@@ -33,6 +33,7 @@ KEY_PREFIX = "platform_app."
 #: provider → (settings field of the key, of the secret, of the redirect URI)
 FIELDS: dict[str, tuple[str, str, str]] = {
     "tiktok": ("tiktok_client_key", "tiktok_client_secret", "tiktok_oauth_redirect_uri"),
+    "instagram": ("instagram_app_id", "instagram_app_secret", "instagram_oauth_redirect_uri"),
 }
 CALLBACK_PATH = "/api/oauth/{provider}/callback"
 MAX_LEN = 512

@@ -1413,6 +1413,7 @@ Phase 2: FastAPI-Backend, Datenmodell mit Alembic-Migration, Statusmaschine, Red
 | 15.11.2026 | Jeder Mediathek-Beitrag braucht eine menschliche Freigabe; YouTube standardmäßig privat, TikTok standardmäßig als Entwurf | Nichts geht ungeprüft raus; Entwurf ist der sicherste offizielle TikTok-Weg ohne Audit |
 | 15.11.2026 | Instagram-Login holt das Video über eine signierte, 15 Minuten gültige R2-Adresse | Meta erlaubt dort nur `video_url`; Dashboard und API bleiben privat |
 | 27.11.2026 | TikTok-App-Schlüssel im Studio unter System → TikTok-App eintragbar (verschlüsselt in `system_settings`), Vorrang vor `.env` | Der Betreiber hat keinen bequemen SSH-Weg; ein Entwicklerkonto (Kanalfabrik-Gmail) reicht für alle TikTok-Kanäle |
+| 28.11.2026 | Dasselbe für Instagram (Instagram-Login): System → Instagram-App | Gleicher Weg ohne SSH; eine Meta-App für alle Instagram-Kanäle |
 
 ## Offene Punkte
 

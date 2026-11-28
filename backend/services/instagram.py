@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 from core import crypto
 from core.config import Settings
 from models.channels import Channel, ChannelCredential
-from services import platform
+from services import platform, platform_apps
 from services.meta import ReelResult
 from services.meta import _check as check_graph
 from services.platform import AuthExpiredError, PlatformError, TransientError
@@ -56,7 +56,10 @@ MIN_TOKEN_AGE = timedelta(hours=24)
 
 def _app(settings: Settings) -> tuple[str, str]:
     if not settings.instagram_app_id or not settings.instagram_app_secret.get_secret_value():
-        raise platform.NotConfiguredError("Instagram-App ist nicht eingerichtet")
+        raise platform.NotConfiguredError(
+            "Instagram-App ist nicht eingerichtet: App-ID und App-Geheimcode im Studio unter "
+            "System → Instagram-App eintragen"
+        )
     return settings.instagram_app_id, settings.instagram_app_secret.get_secret_value()
 
 
@@ -138,6 +141,7 @@ def connect(
     session: Session, settings: Settings, channel: Channel, code: str, user_id: int
 ) -> ChannelCredential:
     """Code → long-lived token → account id; the token is stored encrypted."""
+    settings = platform_apps.apply(session, settings)
     short, scopes = _short_token(settings, code)
     token, expires_in = _long_token(settings, short)
     me = _get("me", {"fields": "user_id,username", "access_token": token}, "Konto")
