@@ -290,8 +290,12 @@ def test_pick_target_needs_exactly_one_fitting_page() -> None:
     with pytest.raises(platform.PlatformError, match="Keine"):
         meta.pick_target([{**PAGE, "tasks": ["ANALYZE"]}], PlatformCode.FACEBOOK)
     no_ig = {k: v for k, v in PAGE.items() if k != "instagram_business_account"}
-    with pytest.raises(platform.PlatformError, match="Instagram"):
+    with pytest.raises(platform.PlatformError, match="kein verknüpftes Instagram-Profikonto"):
         meta.pick_target([no_ig], PlatformCode.INSTAGRAM)
+    with pytest.raises(platform.PlatformError, match="keine einzige Seite"):
+        meta.pick_target([], PlatformCode.INSTAGRAM)
+    with pytest.raises(platform.PlatformError, match="kein Recht zum Veröffentlichen"):
+        meta.pick_target([{**PAGE, "tasks": ["ANALYZE"]}], PlatformCode.INSTAGRAM)
 
 
 def test_instagram_reel(fake: FakeGoogle, video: Path) -> None:
